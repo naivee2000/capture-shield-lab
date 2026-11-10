@@ -23,9 +23,25 @@ Earlier attempts correctly remained not-tested when recording permission was den
 | --- | --- |
 | Zoom | Not tested |
 | Google Meet | Not tested |
-| Microsoft Teams (Chrome web) | Whole-display baseline failed: receiver reported a fully dark screen with an ordinary window; protection compatibility remains unverified |
+| Teams, development Mac as sender | Whole-display baseline failed; see the earlier headless-host attempt below |
+| Teams, personal laptop as sender | Operator reports Legacy sharing stays visible locally, disappears at the receiver, and leaves other windows visible and updating; limited positive observation |
 
-### Teams attempt details
+### Personal laptop → Teams → development Mac: operator observation
+
+The operator subsequently clarified that this test ran on their **personal laptop**, sharing its **entire screen** through Teams to the development Mac. This is the opposite direction from the earlier failed trial below.
+
+| Mode | Sender's laptop screen | Received shared screen |
+| --- | --- | --- |
+| Ordinary | Visible | Visible |
+| Mask control | Visible | Visible |
+| Legacy sharing | Visible | Lab window absent; other windows remain visible and update normally |
+| Protected mask | Lab window absent | Lab window absent |
+
+This is a positive operator-reported observation of the desired **window-only visibility behavior** for Legacy sharing in that setup. Protected mask fails the local-visibility requirement in the reported laptop setup; absence from a capture alone is not success.
+
+Use Legacy sharing for further tests on that laptop. Do not generalize this result to other OS builds, meeting clients or capture modes. The exact laptop OS build, Teams client/version, source build, typed-input check, three repeated trials, and lifecycle/transition checks were not independently recorded. Physical visibility on the headless development host remains unconfirmed.
+
+### Earlier development Mac → Teams → laptop attempt
 
 - Sender: this macOS 26.6.2 host, Chrome 157.0.8103.39, Teams web meeting.
 - The Chrome picker explicitly selected Entire Screen with system audio off. Its screen thumbnail showed normal desktop content and the ordinary lab window.

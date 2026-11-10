@@ -5,6 +5,8 @@ A small, editable macOS experiment: can a window remain visible locally while di
 **Experimental. No universal invisibility claim. No ChatGPT integration yet.**
 The first release compares four window configurations and provides a separate, unfiltered ScreenCaptureKit recorder. Meeting compatibility must be tested on the receiving side; a local screenshot is not proof that Zoom, Meet, or Teams will behave the same way.
 
+**Current operator observation:** on the user's personal laptop, Teams whole-screen sharing with **Legacy sharing** kept the lab window visible locally while omitting it at the receiver; other windows continued updating. **Protected mask** disappeared locally as well, so it did not meet the goal in that setup. Start further testing on that laptop with Legacy sharing. This is a reported result for one setup, not universal certification; see [observed compatibility](docs/compatibility.md).
+
 ## Requirements
 
 - Apple Silicon Mac, macOS 26 or later. A newer OS is not automatically a verified OS.
@@ -53,7 +55,7 @@ The four modes are:
 | Mode | Purpose |
 | --- | --- |
 | Ordinary | A visible capture control |
-| Legacy sharing | Tests NSWindow.sharingType = .none; not trusted as protection |
+| Legacy sharing | Tests NSWindow.sharingType = .none; desired visibility behavior reported in one Teams whole-screen setup, without a general platform guarantee |
 | Mask control | Identical video-layer mask with protection disabled |
 | Protected mask | AVSampleBufferDisplayLayer.preventsCapture enabled |
 
