@@ -1,0 +1,42 @@
+#!/bin/bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+source "$ROOT/scripts/paths.sh"
+if [[ "$(uname -s)" != Darwin || "$(uname -m)" != arm64 ]]; then
+  echo 'Apple Silicon macOS is required.' >&2; exit 1
+fi
+if [[ "$(sw_vers -productVersion | cut -d. -f1)" -lt 26 ]]; then
+  echo 'macOS 26 or newer is required. New OS versions remain unverified until retested.' >&2; exit 1
+fi
+if ! xcode-select -p >/dev/null 2>&1; then
+  echo 'Install Apple Command Line Tools first: xcode-select --install' >&2; exit 1
+fi
+xcrun swift build
+BIN="$(xcrun swift build --show-bin-path)"
+for NAME in CaptureShieldLab CaptureProbe; do
+  APP="$APP_ROOT/$NAME.app"
+  mkdir -p "$APP/Contents/MacOS"
+  cp "$BIN/$NAME" "$APP/Contents/MacOS/$NAME"
+  chmod +x "$APP/Contents/MacOS/$NAME"
+  if [[ "$NAME" == CaptureShieldLab ]]; then SUFFIX=lab; else SUFFIX=probe; fi
+  cat > "$APP/Contents/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleExecutable</key><string>$NAME</string>
+<key>CFBundleIdentifier</key><string>dev.naivee2000.captureshield.$SUFFIX</string>
+<key>CFBundleName</key><string>$NAME</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleShortVersionString</key><string>0.1.0</string>
+<key>CFBundleVersion</key><string>1</string>
+<key>LSMinimumSystemVersion</key><string>26.0</string>
+<key>NSPrincipalClass</key><string>NSApplication</string>
+<key>NSHighResolutionCapable</key><true/>
+<key>NSScreenCaptureUsageDescription</key><string>Capture synthetic test content to measure window protection. No network upload.</string>
+</dict></plist>
+PLIST
+  codesign --force --sign - --identifier "dev.naivee2000.captureshield.$SUFFIX" "$APP"
+  codesign --verify --strict "$APP"
+done
+echo "Built both applications in $APP_ROOT"
