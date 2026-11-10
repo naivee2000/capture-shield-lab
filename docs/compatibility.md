@@ -23,6 +23,17 @@ Earlier attempts correctly remained not-tested when recording permission was den
 | --- | --- |
 | Zoom | Not tested |
 | Google Meet | Not tested |
-| Microsoft Teams (Chrome web) | Join route redirected to Microsoft login; operator handoff in progress, no shared-screen receiver result yet |
+| Microsoft Teams (Chrome web) | Whole-display baseline failed: receiver reported a fully dark screen with an ordinary window; protection compatibility remains unverified |
+
+### Teams attempt details
+
+- Sender: this macOS 26.6.2 host, Chrome 157.0.8103.39, Teams web meeting.
+- The Chrome picker explicitly selected Entire Screen with system audio off. Its screen thumbnail showed normal desktop content and the ordinary lab window.
+- Two fresh sharing streams were attempted. The receiver reported an entirely dark picture for the ordinary markers 2468 and 8642.
+- The lab process was then fully exited during the second stream; the receiver still reported black while an ordinary CaptureProbe results window was shown. A fresh third stream without the lab was not tested.
+- Teams console diagnostics included NotAllowedError / permissionDeniedError. Chrome's macOS recording switch was on; this does not by itself establish that every media request succeeded.
+- The system's display hardware report listed the Apple M4 GPU but no connected physical displays, while the graphical session exposed a 1920 × 1080 display. A headless/virtual-display interaction is a possible, unproven factor.
+- No protected-mode receiver pass is claimed because the visible control never passed. This is not evidence of successfully hiding only the lab window.
+- Sharing was stopped. Retest first with the lab closed on a Mac with an attached or built-in display, confirm a normal changing desktop reaches the receiver, and only then test the four lab modes.
 
 No meeting invitation, passcode, account data, or raw capture is stored in this document. Update a client result only after recording its actual client/version, sharing mode, receiver observations and trial count.
