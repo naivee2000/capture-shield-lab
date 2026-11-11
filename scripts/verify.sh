@@ -2,9 +2,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "$ROOT/scripts/paths.sh"
-if pgrep -x CaptureShieldLab >/dev/null || pgrep -x CaptureProbe >/dev/null; then
-  echo 'Quit CaptureShieldLab and CaptureProbe before rebuilding (Cmd-Q), then rerun this command.' >&2; exit 1
-fi
+require_stopped_build_apps
 bash "$ROOT/scripts/build.sh"
 mkdir -p "$ROOT/artifacts"
 open "$APP_ROOT/CaptureProbe.app" --args --output "$ROOT/artifacts"

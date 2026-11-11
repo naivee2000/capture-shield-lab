@@ -15,6 +15,7 @@ The operator reports that **Legacy hides the current chat window from the other 
 | New whole-display/meeting capture | Not tested in this revision; previous results remain separately recorded below |
 | Chinese IME candidates / receiver-side prediction windows | Not tested; system candidate windows are outside app-owned window settings |
 | Icon and local build | Original SVG/PNG/ICNS generated, visually inspected; both app bundles include the icon and pass local signing checks |
+| Clean-clone reproducibility | Source `da346af` built and signed both applications from a fresh clone; all 32 tests passed and the clone stayed clean. Same host, not an independent second computer |
 
 Temporary debugging emitted only control metadata, never field values or conversations, and was removed from the source. QA app identifiers and stores were separate from normal-use builds. Test-only captures and debugging files are not delivered through Git.
 

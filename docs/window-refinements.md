@@ -24,3 +24,5 @@ Approved: ordinary NSWindow behavior; native draggable title/toolbar; Normal (op
 - Final regression suite: 32 tests passed across six suites. Temporary layout diagnostics were removed. Native UI checks and the signed-out real page remain separate from physical local/receiver certification.
 
 - Added and verified a regression for a known collapsed sidebar opener that is transparent until hover. The native toolbar can select it by its explicit sidebar target and collapsed ARIA state, without broad button matching.
+- Clean-clone verification of source commit `da346af`: both applications built and passed local signature verification; all 32 tests passed and the clone remained clean. This was a fresh checkout on the development host, not a second physical computer.
+- Launch scripts now check whether the exact app bundle being rebuilt is running, so unrelated isolated QA copies do not block normal development. Shell syntax checks passed; an inactive target was accepted and a running QA target was rejected.
