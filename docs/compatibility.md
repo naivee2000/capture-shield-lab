@@ -13,6 +13,7 @@ These results are separate from the earlier native-editor observations below.
 | Offline synthetic WebView | Actual UI rendered; Unicode/Chinese plain-text paste, complete synthetic streaming reply and suppressed right-click menu observed |
 | Automated behavior suite | 19 tests passed, including repeated-hide and file/image paste regressions |
 | Build / local signing | Both applications built and code signatures verified; final QA bundles built separately from the login window |
+| Clean-clone reproducibility | Source c4a06d6 built and signed both apps from a fresh clone; all 19 tests passed and the clone stayed clean. Same host, not an independent second computer |
 | Independent WebView full-display capture | Not tested: macOS TCC denied the rebuilt QA verifier; all four stages and meeting rows remained not-tested |
 | Physical local ChatGPT visibility and three laptop-to-Teams receiver trials | Not tested |
 | Live website popups, restart login persistence, confirmed local-data clearing, global shortcut in another app | Not tested end-to-end; source behavior is implemented |
