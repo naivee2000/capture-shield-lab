@@ -9,6 +9,7 @@ The user requested source delivery first and a questionnaire for later laptop/re
 | Check | Observed result |
 | --- | --- |
 | Automated suite | 50 tests in 12 suites passed after the independent review fixes, including native upload, stale consent, image limits, recovery UI and recorder finalization |
+| Clean-clone reproducibility | Source `1b42260` built and locally signed both apps from a fresh clone; all 50 tests passed and the clone stayed clean. Same development host, not an independent second computer |
 | Offline native UI | Synthetic image displayed, cropped to the question and attached (5,208 bytes); no message sent. A typed draft survived mode changes and Cmd-Option-Up moved the actual window by 40 points |
 | Experimental pointer UI | Legacy-only toggle changed on/off; Esc restored its off state. These control states do not certify local pointer pixels or receiver output |
 | CaptureProbe UI | Separate full-display + cursor recording control rendered. New recording was not started during this task |

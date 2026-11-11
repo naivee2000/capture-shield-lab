@@ -22,7 +22,7 @@ Single-display screenshot, app-owned crop preview, explicit attachment confirmat
 
 ## Evidence
 
-Source implementation and review fixes are complete. Clean-clone delivery verification is pending below. Live ChatGPT, screenshot permission, recording and physical-local/receiver checks remain not-tested unless explicitly recorded.
+Source implementation and review fixes are complete. Clean-clone delivery verification is recorded below. Live ChatGPT, screenshot permission, recording and physical-local/receiver checks remain not-tested unless explicitly recorded.
 
 - Core tests failed on unchanged movement, absent crop mapping and missing consent handling, then passed after implementation.
 - Image decoding/storage tests failed before implementation. Orientation and active-store isolation now pass. ImageIO generates harmless color/dimension EXIF fields; the metadata assertion checks removal of the source comment and GPS rather than rejecting newly generated color metadata.
@@ -31,3 +31,5 @@ Source implementation and review fixes are complete. Clean-clone delivery verifi
 - Final independent review found concurrent Stop/Quit and self-cancelled auto-stop finalization defects. The reviewer also found covered preview errors and a disabled re-confirm button after fallback; these were regraded as important because they block recovery. All four were reproduced with failing tests, fixed in one pass, and the complete suite passed 50 tests in 12 suites. No deferred minor findings.
 - The review declined live ChatGPT, physical-local/Teams, real IME/sheets and unfinished delivery checks. Ruling: live/receiver/IME checks remain explicitly not-tested per the user's delivery-first request; documentation and reproducibility remain required before delivery.
 - Actual isolated offline UI: native preview displayed correctly; drag crop selected the question; its cropped image appeared as a 5,208-byte attachment without sending. A draft survived mode changes and Cmd-Option-Up moved the actual window from screen Y=160 to Y=120 (40 points). Legacy-only experimental cursor toggle and Esc-to-off were observed, not a physical-local or receiver verdict. Changed the cursor toolbar control to a compact icon to reduce overflow.
+- Fresh-clone check of `1b42260`: both apps built and passed local signature verification; all 50 tests in 12 suites passed and git status remained clean. This was on the development host, not a second physical Mac.
+- The independent recorder UI rendered its full-display + cursor control. Both task-created QA windows were closed; public window metadata confirmed zero visible QA windows. No browser tabs were opened or closed, no app was quit as cleanup, and no account session was used for tests.
