@@ -2,6 +2,23 @@
 
 Date: 2026-11-10. Development host: Apple Silicon, macOS 26.6.2 (25G83), 1920 × 1080 display.
 
+## Version 0.2: ChatGPT / WebView
+
+These results are separate from the earlier native-editor observations below.
+
+| Check | Observed result |
+| --- | --- |
+| Official ChatGPT page in persistent WKWebView | Homepage, sidebar, text input and official sign-in dialog loaded; no website rejection encountered at this point |
+| Account login, original history, authenticated responses, restart persistence | Not tested: account owner sign-in pending |
+| Offline synthetic WebView | Actual UI rendered; Unicode/Chinese plain-text paste, complete synthetic streaming reply and suppressed right-click menu observed |
+| Automated behavior suite | 19 tests passed, including repeated-hide and file/image paste regressions |
+| Build / local signing | Both applications built and code signatures verified; final QA bundles built separately from the login window |
+| Independent WebView full-display capture | Not tested: macOS TCC denied the rebuilt QA verifier; all four stages and meeting rows remained not-tested |
+| Physical local ChatGPT visibility and three laptop-to-Teams receiver trials | Not tested |
+| Live website popups, restart login persistence, confirmed local-data clearing, global shortcut in another app | Not tested end-to-end; source behavior is implemented |
+
+No raw screenshots, cookies or chat history are included. A blank window-only screenshot under Legacy is not proof of the intended whole-display behavior. Refresh the final installed CaptureProbe permission if needed, then repeat both capture orders with Synthetic WebView and complete the separate receiver-side tests. The earlier native text result must not be presented as a ChatGPT/WebView pass.
+
 ## Local independent SCStream run
 
 Both orders were exercised: capture before the window appeared, and window before capture started. Each run used twelve fresh stable-state samples per mode, with no window/application exclusions.

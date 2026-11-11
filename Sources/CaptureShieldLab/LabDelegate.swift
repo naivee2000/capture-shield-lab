@@ -44,6 +44,8 @@ import CaptureCore
     private var mode: ProtectionMode = .ordinary
     private var validity = RunValidity()
     private var observers: [NSObjectProtocol] = []
+    private var syntheticWeb: SyntheticWebContent?
+    private var pasteMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let args = CommandLine.arguments
@@ -51,6 +53,7 @@ import CaptureCore
             session = URL(fileURLWithPath: args[index + 1], isDirectory: true)
         }
         installMenu()
+        pasteMonitor = PlainTextPaste.installMonitor()
         panel = LabPanel(contentRect: NSRect(x: 180, y: 200, width: 640, height: 440),
                         styleMask: [.borderless], backing: .buffered, defer: false)
         panel.title = "CaptureShield Lab"
@@ -82,7 +85,8 @@ import CaptureCore
     private func buildContent() {
         let drag = DragBar()
         let brand = label("CAPTURE / SHIELD", size: 13, color: .systemTeal, weight: .bold)
-        let title = label("Window protection lab", size: 25, color: .white, weight: .semibold)
+        let usesWeb = CommandLine.arguments.contains("--web-test")
+        let title = label(usesWeb ? "WebView protection lab" : "Window protection lab", size: 25, color: .white, weight: .semibold)
         let subtitle = label("Experimental · use synthetic text only", size: 12, color: .lightGray)
         selector = NSSegmentedControl(labels: ProtectionMode.allCases.map(\.title), trackingMode: .selectOne,
                                       target: self, action: #selector(changeMode(_:)))
@@ -100,12 +104,16 @@ import CaptureCore
         editor.autoresizingMask = [.width]; editor.textContainer?.widthTracksTextView = true
         editor.string = "CAPTURE TEST — SYNTHETIC CONTENT\n\nType here to confirm local visibility and editing.\nThis window is experimental, not verified private.\n\nLook for the entire background in the receiver's view.\nA black rectangle is a failure."
         editor.setAccessibilityLabel("Synthetic test editor"); scroll.documentView = editor
+        let testContent: NSView
+        if usesWeb {
+            let web = SyntheticWebContent(); syntheticWeb = web; testContent = web.view
+        } else { testContent = scroll }
         status = label("Ordinary window · expected to appear in captures", size: 11, color: .lightGray)
         status.maximumNumberOfLines = 2
         let hide = NSButton(title: "Hide for 3 seconds", target: self, action: #selector(hideBriefly))
         let quit = NSButton(title: "Quit", target: self, action: #selector(quitApp))
         let grip = ResizeGrip()
-        for view in [drag, brand, title, subtitle, selector!, scroll, status!, hide, quit, grip] {
+        for view in [drag, brand, title, subtitle, selector!, testContent, status!, hide, quit, grip] {
             view.translatesAutoresizingMaskIntoConstraints = false; content.addSubview(view)
         }
         NSLayoutConstraint.activate([
@@ -117,8 +125,8 @@ import CaptureCore
             selector.topAnchor.constraint(equalTo: subtitle.bottomAnchor, constant: 17),
             selector.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 24),
             selector.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -24),
-            scroll.topAnchor.constraint(equalTo: selector.bottomAnchor, constant: 15), scroll.leadingAnchor.constraint(equalTo: selector.leadingAnchor),
-            scroll.trailingAnchor.constraint(equalTo: selector.trailingAnchor), scroll.bottomAnchor.constraint(equalTo: status.topAnchor, constant: -10),
+            testContent.topAnchor.constraint(equalTo: selector.bottomAnchor, constant: 15), testContent.leadingAnchor.constraint(equalTo: selector.leadingAnchor),
+            testContent.trailingAnchor.constraint(equalTo: selector.trailingAnchor), testContent.bottomAnchor.constraint(equalTo: status.topAnchor, constant: -10),
             status.leadingAnchor.constraint(equalTo: selector.leadingAnchor), status.trailingAnchor.constraint(equalTo: selector.trailingAnchor),
             status.bottomAnchor.constraint(equalTo: hide.topAnchor, constant: -10),
             hide.leadingAnchor.constraint(equalTo: selector.leadingAnchor), hide.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -17),
@@ -185,13 +193,14 @@ import CaptureCore
             panel.setFrame(command.frame, display: false); apply(command.mode)
             if command.visible && content.healthError == nil { panel.orderFrontRegardless() }
         }
-        if let error = content.healthError { content.failClosed(error); panel.orderOut(nil) }
+        if let error = content.healthError ?? syntheticWeb?.error { content.failClosed(error); panel.orderOut(nil) }
         writeState()
     }
     private func writeState() {
         guard let session else { return }
-        let state = LabState(revision: revision, mode: mode, visible: panel.isVisible, ready: content.healthError == nil,
-                             windowNumber: panel.windowNumber, frame: panel.frame, error: content.healthError)
+        let state = LabState(revision: revision, mode: mode, visible: panel.isVisible,
+                             ready: content.healthError == nil && (syntheticWeb?.ready ?? true),
+                             windowNumber: panel.windowNumber, frame: panel.frame, error: content.healthError ?? syntheticWeb?.error)
         guard let data = try? JSONEncoder().encode(state), data != lastStateData else { return }
         do {
             try data.write(to: session.appendingPathComponent("state.json"), options: .atomic); lastStateData = data

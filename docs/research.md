@@ -14,6 +14,17 @@ Checked 2026-11-10. Documentation and experimental evidence are different kinds 
 
 The app implements the mask idea with native Apple APIs; it does not copy an existing third-party app, modify ChatGPT, inject code, or use private WindowServer APIs. A normal launcher cannot confer this protection on another process's existing windows.
 
+## ChatGPT web integration
+
+- [Apple WKWebView](https://developer.apple.com/documentation/webkit/wkwebview) and [WKWebsiteDataStore](https://developer.apple.com/documentation/webkit/wkwebsitedatastore): native web rendering with persistent or nonpersistent website storage. This does not establish that OpenAI supports every third-party embedded environment.
+- [Apple WKUIDelegate](https://developer.apple.com/documentation/webkit/wkuidelegate): popup creation, JavaScript dialogs, file pickers and media permissions. App-owned windows need their own capture settings.
+- [Google OAuth secure-browser policy](https://developers.google.com/identity/protocols/oauth2/policies#use-secure-browsers): embedded user agents can be blocked. Switching rendering engines does not remove this restriction.
+- [OpenAI password settings](https://help.openai.com/en/articles/4936828-resetting-or-changing-your-chatgpt-password) and [account settings](https://help.openai.com/en/articles/4936827-changing-your-openai-account-email-address): existing social-login users may add an OpenAI password when their account offers it. The account owner performs credential changes, not the agent.
+- [Apple ASWebAuthenticationSession](https://developer.apple.com/documentation/authenticationservices/aswebauthenticationsession): an app-specific authorization callback mechanism, not a general transfer of Safari/Chrome login cookies into WKWebView.
+- [OpenAI Sign in with ChatGPT](https://developers.openai.com/siwc/token-sharing-open-source): eligible plan usage for API inference does not grant access to existing ChatGPT conversations. This is a different integration route and is not implemented in this website-based release.
+
+The approved route uses the unmodified official website, the normal WebKit user agent and no injected scripts in the real ChatGPT session. Synthetic HTML is confined to the offline lab.
+
 ## Development skills used
 
 - [Matt Pocock research](https://github.com/mattpocock/skills/blob/main/skills/engineering/research/SKILL.md): primary-source research and explicit evidence.

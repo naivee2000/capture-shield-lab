@@ -16,6 +16,22 @@ Use an ignored file under artifacts/ or the report directory. Record:
 
 Do not store meeting invitation URLs, passcodes, login data, cookies, or real chat content in Git.
 
+## ChatGPT and WebView checks (0.2)
+
+First run the disposable WebView with `bash scripts/dev.sh --web-test`. In CaptureProbe choose **Synthetic WebView** and test both capture orders. Do not have a real chat window overlapping the test display. After recording, select Legacy and Protected mask in turn and confirm each only from the actual local screen.
+
+Then validate the real ChatGPT window with synthetic messages:
+
+1. Sign in personally, verify the original account/history, create a fresh test chat and receive a complete reply. Never give the agent your password or OTP.
+2. Send a follow-up, use Chinese input, copy a reply, scroll, navigate back/forward and open an HTTPS link. Popup windows must stay within the app with Legacy set before display.
+3. Restart the app and check whether the session persists. Restore the app after disconnecting an external display; its window should be on a remaining display.
+4. Test Cmd-Shift-Space with both the app and another app focused. Main, popup and attached dialog windows should all disappear together and return together. Shortcut conflicts must be reported.
+5. Test loss of network and Reload. A terminated WebKit content process must show a recovery message; never automatically resubmit a prompt.
+6. Test **Clear login…** only when you intend to sign this app out: Cancel must preserve the session; Confirm must close popups and return to a fresh signed-out page, without back-navigation into old private pages. Cloud history remains unchanged.
+7. File pickers, downloads and microphone/camera requests are unsupported in this version. System candidate windows and OS dialogs are separate surfaces; record their behavior separately.
+
+For each of three laptop-to-receiver Teams trials, record source commit, client/OS versions, startup order, local text entry and complete receiver background. Other windows must visibly continue updating. A synthetic WebView pass is not a claim that the live website, dialogs or every capture method passes.
+
 ## Local interaction checks
 
 Test ordinary, legacy, unprotected mask and protected mask. Use only synthetic content.

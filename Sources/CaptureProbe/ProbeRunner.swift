@@ -9,6 +9,7 @@ final class ProbeRunner {
     let directory: URL
     let session: URL
     let captureFirst: Bool
+    let web: Bool
     var progress: (String) -> Void = { _ in }
     private var commandRevision = 0
     private var lab: NSRunningApplication?
@@ -17,8 +18,8 @@ final class ProbeRunner {
     private var comparisons: [ProtectionMode: [Comparison]] = [:]
     private var controlsVisible = false
 
-    init(screen: NSScreen, output: URL, captureFirst: Bool) throws {
-        self.screen = screen; self.captureFirst = captureFirst
+    init(screen: NSScreen, output: URL, captureFirst: Bool, web: Bool = false) throws {
+        self.screen = screen; self.captureFirst = captureFirst; self.web = web
         let id = UUID().uuidString
         directory = output.appendingPathComponent(id, isDirectory: true)
         session = FileManager.default.temporaryDirectory.appendingPathComponent("CaptureShield-\(id)", isDirectory: true)
@@ -33,6 +34,7 @@ final class ProbeRunner {
                            pixelWidth: Int(screen.frame.width * screen.backingScaleFactor),
                            pixelHeight: Int(screen.frame.height * screen.backingScaleFactor),
                            testFrame: panelFrame, order: captureFirst ? "capture-before-window" : "window-before-capture")
+        report.surface = web ? "synthetic-webview" : "native-editor"
     }
 
     func run() async {
@@ -48,7 +50,7 @@ final class ProbeRunner {
             }
             let config = NSWorkspace.OpenConfiguration()
             config.activates = false; config.createsNewApplicationInstance = true
-            config.arguments = ["--session", session.path]
+            config.arguments = ["--session", session.path] + (web ? ["--web-test"] : [])
             lab = try await NSWorkspace.shared.openApplication(at: labURL, configuration: config)
             let mainHeight = NSScreen.screens.first?.frame.height ?? screen.frame.height
             let quartzFrame = CGRect(x: panelFrame.minX, y: mainHeight - panelFrame.maxY,
@@ -118,7 +120,8 @@ final class ProbeRunner {
             }
             updateCandidateResults()
             try save()
-            progress("Capture finished. Check that the protected window is visible and editable locally before confirming.")
+            try await previewCandidate(.legacy)
+            progress("Capture finished. Legacy is shown. Check local visibility/input before confirming; select Protected mask to check it separately.")
         } catch {
             await capture?.stop(); capture = nil
             report.error = error.localizedDescription
@@ -135,12 +138,18 @@ final class ProbeRunner {
         }
     }
 
-    func confirmLocal(_ canSeeAndType: Bool) throws {
-        guard report.error == nil, comparisons[.protectedMask] != nil else {
+    func previewCandidate(_ mode: ProtectionMode) async throws {
+        guard report.error == nil, mode == .legacy || mode == .protectedMask, comparisons[mode] != nil else {
+            throw ProbeError.message("Complete a capture run before selecting a candidate.")
+        }
+        try await command(mode: mode, visible: true)
+    }
+    func confirmLocal(_ canSeeAndType: Bool, mode: ProtectionMode) throws {
+        guard report.error == nil, mode == .legacy || mode == .protectedMask, comparisons[mode] != nil else {
             throw ProbeError.message("Complete a capture run before confirming.")
         }
-        try checkLab(mode: .protectedMask, visible: true)
-        if let i = report.stages.firstIndex(where: { $0.mode == .protectedMask }) {
+        try checkLab(mode: mode, visible: true)
+        if let i = report.stages.firstIndex(where: { $0.mode == mode }) {
             report.stages[i].localConfirmed = canSeeAndType
         }
         updateCandidateResults(); try save()
@@ -195,6 +204,7 @@ final class ProbeRunner {
     func save() throws {
         try SessionIO.write(report, to: directory.appendingPathComponent("report.json"))
         var text = "# CaptureShield Lab run\n\nID: \(report.id)\n\nOS: \(report.os)\n\nOrder: \(report.order)\n\n"
+        text += "Surface: \(report.surface ?? "native-editor")\n\n"
         text += "Method: \(report.captureMethod). Cursor omitted; no audio. Local samples do not certify meeting apps or short flashes.\n\n"
         for stage in report.stages {
             text += "- **\(stage.mode.title): \(stage.verdict.rawValue)** — \(stage.reason)\n"

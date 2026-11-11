@@ -2,7 +2,17 @@ import AppKit
 import CaptureCore
 
 let app = NSApplication.shared
-let delegate = LabDelegate()
+let mode: LaunchMode
+do { mode = try LaunchMode.parse(Array(CommandLine.arguments.dropFirst())) }
+catch {
+    fputs("Usage: CaptureShieldLab [--lab | --web-test] [--session /absolute/test/directory]\n", stderr)
+    exit(2)
+}
+let delegate: any NSApplicationDelegate
+switch mode {
+case .chat: delegate = ChatDelegate()
+case .lab: delegate = LabDelegate()
+}
 app.setActivationPolicy(.regular)
 app.delegate = delegate
 app.run()

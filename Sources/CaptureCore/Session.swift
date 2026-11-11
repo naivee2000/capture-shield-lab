@@ -78,12 +78,13 @@ public struct MeetingResult: Codable, Sendable {
 }
 
 public struct RunReport: Codable, Sendable {
-    public var schemaVersion = 1
+    public var schemaVersion = 2
     public var id: String
     public var createdAt = Date()
     public var os: String
     public var architecture = "arm64"
-    public var appVersion = "0.1.0"
+    public var appVersion = "0.2.0"
+    public var surface: String? = "native-editor"
     public var captureMethod = "ScreenCaptureKit SCStream, full display, empty exclusion list"
     public var displayID: UInt32
     public var displayFrame: CGRect

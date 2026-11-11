@@ -1,6 +1,6 @@
 # Implementation record
 
-Approved scope: native editable macOS 26 / Apple Silicon capture-protection experiment, separate unfiltered full-display capture app, truthful results, private GitHub source delivery to naivee2000/capture-shield-lab. No ChatGPT integration.
+Original 0.1 scope: native editable macOS 26 / Apple Silicon capture-protection experiment, separate unfiltered full-display capture app, truthful results, private GitHub source delivery to naivee2000/capture-shield-lab. ChatGPT integration was approved subsequently; see [the 0.2 execution record](chat-implementation.md).
 
 ## Decisions
 

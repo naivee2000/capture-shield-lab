@@ -12,6 +12,11 @@ fi
 if ! xcode-select -p >/dev/null 2>&1; then
   echo 'Install Apple Command Line Tools first: xcode-select --install' >&2; exit 1
 fi
+SWIFT_VERSION="$(xcrun swift --version | sed -nE 's/.*Swift version ([0-9]+)\.([0-9]+).*/\1 \2/p' | head -1)"
+read -r SWIFT_MAJOR SWIFT_MINOR <<< "$SWIFT_VERSION"
+if [[ -z "${SWIFT_MAJOR:-}" || "$SWIFT_MAJOR" -lt 6 || ( "$SWIFT_MAJOR" -eq 6 && "$SWIFT_MINOR" -lt 2 ) ]]; then
+  echo 'Swift 6.2 or later is required. Update Apple Command Line Tools or select a compatible Xcode.' >&2; exit 1
+fi
 xcrun swift build
 BIN="$(xcrun swift build --show-bin-path)"
 for NAME in CaptureShieldLab CaptureProbe; do
@@ -28,8 +33,8 @@ for NAME in CaptureShieldLab CaptureProbe; do
 <key>CFBundleIdentifier</key><string>dev.naivee2000.captureshield.$SUFFIX</string>
 <key>CFBundleName</key><string>$NAME</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.1.0</string>
-<key>CFBundleVersion</key><string>1</string>
+<key>CFBundleShortVersionString</key><string>0.2.0</string>
+<key>CFBundleVersion</key><string>2</string>
 <key>LSMinimumSystemVersion</key><string>26.0</string>
 <key>NSPrincipalClass</key><string>NSApplication</string>
 <key>NSHighResolutionCapable</key><true/>

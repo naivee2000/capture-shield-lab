@@ -19,6 +19,8 @@ import CaptureCore
     private var background: NSWindow?
     private var screens: NSPopUpButton!
     private var order: NSPopUpButton!
+    private var surface: NSPopUpButton!
+    private var candidate: NSPopUpButton!
     private var status: NSTextField!
     private var runningStatus: NSTextField?
     private var summary: NSTextView!
@@ -56,6 +58,11 @@ import CaptureCore
         }
         order = NSPopUpButton(); order.setAccessibilityLabel("Capture order")
         order.addItems(withTitles: ["Capture starts before the window appears", "Window appears before capture starts"])
+        surface = NSPopUpButton(); surface.setAccessibilityLabel("Test content")
+        surface.addItems(withTitles: ["Synthetic WebView", "Native text editor"])
+        candidate = NSPopUpButton(); candidate.setAccessibilityLabel("Local confirmation mode")
+        candidate.addItems(withTitles: ["Legacy sharing", "Protected mask"])
+        candidate.target = self; candidate.action = #selector(selectCandidate); candidate.isEnabled = false
         start = NSButton(title: "Start capture test", target: self, action: #selector(startRun))
         start.bezelStyle = .rounded; start.keyEquivalent = "\r"
         status = label("Ready. Screen Recording permission is requested only when you start.", size: 12)
@@ -67,11 +74,11 @@ import CaptureCore
         summary.autoresizingMask = [.width]; summary.textContainer?.widthTracksTextView = true
         summary.string = "Results appear here.\n\nPASS requires captured background to match AND a person to confirm that the protected window is locally visible and editable.\n\nA black rectangle is FAIL.\nMissing controls or permissions are NOT TESTED.\n\nReports and cropped evidence stay on this Mac."
         scroll.documentView = summary
-        confirmYes = NSButton(title: "I can see AND type in protected mode", target: self, action: #selector(confirmVisible))
+        confirmYes = NSButton(title: "I can see AND type", target: self, action: #selector(confirmVisible))
         confirmNo = NSButton(title: "Cannot see / type", target: self, action: #selector(confirmInvisible))
         confirmYes.isEnabled = false; confirmNo.isEnabled = false
         folder = NSButton(title: "Open report folder", target: self, action: #selector(openFolder)); folder.isEnabled = false
-        for view in [title, detail, screens!, order!, start!, status!, scroll, confirmYes!, confirmNo!, folder!] {
+        for view in [title, detail, screens!, order!, surface!, candidate!, start!, status!, scroll, confirmYes!, confirmNo!, folder!] {
             view.translatesAutoresizingMaskIntoConstraints = false; root.addSubview(view)
         }
         NSLayoutConstraint.activate([
@@ -81,12 +88,14 @@ import CaptureCore
             screens.topAnchor.constraint(equalTo: detail.bottomAnchor, constant: 18), screens.leadingAnchor.constraint(equalTo: title.leadingAnchor),
             screens.widthAnchor.constraint(equalToConstant: 320), order.leadingAnchor.constraint(equalTo: screens.trailingAnchor, constant: 12),
             order.centerYAnchor.constraint(equalTo: screens.centerYAnchor), order.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -26),
-            start.topAnchor.constraint(equalTo: screens.bottomAnchor, constant: 15), start.leadingAnchor.constraint(equalTo: title.leadingAnchor),
+            surface.topAnchor.constraint(equalTo: screens.bottomAnchor, constant: 12), surface.leadingAnchor.constraint(equalTo: title.leadingAnchor),
+            start.topAnchor.constraint(equalTo: surface.bottomAnchor, constant: 12), start.leadingAnchor.constraint(equalTo: title.leadingAnchor),
             status.leadingAnchor.constraint(equalTo: start.trailingAnchor, constant: 16), status.centerYAnchor.constraint(equalTo: start.centerYAnchor),
             status.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -26),
             scroll.topAnchor.constraint(equalTo: start.bottomAnchor, constant: 18), scroll.leadingAnchor.constraint(equalTo: title.leadingAnchor),
             scroll.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -26), scroll.bottomAnchor.constraint(equalTo: confirmYes.topAnchor, constant: -14),
-            confirmYes.leadingAnchor.constraint(equalTo: title.leadingAnchor), confirmYes.bottomAnchor.constraint(equalTo: folder.topAnchor, constant: -12),
+            candidate.leadingAnchor.constraint(equalTo: title.leadingAnchor), candidate.centerYAnchor.constraint(equalTo: confirmYes.centerYAnchor),
+            confirmYes.leadingAnchor.constraint(equalTo: candidate.trailingAnchor, constant: 12), confirmYes.bottomAnchor.constraint(equalTo: folder.topAnchor, constant: -12),
             confirmNo.leadingAnchor.constraint(equalTo: confirmYes.trailingAnchor, constant: 12), confirmNo.centerYAnchor.constraint(equalTo: confirmYes.centerYAnchor),
             folder.leadingAnchor.constraint(equalTo: title.leadingAnchor), folder.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -20)
         ])
@@ -117,10 +126,11 @@ import CaptureCore
             status.stringValue = "Selected display was disconnected. Relaunch CaptureProbe and select the display again."; return
         }
         runner?.stopLab(); background?.close(); tick?.invalidate()
-        confirmYes.isEnabled = false; confirmNo.isEnabled = false
+        confirmYes.isEnabled = false; confirmNo.isEnabled = false; candidate.isEnabled = false
         do {
             let screen = currentScreens[screenIndex]
-            let next = try ProbeRunner(screen: screen, output: output, captureFirst: order.indexOfSelectedItem == 0)
+            let next = try ProbeRunner(screen: screen, output: output, captureFirst: order.indexOfSelectedItem == 0,
+                                       web: surface.indexOfSelectedItem == 0)
             runner = next
             next.progress = { [weak self] message in self?.status.stringValue = message; self?.runningStatus?.stringValue = message }
             showBackground(on: screen)
@@ -132,6 +142,7 @@ import CaptureCore
                 self.tick?.invalidate()
                 self.confirmYes.isEnabled = next.report.error == nil
                 self.confirmNo.isEnabled = next.report.error == nil
+                self.candidate.selectItem(at: 0); self.candidate.isEnabled = next.report.error == nil
                 self.refreshSummary()
                 self.window.makeKeyAndOrderFront(nil)
                 NSApp.activate()
@@ -174,9 +185,23 @@ import CaptureCore
     }
     @objc private func confirmVisible() { confirm(true) }
     @objc private func confirmInvisible() { confirm(false) }
+    @objc private func selectCandidate() {
+        guard task == nil, let runner else { return }
+        let mode: ProtectionMode = candidate.indexOfSelectedItem == 0 ? .legacy : .protectedMask
+        confirmYes.isEnabled = false; confirmNo.isEnabled = false; start.isEnabled = false; candidate.isEnabled = false
+        task = Task { [weak self] in
+            guard let self else { return }
+            defer { self.task = nil; self.start.isEnabled = true; self.candidate.isEnabled = true }
+            do {
+                try await runner.previewCandidate(mode)
+                self.status.stringValue = "Inspect \(mode.title) on the actual local screen, then confirm visibility and typing."
+                self.confirmYes.isEnabled = true; self.confirmNo.isEnabled = true
+            } catch { self.status.stringValue = error.localizedDescription }
+        }
+    }
     private func confirm(_ value: Bool) {
         do {
-            try runner?.confirmLocal(value); refreshSummary()
+            try runner?.confirmLocal(value, mode: candidate.indexOfSelectedItem == 0 ? .legacy : .protectedMask); refreshSummary()
             status.stringValue = "Local observation recorded. Meeting compatibility remains untested."
             confirmYes.isEnabled = false; confirmNo.isEnabled = false
         } catch { status.stringValue = error.localizedDescription }
