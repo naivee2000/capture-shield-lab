@@ -6,3 +6,4 @@
 - Distinguish source/build reproducibility, ChatGPT usability and capture compatibility. Never infer local visibility or meeting success from a captured image alone.
 - Preserve the synthetic lab and independent recorder. Capture tests must not use the real ChatGPT website data store.
 - Use Chinese for user-facing progress, English for repository documentation and UI. Preserve user changes and avoid destructive Git operations.
+- Track and close only task-created QA windows/tabs before delivery, then verify cleanup. Preserve pre-existing windows and login sessions; do not quit whole applications or kill processes as cleanup.

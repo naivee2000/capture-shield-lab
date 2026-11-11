@@ -12,6 +12,7 @@ let package = Package(
         .target(name: "CaptureCore"),
         .executableTarget(name: "CaptureShieldLab", dependencies: ["CaptureCore"]),
         .executableTarget(name: "CaptureProbe", dependencies: ["CaptureCore"]),
-        .testTarget(name: "CaptureCoreTests", dependencies: ["CaptureCore"])
+        .testTarget(name: "CaptureCoreTests", dependencies: ["CaptureCore"]),
+        .testTarget(name: "CaptureWindowTests", dependencies: ["CaptureShieldLab", "CaptureCore"])
     ]
 )

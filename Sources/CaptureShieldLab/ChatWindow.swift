@@ -34,37 +34,49 @@ import CaptureCore
     }
 }
 
-@MainActor final class ChatWindow: NSWindowController, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate {
+@MainActor final class ChatWindow: NSWindowController, NSWindowDelegate, NSToolbarDelegate, WKNavigationDelegate, WKUIDelegate {
     let webView: ChatWebView
     let isMain: Bool
+    private(set) var preferences: ChatPreferences
+    private let defaults: UserDefaults
+    private let preview: Bool
     private let status = NSTextField(labelWithString: "Loading…")
-    private let address = NSTextField(labelWithString: "chatgpt.com")
     private let back = NSButton(title: "‹", target: nil, action: nil)
     private let forward = NSButton(title: "›", target: nil, action: nil)
+    private let modeControl = NSSegmentedControl(labels: ["Normal", "Legacy"], trackingMode: .selectOne, target: nil, action: nil)
+    private let zoomLabel = NSButton(title: "90%", target: nil, action: nil)
+    private let smaller = NSButton(title: "A−", target: nil, action: nil)
+    private let larger = NSButton(title: "A+", target: nil, action: nil)
     var makePopup: ((WKWebViewConfiguration) -> WKWebView?)?
     var hideAll: (() -> Void)?
     var closePopup: (() -> Void)?
     var askToClear: (() -> Void)?
     var didFinish: (() -> Void)?
+    var changePreferences: ((ChatPreferences) -> Void)?
     private var observations: [NSKeyValueObservation] = []
 
-    init(configuration: WKWebViewConfiguration, isMain: Bool) {
-        self.isMain = isMain
+    init(configuration: WKWebViewConfiguration, isMain: Bool, preferences: ChatPreferences = ChatPreferences(),
+         defaults: UserDefaults = .standard, preview: Bool = false) {
+        self.isMain = isMain; self.preferences = preferences; self.defaults = defaults; self.preview = preview
+        ChatPageAdapter.disableInputSuggestions(persist: !preview)
+        ChatPageAdapter.install(in: configuration, preview: preview)
         webView = ChatWebView(frame: .zero, configuration: configuration)
-        let saved = isMain ? UserDefaults.standard.string(forKey: "ChatWindowFrame").map(NSRectFromString) : nil
+        let saved = isMain ? defaults.string(forKey: "ChatWindowFrame").map(NSRectFromString) : nil
         let frame = WindowPlacement.restore(saved, screens: NSScreen.screens.map(\.visibleFrame))
-        let panel = LabPanel(contentRect: frame, styleMask: [.borderless, .resizable], backing: .buffered, defer: false)
-        // Set before content is installed or the window is first presented.
-        panel.sharingType = .none
-        panel.title = isMain ? "CaptureShield — ChatGPT" : "CaptureShield — Web window"
-        panel.level = .floating; panel.hidesOnDeactivate = false
-        panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = false
-        panel.isReleasedWhenClosed = false; panel.minSize = NSSize(width: 640, height: 480)
-        panel.collectionBehavior = [.fullScreenAuxiliary]
-        super.init(window: panel)
-        panel.delegate = self
-        panel.appearance = NSAppearance(named: .darkAqua)
-        buildContent(panel)
+        let window = NSWindow(contentRect: frame, styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+        window.title = preview ? "CaptureShield — UI Preview" : (isMain ? "CaptureShield — ChatGPT" : "CaptureShield — Web window")
+        window.level = .normal; window.hidesOnDeactivate = false
+        window.backgroundColor = .black; window.hasShadow = false
+        window.isReleasedWhenClosed = false; window.minSize = NSSize(width: 640, height: 480)
+        window.isMovableByWindowBackground = true
+        window.appearance = NSAppearance(named: .darkAqua)
+        window.toolbarStyle = .unifiedCompact
+        super.init(window: window)
+        window.delegate = self
+        buildContent(window)
+        // Saved rectangles are outer frames. Apply after installing native window chrome.
+        window.setFrame(frame, display: false)
+        applyPreferences(preferences)
         webView.navigationDelegate = self; webView.uiDelegate = self
         webView.allowsBackForwardNavigationGestures = true
         observations = [webView.observe(\.canGoBack, options: [.initial, .new]) { [weak self] _, _ in
@@ -75,65 +87,114 @@ import CaptureCore
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
-    private func buildContent(_ panel: NSWindow) {
-        let root = NSView(); root.wantsLayer = true
-        root.layer?.backgroundColor = NSColor(srgbRed: 0.06, green: 0.08, blue: 0.12, alpha: 1).cgColor
-        root.layer?.cornerRadius = 12; root.layer?.masksToBounds = true
-        panel.contentView = root
-        let drag = DragBar()
-        let brand = NSTextField(labelWithString: "CAPTURE / SHIELD")
-        brand.font = .systemFont(ofSize: 12, weight: .bold); brand.textColor = .systemTeal
-        address.font = .systemFont(ofSize: 12); address.lineBreakMode = .byTruncatingMiddle
-        address.setAccessibilityLabel("Website host")
-        let mode = NSTextField(labelWithString: "Legacy sharing · verify on your receiver")
-        mode.font = .systemFont(ofSize: 11); mode.textColor = .secondaryLabelColor
-        let reload = NSButton(title: "Reload", target: self, action: #selector(reloadPage))
-        let home = NSButton(title: "ChatGPT", target: self, action: #selector(goHome))
-        let hide = NSButton(title: isMain ? "Hide" : "Close", target: self, action: #selector(hideOrClose))
-        let clear = NSButton(title: "Clear login…", target: self, action: #selector(clearLogin))
-        clear.isHidden = !isMain
-        back.target = self; back.action = #selector(goBack); back.setAccessibilityLabel("Back")
-        forward.target = self; forward.action = #selector(goForward); forward.setAccessibilityLabel("Forward")
-        let controls = NSStackView(views: [back, forward, home, reload, clear, hide])
-        controls.spacing = 6; controls.orientation = .horizontal
+    private func buildContent(_ window: NSWindow) {
+        let root = NSView(); root.wantsLayer = true; root.layer?.backgroundColor = NSColor.black.cgColor
+        window.contentView = root
         status.font = .systemFont(ofSize: 11); status.maximumNumberOfLines = 2
         status.setAccessibilityLabel("Page status")
-        for view in [drag, brand, address, mode, controls, webView, status] {
-            view.translatesAutoresizingMaskIntoConstraints = false; root.addSubview(view)
-        }
+        for view in [webView, status] { view.translatesAutoresizingMaskIntoConstraints = false; root.addSubview(view) }
         NSLayoutConstraint.activate([
-            drag.topAnchor.constraint(equalTo: root.topAnchor), drag.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            drag.trailingAnchor.constraint(equalTo: root.trailingAnchor), drag.heightAnchor.constraint(equalToConstant: 38),
-            brand.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 16), brand.topAnchor.constraint(equalTo: root.topAnchor, constant: 12),
-            address.leadingAnchor.constraint(equalTo: brand.trailingAnchor, constant: 18), address.centerYAnchor.constraint(equalTo: brand.centerYAnchor),
-            address.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -16),
-            controls.leadingAnchor.constraint(equalTo: brand.leadingAnchor), controls.topAnchor.constraint(equalTo: drag.bottomAnchor, constant: 3),
-            mode.leadingAnchor.constraint(equalTo: brand.leadingAnchor), mode.topAnchor.constraint(equalTo: controls.bottomAnchor, constant: 7),
-            webView.topAnchor.constraint(equalTo: mode.bottomAnchor, constant: 10), webView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            webView.trailingAnchor.constraint(equalTo: root.trailingAnchor), webView.bottomAnchor.constraint(equalTo: status.topAnchor, constant: -8),
-            status.leadingAnchor.constraint(equalTo: brand.leadingAnchor), status.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -16),
-            status.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -10), status.heightAnchor.constraint(equalToConstant: 30)
+            webView.topAnchor.constraint(equalTo: root.topAnchor), webView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: root.trailingAnchor), webView.bottomAnchor.constraint(equalTo: status.topAnchor, constant: -4),
+            status.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12), status.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),
+            status.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -4), status.heightAnchor.constraint(equalToConstant: 28)
         ])
+        back.target = self; back.action = #selector(goBack); back.setAccessibilityLabel("Back")
+        forward.target = self; forward.action = #selector(goForward); forward.setAccessibilityLabel("Forward")
+        modeControl.target = self; modeControl.action = #selector(selectMode); modeControl.setAccessibilityLabel("Sharing mode")
+        smaller.target = self; smaller.action = #selector(zoomOut); smaller.setAccessibilityLabel("Decrease page size")
+        larger.target = self; larger.action = #selector(zoomIn); larger.setAccessibilityLabel("Increase page size")
+        zoomLabel.target = self; zoomLabel.action = #selector(resetZoom); zoomLabel.setAccessibilityLabel("Reset page size to 90 percent")
+        let toolbar = NSToolbar(identifier: "CaptureShieldChatToolbar")
+        toolbar.delegate = self; toolbar.displayMode = .iconOnly; toolbar.sizeMode = .small
+        toolbar.allowsUserCustomization = false
+        window.toolbar = toolbar
+    }
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { toolbarDefaultItemIdentifiers(toolbar) }
+    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        [.init("navigation"), .init("sidebar"), .flexibleSpace, .init("sharingMode"), .init("zoom"), .init("hide")]
+    }
+    func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier,
+                 willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+        let item = NSToolbarItem(itemIdentifier: identifier)
+        switch identifier.rawValue {
+        case "navigation":
+            item.label = "Navigation"
+            let home = NSButton(image: NSImage(systemSymbolName: "house", accessibilityDescription: "ChatGPT home")!, target: self, action: #selector(goHome))
+            let reload = NSButton(image: NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "Reload page")!, target: self, action: #selector(reloadPage))
+            item.view = group([back, forward, home, reload])
+        case "sidebar":
+            item.label = "Sidebar"
+            item.view = NSButton(image: NSImage(systemSymbolName: "sidebar.left", accessibilityDescription: "Toggle sidebar")!, target: self, action: #selector(toggleSidebar))
+        case "sharingMode": item.label = "Sharing mode"; item.view = modeControl
+        case "zoom": item.label = "Page size"; item.view = group([smaller, zoomLabel, larger])
+        case "hide":
+            item.label = "Hide"
+            item.view = NSButton(image: NSImage(systemSymbolName: "eye.slash", accessibilityDescription: "Hide chat windows")!, target: self, action: #selector(hideOrClose))
+        default: return nil
+        }
+        return item
+    }
+    private func group(_ views: [NSView]) -> NSView {
+        let stack = NSStackView(views: views); stack.spacing = 4; stack.orientation = .horizontal
+        return stack
+    }
+    var ownedWindows: [NSWindow] {
+        guard let window else { return [] }
+        return [window] + (window.attachedSheet.map { [$0] } ?? [])
+    }
+    func applyPreferences(_ value: ChatPreferences) {
+        preferences = value
+        for owned in ownedWindows { configureAppearance(of: owned) }
+        webView.pageZoom = Double(value.zoomPercent) / 100
+        modeControl.selectedSegment = value.mode == .normal ? 0 : 1
+        zoomLabel.title = "\(value.zoomPercent)%"
+        smaller.isEnabled = value.zoomPercent > 70; larger.isEnabled = value.zoomPercent < 140
+    }
+    func configureAppearance(of window: NSWindow) {
+        window.sharingType = preferences.mode == .legacy ? .none : .readOnly
+        window.alphaValue = preferences.mode.opacity; window.level = .normal; window.hasShadow = false
+    }
+    private func request(_ value: ChatPreferences) {
+        if let changePreferences { changePreferences(value) } else { applyPreferences(value) }
+    }
+    @objc private func selectMode() {
+        var next = preferences; next.mode = modeControl.selectedSegment == 0 ? .normal : .legacy; request(next)
+    }
+    @objc private func zoomOut() { var next = preferences; next.changeZoom(by: -1); request(next) }
+    @objc private func zoomIn() { var next = preferences; next.changeZoom(by: 1); request(next) }
+    @objc private func resetZoom() { var next = preferences; next.resetZoom(); request(next) }
+    @objc private func toggleSidebar() {
+        Task { [weak self] in
+            guard let self else { return }
+            if !(await ChatPageAdapter.toggleSidebar(in: self.webView)) {
+                self.setStatus("Sidebar control unavailable on this page. Use the website's sidebar button.")
+            }
+        }
     }
     func present() {
         guard let window else { return }
-        window.sharingType = .none
+        configureAppearance(of: window)
         window.setFrame(WindowPlacement.restore(window.frame, screens: NSScreen.screens.map(\.visibleFrame)), display: false)
+        if window.isMiniaturized { window.deminiaturize(nil) }
         window.makeKeyAndOrderFront(nil); window.makeFirstResponder(webView)
         NSApp.activate()
     }
     func setStatus(_ text: String) { status.stringValue = text }
-    @objc func goHome() { webView.load(URLRequest(url: URL(string: "https://chatgpt.com/")!)) }
+    @objc func goHome() {
+        if preview { webView.loadHTMLString(ChatPreview.html, baseURL: nil) }
+        else { webView.load(URLRequest(url: URL(string: "https://chatgpt.com/")!)) }
+    }
     @objc func reloadPage() { webView.reload() }
     @objc private func goBack() { webView.goBack() }
     @objc private func goForward() { webView.goForward() }
     @objc private func hideOrClose() { if isMain { hideAll?() } else { closePopup?() } }
     @objc private func clearLogin() { askToClear?() }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { hideOrClose(); return false }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { hideOrClose(); return true }
     func windowDidMove(_ notification: Notification) { saveFrame() }
     func windowDidResize(_ notification: Notification) { saveFrame() }
     private func saveFrame() {
-        if isMain, let window { UserDefaults.standard.set(NSStringFromRect(window.frame), forKey: "ChatWindowFrame") }
+        if isMain, let window { defaults.set(NSStringFromRect(window.frame), forKey: "ChatWindowFrame") }
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
@@ -152,10 +213,10 @@ import CaptureCore
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) { setStatus("Loading…") }
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         // Only the host is displayed: URLs may contain login codes or private conversation IDs.
-        address.stringValue = webView.url?.host ?? "Local page"
+        window?.subtitle = webView.url?.host ?? "Offline preview"
     }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        setStatus("Text chat · ⌘⇧Space shows/hides all chat windows · sharing compatibility is unverified")
+        setStatus("Text chat · ⌘⇧Space hides/shows · Normal is shareable; verify Legacy on your receiver")
         didFinish?()
     }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { loadFailed(error) }
@@ -189,7 +250,7 @@ import CaptureCore
         alert.informativeText = String(message.prefix(2000))
         alert.addButton(withTitle: "OK")
         if cancel { alert.addButton(withTitle: "Cancel") }
-        alert.window.sharingType = .none; alert.window.hasShadow = false
+        configureAppearance(of: alert.window)
         return alert
     }
     func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String,

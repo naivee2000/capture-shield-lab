@@ -3,6 +3,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 source "$ROOT/scripts/paths.sh"
+BUNDLE_PREFIX="${CAPTURESHIELD_BUNDLE_PREFIX:-dev.naivee2000.captureshield}"
+if [[ ! "$BUNDLE_PREFIX" =~ ^[A-Za-z0-9.-]+$ ]]; then echo 'Invalid bundle identifier prefix.' >&2; exit 2; fi
 if [[ "$(uname -s)" != Darwin || "$(uname -m)" != arm64 ]]; then
   echo 'Apple Silicon macOS is required.' >&2; exit 1
 fi
@@ -22,6 +24,8 @@ BIN="$(xcrun swift build --show-bin-path)"
 for NAME in CaptureShieldLab CaptureProbe; do
   APP="$APP_ROOT/$NAME.app"
   mkdir -p "$APP/Contents/MacOS"
+  mkdir -p "$APP/Contents/Resources"
+  cp "$ROOT/Assets/CaptureShield.icns" "$APP/Contents/Resources/CaptureShield.icns"
   cp "$BIN/$NAME" "$APP/Contents/MacOS/$NAME"
   chmod +x "$APP/Contents/MacOS/$NAME"
   if [[ "$NAME" == CaptureShieldLab ]]; then SUFFIX=lab; else SUFFIX=probe; fi
@@ -30,18 +34,19 @@ for NAME in CaptureShieldLab CaptureProbe; do
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>CFBundleExecutable</key><string>$NAME</string>
-<key>CFBundleIdentifier</key><string>dev.naivee2000.captureshield.$SUFFIX</string>
+<key>CFBundleIdentifier</key><string>$BUNDLE_PREFIX.$SUFFIX</string>
 <key>CFBundleName</key><string>$NAME</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.2.0</string>
-<key>CFBundleVersion</key><string>2</string>
+<key>CFBundleShortVersionString</key><string>0.3.0</string>
+<key>CFBundleVersion</key><string>3</string>
+<key>CFBundleIconFile</key><string>CaptureShield</string>
 <key>LSMinimumSystemVersion</key><string>26.0</string>
 <key>NSPrincipalClass</key><string>NSApplication</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>NSScreenCaptureUsageDescription</key><string>Capture synthetic test content to measure window protection. No network upload.</string>
 </dict></plist>
 PLIST
-  codesign --force --sign - --identifier "dev.naivee2000.captureshield.$SUFFIX" "$APP"
+  codesign --force --sign - --identifier "$BUNDLE_PREFIX.$SUFFIX" "$APP"
   codesign --verify --strict "$APP"
 done
 echo "Built both applications in $APP_ROOT"

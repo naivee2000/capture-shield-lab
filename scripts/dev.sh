@@ -3,8 +3,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "$ROOT/scripts/paths.sh"
 case "${1:-}" in
-  ''|--lab|--web-test) ;;
-  *) echo 'Usage: bash scripts/dev.sh [--lab | --web-test]' >&2; exit 2 ;;
+  ''|--lab|--web-test|--chat-preview) ;;
+  *) echo 'Usage: bash scripts/dev.sh [--lab | --web-test | --chat-preview]' >&2; exit 2 ;;
 esac
 if [[ "$#" -gt 1 ]]; then echo 'Pass at most one launch mode.' >&2; exit 2; fi
 if pgrep -x CaptureShieldLab >/dev/null || pgrep -x CaptureProbe >/dev/null; then

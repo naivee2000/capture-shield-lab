@@ -4,15 +4,18 @@ import UniformTypeIdentifiers
 
 public enum LaunchMode: Equatable, Sendable {
     case chat
+    case chatPreview
     case lab(session: String?, web: Bool)
     public static func parse(_ arguments: [String]) throws -> LaunchMode {
         var lab = false, web = false
+        var preview = false
         var session: String?
         var index = 0
         while index < arguments.count {
             switch arguments[index] {
             case "--lab": lab = true
             case "--web-test": lab = true; web = true
+            case "--chat-preview": preview = true
             case "--session":
                 index += 1
                 guard index < arguments.count, arguments[index].hasPrefix("/"), session == nil else {
@@ -23,7 +26,8 @@ public enum LaunchMode: Equatable, Sendable {
             }
             index += 1
         }
-        return lab ? .lab(session: session, web: web) : .chat
+        guard !preview || !lab else { throw LaunchError.invalidArguments }
+        return preview ? .chatPreview : (lab ? .lab(session: session, web: web) : .chat)
     }
 }
 

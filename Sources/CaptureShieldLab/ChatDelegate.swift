@@ -11,11 +11,21 @@ import CaptureCore
     private var hiddenWindows: [ChatWindow] = []
     private var clearing = false
     private var pasteMonitor: Any?
+    private let preview: Bool
+    private let defaults: UserDefaults
+    private var preferences: ChatPreferences
+
+    init(preview: Bool = false) {
+        self.preview = preview
+        let defaults = preview ? UserDefaults(suiteName: "\(Bundle.main.bundleIdentifier ?? "CaptureShield").preview")! : .standard
+        self.defaults = defaults; preferences = ChatPreferences.load(from: defaults)
+        super.init()
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         installMenu()
-        let config = WKWebViewConfiguration(); config.websiteDataStore = .default()
-        main = ChatWindow(configuration: config, isMain: true)
+        let config = WKWebViewConfiguration(); config.websiteDataStore = preview ? .nonPersistent() : .default()
+        main = ChatWindow(configuration: config, isMain: true, preferences: preferences, defaults: defaults, preview: preview)
         wire(main)
         main.present(); main.goHome()
         registerShortcut()
@@ -24,9 +34,11 @@ import CaptureCore
     private func wire(_ controller: ChatWindow) {
         controller.hideAll = { [weak self] in self?.hideAll() }
         controller.askToClear = { [weak self] in self?.clearLogin() }
+        controller.changePreferences = { [weak self] settings in self?.updatePreferences(settings) }
         controller.makePopup = { [weak self] config in
             guard let self, !self.clearing, self.popups.count < 8 else { return nil }
-            let popup = ChatWindow(configuration: config, isMain: false)
+            let popup = ChatWindow(configuration: config, isMain: false, preferences: self.preferences,
+                                   defaults: self.defaults, preview: self.preview)
             self.wire(popup); self.popups.append(popup); popup.present()
             return popup.webView
         }
@@ -35,6 +47,22 @@ import CaptureCore
             controller.webView.stopLoading(); controller.window?.orderOut(nil)
             self.popups.removeAll { $0 === controller }
             self.hiddenWindows.removeAll { $0 === controller }
+        }
+    }
+    private func updatePreferences(_ next: ChatPreferences) {
+        guard !clearing, main != nil else { return }
+        let controllers = [main!] + popups
+        let owned = controllers.flatMap(\.ownedWindows)
+        let visible = NSApp.orderedWindows.filter { owned.contains($0) && $0.isVisible && !$0.isMiniaturized }
+        let key = NSApp.keyWindow
+        let changedMode = next.mode != preferences.mode
+        // Hide all owned surfaces first; no popup remains in the old mode during the update.
+        if changedMode { visible.forEach { $0.orderOut(nil) } }
+        preferences = next; next.save(to: defaults)
+        controllers.forEach { $0.applyPreferences(next) }
+        if changedMode {
+            visible.reversed().forEach { $0.orderFront(nil) }
+            if NSApp.isActive, let key, visible.contains(key) { key.makeKey() }
         }
     }
     @objc private func hideAll() {
@@ -64,7 +92,7 @@ import CaptureCore
         let alert = NSAlert(); alert.messageText = "Clear login data on this Mac?"
         alert.informativeText = "This closes chat popups and clears this app's cookies and website storage. Cloud conversations are not deleted. Unsaved input will be lost."
         alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: "Clear local data")
-        alert.window.sharingType = .none; alert.window.hasShadow = false
+        main.configureAppearance(of: alert.window)
         alert.beginSheetModal(for: window) { [weak self] response in
             guard let self, response == .alertSecondButtonReturn else { return }
             self.clearing = true
@@ -79,7 +107,8 @@ import CaptureCore
             store.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast) { [weak self] in
                 guard let self else { return }
                 let config = WKWebViewConfiguration(); config.websiteDataStore = store
-                self.main = ChatWindow(configuration: config, isMain: true)
+                self.main = ChatWindow(configuration: config, isMain: true, preferences: self.preferences,
+                                       defaults: self.defaults, preview: self.preview)
                 self.wire(self.main); self.clearing = false
                 self.main.present(); self.main.goHome()
             }

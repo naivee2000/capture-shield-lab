@@ -2,6 +2,22 @@
 
 Date: 2026-11-10. Development host: Apple Silicon, macOS 26.6.2 (25G83), 1920 × 1080 display.
 
+## Version 0.3: window refinements (2026-11-11)
+
+The operator reports that **Legacy hides the current chat window from the other participant during sharing**. This is feedback about their existing build/setup; exact OS/client versions and repeat counts were not provided. The new native titlebar, normal window level and 80% opacity require fresh receiver-side checks.
+
+| Check | Observed result |
+| --- | --- |
+| Native window, settings and synthetic WebKit tests | 32 tests passed, including frame restoration, mode/zoom persistence, sheet appearance, hydration, editor replacement, authentication isolation and offscreen sidebar controls |
+| Native UI preview | Normal/Legacy switching, 70/90/140% page sizes, explicit sidebar expansion, Unicode paste, retained English misspellings, popup mode/zoom inheritance and a managed JavaScript dialog exercised |
+| Real signed-out ChatGPT page | Loaded in isolated QA WebView; dark compact layout and initial sidebar collapse observed. Signed-out and signed-in markup require different recognized composer hooks |
+| Normal stacking and 80% Legacy opacity | Actual NSWindow level/style/alpha properties verified; physical local translucency and other-app occlusion not independently certified by window-only screenshots |
+| New whole-display/meeting capture | Not tested in this revision; previous results remain separately recorded below |
+| Chinese IME candidates / receiver-side prediction windows | Not tested; system candidate windows are outside app-owned window settings |
+| Icon and local build | Original SVG/PNG/ICNS generated, visually inspected; both app bundles include the icon and pass local signing checks |
+
+Temporary debugging emitted only control metadata, never field values or conversations, and was removed from the source. QA app identifiers and stores were separate from normal-use builds. Test-only captures and debugging files are not delivered through Git.
+
 ## Version 0.2: ChatGPT / WebView
 
 These results are separate from the earlier native-editor observations below.

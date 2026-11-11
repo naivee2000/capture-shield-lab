@@ -3,9 +3,11 @@
 A native ChatGPT web window and a separate macOS capture-protection lab. Can the window remain visible locally while disappearing from a full-display capture?
 
 **Experimental. No universal invisibility claim.**
-Version 0.2 embeds the official ChatGPT website in a persistent WKWebView using Legacy sharing. Account login and sharing compatibility must be verified on your own Mac. The lab compares four configurations and provides a separate, unfiltered ScreenCaptureKit recorder; a local screenshot does not prove Zoom, Meet or Teams behavior.
+Version 0.3 embeds the official ChatGPT website in a persistent WKWebView with Normal and Legacy modes. Account login and sharing compatibility must be verified on your own Mac. The lab compares four configurations and provides a separate, unfiltered ScreenCaptureKit recorder; a local screenshot does not prove Zoom, Meet or Teams behavior.
 
-**Earlier operator observation (native text lab, not ChatGPT):** on the user's personal laptop, Teams whole-screen sharing with **Legacy sharing** kept the lab window visible locally while omitting it at the receiver; other windows continued updating. **Protected mask** disappeared locally as well. WebView content requires a new test; see [observed compatibility](docs/compatibility.md).
+**Latest operator feedback (2026-11-11):** Legacy hid the current chat window from the other participant in the user's sharing setup. Client/OS details and repeat counts were not supplied; this does not certify the new 0.3 titlebar/transparency changes.
+
+**Earlier operator observation (native text lab):** on the user's personal laptop, Teams whole-screen sharing with **Legacy sharing** kept the lab window visible locally while omitting it at the receiver; other windows continued updating. **Protected mask** disappeared locally as well. WebView content requires a new test; see [observed compatibility](docs/compatibility.md).
 
 ## Requirements
 
@@ -56,11 +58,16 @@ Bundles are built on the Mac's local filesystem because exFAT/SMB AppleDouble me
 - Sign in personally on the official ChatGPT page. Your account and web history remain on ChatGPT; the app does not provide its own API account or synchronize browser profiles.
 - For Google-created accounts, embedded Google sign-in may be rejected. If your existing account offers it, add an OpenAI password in the official account/security settings and sign in with the same email. Never enter your Google password into an OpenAI-password field. See [OpenAI's password instructions](https://help.openai.com/en/articles/4936828-resetting-or-changing-your-chatgpt-password).
 - If sign-in is blocked, stop and record the error without credentials or full authentication URLs. Opening Chrome or Safari does not automatically sign in this WebView. No cookie import, user-agent spoofing or automatic API fallback is provided.
-- The floating window remembers its size and position, with recovery when a monitor is disconnected. Drag the header; resize at the window edge.
-- Use Back, Forward, ChatGPT (home), Reload and Hide. **Cmd-Shift-Space** toggles the chat windows globally. If the shortcut is already taken, use the app menu's Show/Hide commands. Closing the main window hides it; Cmd-Q exits.
+- Chat windows use normal macOS stacking: another app can cover them. Drag the native titlebar/title text or toolbar blank space; webpage text remains selectable. Native close/minimize/zoom controls and edge resizing are available. The app remembers the outer window frame and recovers after a monitor is disconnected.
+- **Normal** is an opaque dark window with regular screen sharing enabled. **Legacy** uses the existing exclusion flag and **80% whole-window opacity** (20% transparency). Opacity is a local visual effect, not the hiding mechanism. First use defaults to Legacy; subsequent launches remember your mode. Owned popups and sheets follow the same choice.
+- **A− / A+** changes page zoom from **70% to 140%**, in 10% steps. Clicking the percentage resets to **90%**. Zoom is saved and affects website text/buttons together; native window controls keep their size.
+- The sidebar initially collapses; use the sidebar toolbar button or the website control to reopen it. Your explicit choice is respected during that page session. The composer has reduced spacing and a 160 CSS-pixel scrolling limit. Unknown page structures stay unmodified.
+- Use Back, Forward, ChatGPT (home), Reload and Hide. **Cmd-Shift-Space** toggles the chat windows globally. If the shortcut is already taken, use the app menu's Show/Hide commands. Closing the main window closes its surface and hides owned popups; Show ChatGPT reopens the retained page. Cmd-Q exits.
 - Text entry, selection, history and streaming replies use the website's own interface. Paste inserts plain text; image/file/PDF clipboard representations are rejected. This build cancels file pickers, downloads and camera/microphone requests. Native web context menus and file drops are disabled; use the Edit menu or keyboard shortcuts for copying. The website may still display features outside this build's supported scope.
-- HTTPS links stay inside app-managed windows. Popups and JavaScript dialogs are configured with the same Legacy flag before presentation. There is no automatic opening of an unprotected system browser. System UI, including IME candidates and the Dock, is outside this claim.
+- HTTPS links stay inside app-managed windows. Popups and JavaScript dialogs inherit the selected sharing mode and opacity before presentation. There is no automatic opening of an unprotected system browser. System UI, including IME candidates and the Dock, is outside this claim.
 - **Clear login…** asks before clearing this app's local website data and closing web popups. It loses unsaved input and signs this app out; it does not delete cloud conversations or clear Chrome/Safari data.
+
+Spelling correction, grammar checking and text replacement are disabled within this app, and known chat editors receive `spellcheck=false`, `autocorrect=off` and `writingsuggestions=false`. These settings do not disable the operating system's Chinese/other IME candidate windows. Test those separately at the receiver; no global keyboard settings are changed.
 
 Legacy is a compatibility experiment, not a security guarantee. The main app does not detect whether your meeting receiver sees it. Use synthetic messages until you have tested the exact machine and sharing setup.
 
@@ -75,7 +82,19 @@ git pull --ff-only
 bash scripts/dev.sh
 ~~~
 
-Do not use a hard reset to resolve divergence. New source builds and OS/meeting-app updates require retesting. For isolated build verification, `CAPTURESHIELD_APP_ROOT=/an/absolute/local/path bash scripts/build.sh` changes only the generated bundle destination.
+Do not use a hard reset to resolve divergence. New source builds and OS/meeting-app updates require retesting. For isolated build verification, `CAPTURESHIELD_APP_ROOT=/an/absolute/local/path bash scripts/build.sh` changes the generated bundle destination. Adding `CAPTURESHIELD_BUNDLE_PREFIX=dev.example.captureshield.qa` also isolates the app identifiers and website storage; retain the normal prefix for everyday builds and permission continuity.
+
+## Offline UI preview and icon
+
+Run `bash scripts/dev.sh --chat-preview` for the normal chat window with a disposable offline page, synthetic popup/dialog controls and separate preview preferences. It does not load your account. The original capture lab remains available separately.
+
+The original shield/window icon is bundled into both apps. `Assets/` contains the editable SVG, a PNG preview and the `.icns` used by the build. `scripts/render-icon.swift` is the editable vector generator; regenerate all formats with:
+
+~~~bash
+xcrun swift scripts/render-icon.swift Assets
+~~~
+
+The generator uses only Apple frameworks and `iconutil`. Normal builds copy the committed icon and need no graphics packages.
 
 ## Use the lab
 
@@ -98,7 +117,7 @@ Drag the header to move the window. Drag the lower-right grip to resize. Type an
 
 The mask uses a generated opaque BGRA frame. Rendering errors and sleep/session interruptions hide the protected content instead of falling back to an unprotected window. Relaunch and retest after an interruption.
 
-System menus, input-method candidate windows, the Dock, window listings, processes, the pointer, and unrelated application windows are outside the protection claim. No private APIs, injection into ChatGPT, or changes to system security settings are used.
+System menus, input-method candidate windows, the Dock, window listings, processes, the pointer, and unrelated application windows are outside the protection claim. No private WindowServer APIs, injection into another process, or changes to system security settings are used. The chat window uses a small, scoped presentation script inside its own WebView.
 
 ## Run the independent capture test
 
@@ -147,7 +166,7 @@ The test script runs Swift Testing without external dependencies. It adds framew
 swift test
 ~~~
 
-The tests cover background matching, black rectangles, thin borders, malformed frames, Retina coordinates including negative display origins, stale capture timestamps, disconnected/reordered displays, latched lifecycle failures, stale/dead lab evidence, synthetic launch routing, navigation boundaries and window restoration.
+The tests cover background matching, black rectangles, thin borders, malformed frames, Retina coordinates including negative display origins, stale capture timestamps, disconnected/reordered displays, latched lifecycle failures, stale/dead lab evidence, synthetic launch routing, navigation boundaries, persistent appearance preferences and window restoration. AppKit/WebKit integration tests also exercise normal-window chrome, sheet configuration, delayed sidebar initialization, replacement editors and authentication/unknown-page isolation. These tests use disposable synthetic pages and close their own windows.
 
 Source map:
 

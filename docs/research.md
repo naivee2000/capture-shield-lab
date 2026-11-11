@@ -12,7 +12,7 @@ Checked 2026-11-10. Documentation and experimental evidence are different kinds 
 | [Cluely compatibility](https://support.cluely.com/en/articles/12364416-what-apps-are-supported-for-undetectability) | Cluely also documents unsupported platforms/capture modes; its broad marketing is not universal technical evidence. |
 | [Swift Testing distributions](https://github.com/swiftlang/swift-testing/blob/main/Documentation/Distributions.md) | Swift Testing ships in Apple toolchains; the project does not need a third-party testing download. |
 
-The app implements the mask idea with native Apple APIs; it does not copy an existing third-party app, modify ChatGPT, inject code, or use private WindowServer APIs. A normal launcher cannot confer this protection on another process's existing windows.
+The app implements the mask idea with native Apple APIs; it does not copy an existing third-party app, inject into another process or use private WindowServer APIs. A normal launcher cannot confer this protection on another process's existing windows.
 
 ## ChatGPT web integration
 
@@ -23,7 +23,7 @@ The app implements the mask idea with native Apple APIs; it does not copy an exi
 - [Apple ASWebAuthenticationSession](https://developer.apple.com/documentation/authenticationservices/aswebauthenticationsession): an app-specific authorization callback mechanism, not a general transfer of Safari/Chrome login cookies into WKWebView.
 - [OpenAI Sign in with ChatGPT](https://developers.openai.com/siwc/token-sharing-open-source): eligible plan usage for API inference does not grant access to existing ChatGPT conversations. This is a different integration route and is not implemented in this website-based release.
 
-The approved route uses the unmodified official website, the normal WebKit user agent and no injected scripts in the real ChatGPT session. Synthetic HTML is confined to the offline lab.
+The website route uses the normal WebKit user agent and official login. Version 0.3 adds a user-approved, main-frame presentation script restricted to recognized ChatGPT chat controls; it changes visual layout and input attributes without reading conversation or input values. Authentication pages and unknown editors remain untouched. Synthetic HTML is confined to the offline lab/preview.
 
 ## Development skills used
 
@@ -34,3 +34,10 @@ The approved route uses the unmodified official website, the normal WebKit user 
 - [Superpowers verification-before-completion](https://github.com/obra/superpowers/blob/main/skills/verification-before-completion/SKILL.md): actual tests before completion claims.
 
 The repositories were read, not installed wholesale. User instructions override skill defaults such as automatic commits.
+
+## Window refinements (2026-11-11)
+
+- [Apple pageZoom](https://developer.apple.com/documentation/webkit/wkwebview/pagezoom) scales the entire webpage; native toolbar controls are separate.
+- [Apple NSWindow alphaValue](https://developer.apple.com/documentation/appkit/nswindow/alphavalue) controls local window opacity, independently of capture flags.
+- [WebKit TextCheckerMac](https://github.com/WebKit/WebKit/blob/main/Source/WebKit/UIProcess/mac/TextCheckerMac.mm) reads app-domain spelling/grammar/text-replacement defaults. These implementation details require retesting with OS/WebKit updates.
+- [HTML editing/input attributes](https://html.spec.whatwg.org/multipage/interaction.html#editing) provide spelling, autocorrection and writing-suggestion hints. They are not a window-exclusion API and do not establish control of separate system IME windows.

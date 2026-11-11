@@ -65,3 +65,18 @@ The app never joins meetings, changes other applications' capture settings, or u
 Pixels are decoded from BGRA to RGBA. A pixel differs if any RGB channel differs from baseline by more than 16/255. A sampled frame matches only if the differing-pixel fraction is at most 0.0005 and mean RGB absolute error is at most 1.5/255. Black/flat baselines are rejected. The ordinary and unprotected-mask controls must differ from the background in more than 5% of pixels.
 
 These are lab thresholds, not a security proof. Inspect the saved PNGs alongside numeric results. The requested stream rate is 5 fps and each stage compares 12 fresh stable-state samples after a 200 ms presentation-time boundary; startup transitions and shorter flashes are not certified by this test. Use receiver recordings for the real meeting path.
+
+## Native-window and appearance regression checks (0.3)
+
+Use `bash scripts/dev.sh --chat-preview` for a disposable offline page in the real chat shell. A QA build can use a separate `CAPTURESHIELD_APP_ROOT` and `CAPTURESHIELD_BUNDLE_PREFIX` so its preferences, browser store and bundle registration cannot collide with daily-use apps.
+
+- Focus another ordinary app: it should cover the chat window. Drag the title text and toolbar blank areas; select text in the page without moving the window. Check native minimize/zoom and reopen.
+- Select Normal: opaque window, ordinary shareability. Select Legacy: 80% whole-window opacity with the existing exclusion flag. Repeat from a popup and inspect both windows. Create a JavaScript dialog in both modes; it must inherit the current mode.
+- Keep an unsent synthetic draft, switch modes, change zoom, hide/show and close/reopen the window. Input/session state must survive. Relaunch at a saved non-fullscreen size three times: the frame must not grow with each titlebar reconstruction.
+- Exercise 70%, 90% and 140%, the disabled zoom limits and percentage reset. Check long code lines, long input with internal scrolling and the sidebar toggle. Changes must be saved.
+- Check delayed webpage hydration and replacement editors. Initially collapse the sidebar even when the first control is not interactive yet; after a real user toggle, never force it closed again on text updates.
+- Type English misspellings with spaces, inspect prediction/correction behavior, then test actual Chinese IME composition and selection separately. Unicode paste alone does not verify IME candidates. Check the receiver as well as the local desktop.
+- Recheck sharing after changing window type, titlebar and opacity. Existing 0.2 observations are not a 0.3 certification. Record three independent receiving-side trials on the user's working laptop setup.
+- Inspect the icon in the generated app bundle and Dock/Finder. Build from a clean clone with no graphics tools installed beyond Apple developer tools.
+
+The synthetic integration tests never load account pages. The live page adapter targets only recognized ChatGPT composer controls and reads no message/input values. If controls change, its safe behavior is to leave the page unchanged; the toolbar reports when the sidebar control is unavailable.

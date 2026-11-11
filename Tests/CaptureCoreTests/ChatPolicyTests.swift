@@ -18,6 +18,8 @@ struct ChatPolicyTests {
     }
     @Test func recorderLaunchNeverOpensPersonalChat() throws {
         #expect(try LaunchMode.parse([]) == .chat)
+        #expect(try LaunchMode.parse(["--chat-preview"]) == .chatPreview)
+        #expect(throws: (any Error).self) { try LaunchMode.parse(["--chat-preview", "--session", "/tmp/synthetic"]) }
         #expect(try LaunchMode.parse(["--lab"]) == .lab(session: nil, web: false))
         #expect(try LaunchMode.parse(["--session", "/tmp/synthetic"]) == .lab(session: "/tmp/synthetic", web: false))
         #expect(try LaunchMode.parse(["--session", "/tmp/synthetic", "--web-test"]) == .lab(session: "/tmp/synthetic", web: true))
