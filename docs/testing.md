@@ -80,3 +80,16 @@ Use `bash scripts/dev.sh --chat-preview` for a disposable offline page in the re
 - Inspect the icon in the generated app bundle and Dock/Finder. Build from a clean clone with no graphics tools installed beyond Apple developer tools.
 
 The synthetic integration tests never load account pages. The live page adapter targets only recognized ChatGPT composer controls and reads no message/input values. If controls change, its safe behavior is to leave the page unchanged; the toolbar reports when the sidebar control is unavailable.
+# Version 0.4 laptop questionnaire
+
+Use synthetic content, never real conversations for capture evidence. Record macOS version, app commit, Teams desktop/web version, entire-screen sharing, and which independent device received it. Repeat the receiver observations three times.
+
+1. In the normal app, does Cmd-Shift-2 request the correct app permission, exclude CaptureShield itself, and show a useful screenshot in the preview? Does cropping select the expected text on each monitor/Retina scale? Does denial fail without repeated prompts?
+2. After Add to Chat, does the website show the intended cropped attachment? Is the original draft intact? After you manually ask about the image, does ChatGPT answer it correctly? If the automatic entry fails, does the website's own + attachment control accept the prepared image? Verify cancellation, oversized-image error, reopening/re-cropping, navigation and an upload failure.
+3. Does Cmd-Option-arrow move 40 logical points while the chat input is focused, stop at the screen edge, and preserve normal Cmd-arrow text navigation and Chinese composition?
+4. With cursor off, compare Normal (visible control) and Legacy in full-display Teams sharing. Can the receiver see the complete background and other windows updating, without a panel, border, shadow or transition flash?
+5. Quit that build, start `bash scripts/dev.sh --chat-preview`, select Legacy and enable Private Cursor (cursor-arrow button or Cmd-Option-C). Can you see/click/select/scroll with the replacement pointer locally? Can the receiver see any pointer movement over the chat, toolbar or image preview? Normal builds intentionally keep this control unavailable.
+6. Does the normal pointer return on leaving the window, switching apps, hiding/minimizing, choosing Normal, Esc, sleep/wake and quitting? Test native dialogs/IME candidates separately; do not extend the window verdict to those surfaces.
+7. Optionally use CaptureProbe's new full-display + cursor recording. It must record the visible cursor-off control with `showsCursor=true`, no exclusions, and other changing windows. Check manual Stop, two-minute auto-stop and Stop-then-Quit produce a playable finalized MP4. It remains separate from the Teams receiver verdict.
+
+Report each item as pass/fail/not-tested with the failing step, never credentials, meeting invitations or private screenshots. Use the chat questionnaire after delivery if easier.

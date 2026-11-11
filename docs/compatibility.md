@@ -2,6 +2,23 @@
 
 Date: 2026-11-10. Development host: Apple Silicon, macOS 26.6.2 (25G83), 1920 × 1080 display.
 
+## Version 0.4: images, movement and gated cursor experiment (2026-11-11)
+
+The user requested source delivery first and a questionnaire for later laptop/receiver tests. No new meeting result or physical-local pointer success is claimed.
+
+| Check | Observed result |
+| --- | --- |
+| Automated suite | 50 tests in 12 suites passed after the independent review fixes, including native upload, stale consent, image limits, recovery UI and recorder finalization |
+| Offline native UI | Synthetic image displayed, cropped to the question and attached (5,208 bytes); no message sent. A typed draft survived mode changes and Cmd-Option-Up moved the actual window by 40 points |
+| Experimental pointer UI | Legacy-only toggle changed on/off; Esc restored its off state. These control states do not certify local pointer pixels or receiver output |
+| CaptureProbe UI | Separate full-display + cursor recording control rendered. New recording was not started during this task |
+| Production private cursor | Disabled pending receiver evidence; experiment only available in --chat-preview, default off |
+| Live ChatGPT image upload and response | Not tested in this revision; native handoff succeeded only in the offline synthetic WebView |
+| Screenshot permission / captured display / multi-monitor setup | Implemented; not exercised end-to-end in this revision. Crop-to-pixel mapping is covered by automated tests |
+| Teams trials, physical local pointer, IME/native sheets and sleep/crash recovery | Not tested; laptop questionnaire pending |
+
+Two recorder defects found by final review (concurrent Stop/Quit and self-cancelled auto-stop) were reproduced and fixed. Two preview defects (covered errors and disabled re-confirmation) were also reproduced and fixed. No deferred review findings remain. Task-created QA windows were closed and zero visible QA windows confirmed; no user browser tab was closed.
+
 ## Version 0.3: window refinements (2026-11-11)
 
 The operator reports that **Legacy hides the current chat window from the other participant during sharing**. This is feedback about their existing build/setup; exact OS/client versions and repeat counts were not provided. The new native titlebar, normal window level and 80% opacity require fresh receiver-side checks.

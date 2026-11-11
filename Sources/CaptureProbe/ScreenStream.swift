@@ -84,7 +84,7 @@ final class ScreenStream {
         inbox = FrameInbox(region: region, width: width, height: height)
         // Deliberately exclude NOTHING: the recorder must not manufacture a pass.
         let filter = SCContentFilter(display: display, excludingWindows: [])
-        let config = SCStreamConfiguration()
+        let config = IndependentCaptureConfiguration.make(width: width, height: height)
         config.width = width; config.height = height
         config.pixelFormat = kCVPixelFormatType_32BGRA
         config.showsCursor = false

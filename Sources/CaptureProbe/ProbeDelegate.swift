@@ -25,6 +25,9 @@ import CaptureCore
     private var runningStatus: NSTextField?
     private var summary: NSTextView!
     private var start: NSButton!
+    private var cursorRecordButton: NSButton!
+    private var cursorRecorder: CursorRecorder?
+    private var cursorStarting = false
     private var confirmYes: NSButton!
     private var confirmNo: NSButton!
     private var folder: NSButton!
@@ -63,6 +66,8 @@ import CaptureCore
         candidate = NSPopUpButton(); candidate.setAccessibilityLabel("Local confirmation mode")
         candidate.addItems(withTitles: ["Legacy sharing", "Protected mask"])
         candidate.target = self; candidate.action = #selector(selectCandidate); candidate.isEnabled = false
+        cursorRecordButton = NSButton(title: "Record full display + cursor", target: self, action: #selector(toggleCursorRecording))
+        cursorRecordButton.toolTip = "Manual synthetic test only. Includes everything on this display, system cursor on, audio off. Stops after 2 minutes."
         start = NSButton(title: "Start capture test", target: self, action: #selector(startRun))
         start.bezelStyle = .rounded; start.keyEquivalent = "\r"
         status = label("Ready. Screen Recording permission is requested only when you start.", size: 12)
@@ -78,7 +83,7 @@ import CaptureCore
         confirmNo = NSButton(title: "Cannot see / type", target: self, action: #selector(confirmInvisible))
         confirmYes.isEnabled = false; confirmNo.isEnabled = false
         folder = NSButton(title: "Open report folder", target: self, action: #selector(openFolder)); folder.isEnabled = false
-        for view in [title, detail, screens!, order!, surface!, candidate!, start!, status!, scroll, confirmYes!, confirmNo!, folder!] {
+        for view in [title, detail, screens!, order!, surface!, cursorRecordButton!, candidate!, start!, status!, scroll, confirmYes!, confirmNo!, folder!] {
             view.translatesAutoresizingMaskIntoConstraints = false; root.addSubview(view)
         }
         NSLayoutConstraint.activate([
@@ -89,6 +94,8 @@ import CaptureCore
             screens.widthAnchor.constraint(equalToConstant: 320), order.leadingAnchor.constraint(equalTo: screens.trailingAnchor, constant: 12),
             order.centerYAnchor.constraint(equalTo: screens.centerYAnchor), order.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -26),
             surface.topAnchor.constraint(equalTo: screens.bottomAnchor, constant: 12), surface.leadingAnchor.constraint(equalTo: title.leadingAnchor),
+            cursorRecordButton.centerYAnchor.constraint(equalTo: surface.centerYAnchor),
+            cursorRecordButton.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -26),
             start.topAnchor.constraint(equalTo: surface.bottomAnchor, constant: 12), start.leadingAnchor.constraint(equalTo: title.leadingAnchor),
             status.leadingAnchor.constraint(equalTo: start.trailingAnchor, constant: 16), status.centerYAnchor.constraint(equalTo: start.centerYAnchor),
             status.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -26),
@@ -114,11 +121,53 @@ import CaptureCore
         let sub = NSMenu(); item.submenu = sub
         sub.addItem(withTitle: "Show results", action: #selector(showResults), keyEquivalent: "r").target = self
         sub.addItem(withTitle: "Cancel test", action: #selector(cancelRun), keyEquivalent: ".").target = self
+        sub.addItem(withTitle: "Stop cursor recording", action: #selector(stopCursorRecording), keyEquivalent: "").target = self
         sub.addItem(withTitle: "Quit CaptureProbe", action: #selector(quitApp), keyEquivalent: "q").target = self
         NSApp.mainMenu = menu
     }
+    @objc private func toggleCursorRecording() {
+        guard task == nil, !cursorStarting else { return }
+        if cursorRecorder != nil { stopCursorRecording(); return }
+        guard let id = (screens.selectedItem?.representedObject as? NSNumber)?.uint32Value else { return }
+        let alert = NSAlert(); alert.messageText = "Record the entire display with its cursor?"
+        alert.informativeText = "Use only synthetic content and close private windows. Everything on the selected display is recorded locally for up to 2 minutes. No audio or upload. This does not certify Teams."
+        alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: "Record")
+        alert.beginSheetModal(for: window) { [weak self] response in
+            guard let self, response == .alertSecondButtonReturn, self.task == nil, self.cursorRecorder == nil else { return }
+            self.cursorStarting = true; self.start.isEnabled = false; self.cursorRecordButton.isEnabled = false
+            Task { @MainActor in
+                let recorder = CursorRecorder()
+                recorder.stopped = { [weak self] message in
+                    guard let self else { return }
+                    self.cursorRecorder = nil; self.cursorStarting = false; self.start.isEnabled = true
+                    self.cursorRecordButton.isEnabled = true; self.cursorRecordButton.title = "Record full display + cursor"
+                    self.status.stringValue = message; self.folder.isEnabled = true
+                }
+                do {
+                    self.cursorRecorder = recorder
+                    try await recorder.start(displayID: id, output: self.output)
+                    self.cursorStarting = false; self.cursorRecordButton.isEnabled = true
+                    self.cursorRecordButton.title = "Stop cursor recording"
+                    self.status.stringValue = "Recording entire display + system cursor. Use --chat-preview with synthetic content. Stop here or in the app menu."
+                } catch {
+                    self.cursorRecorder = nil; self.cursorStarting = false; self.start.isEnabled = true; self.cursorRecordButton.isEnabled = true
+                    self.status.stringValue = "Could not start cursor recording. Check CaptureProbe's screen recording permission."
+                }
+            }
+        }
+    }
+    @objc private func stopCursorRecording() {
+        guard !cursorStarting, let recorder = cursorRecorder else { return }
+        cursorRecordButton.isEnabled = false
+        Task { await recorder.stop() }
+    }
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let recorder = cursorRecorder else { return .terminateNow }
+        Task { await recorder.stop(); NSApp.reply(toApplicationShouldTerminate: true) }
+        return .terminateLater
+    }
     @objc private func startRun() {
-        guard task == nil else { return }
+        guard task == nil, cursorRecorder == nil, !cursorStarting else { return }
         let currentScreens = NSScreen.screens
         let currentIDs = currentScreens.map { ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0 }
         guard let selectedID = (screens.selectedItem?.representedObject as? NSNumber)?.uint32Value,
@@ -134,11 +183,11 @@ import CaptureCore
             runner = next
             next.progress = { [weak self] message in self?.status.stringValue = message; self?.runningStatus?.stringValue = message }
             showBackground(on: screen)
-            start.isEnabled = false; window.orderOut(nil)
+            start.isEnabled = false; cursorRecordButton.isEnabled = false; window.orderOut(nil)
             task = Task { [weak self] in
                 await next.run()
                 guard let self else { return }
-                self.task = nil; self.start.isEnabled = true; self.folder.isEnabled = true
+                self.task = nil; self.start.isEnabled = true; self.cursorRecordButton.isEnabled = true; self.folder.isEnabled = true
                 self.tick?.invalidate()
                 self.confirmYes.isEnabled = next.report.error == nil
                 self.confirmNo.isEnabled = next.report.error == nil

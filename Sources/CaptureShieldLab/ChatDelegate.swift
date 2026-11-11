@@ -3,10 +3,17 @@ import WebKit
 import Carbon
 import CaptureCore
 
-@MainActor final class ChatDelegate: NSObject, NSApplicationDelegate {
+@MainActor final class ChatDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var main: ChatWindow!
     private var popups: [ChatWindow] = []
     private var hotKey: EventHotKeyRef?
+    private var screenshotHotKey: EventHotKeyRef?
+    private var keyboardMonitor: Any?
+    private lazy var cursor = PrivateCursorController(experimental: preview) { [weak self] in
+        guard let self, self.main != nil else { return [] }
+        return ([self.main!] + self.popups).flatMap(\.ownedWindows)
+    }
+
     private var hotKeyHandler: EventHandlerRef?
     private var hiddenWindows: [ChatWindow] = []
     private var clearing = false
@@ -23,6 +30,7 @@ import CaptureCore
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        AttachmentTemporaryStore.cleanAbandoned()
         installMenu()
         let config = WKWebViewConfiguration(); config.websiteDataStore = preview ? .nonPersistent() : .default()
         main = ChatWindow(configuration: config, isMain: true, preferences: preferences, defaults: defaults, preview: preview)
@@ -30,8 +38,16 @@ import CaptureCore
         main.present(); main.goHome()
         registerShortcut()
         pasteMonitor = PlainTextPaste.installMonitor()
+        cursor.changed = { [weak self] in self?.refreshCursorButtons() }
+        keyboardMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            let handled = MainActor.assumeIsolated { self?.handleKey(event) == nil }
+            return handled ? nil : event
+        }
+        refreshCursorButtons()
     }
     private func wire(_ controller: ChatWindow) {
+        controller.togglePrivateCursor = { [weak self] in self?.toggleCursor() }
+        controller.updateCursorButton(enabled: cursor.enabled, available: cursor.available)
         controller.hideAll = { [weak self] in self?.hideAll() }
         controller.askToClear = { [weak self] in self?.clearLogin() }
         controller.changePreferences = { [weak self] settings in self?.updatePreferences(settings) }
@@ -44,13 +60,15 @@ import CaptureCore
         }
         controller.closePopup = { [weak self, weak controller] in
             guard let self, let controller else { return }
-            controller.webView.stopLoading(); controller.window?.orderOut(nil)
+            controller.cancelScreenshot(); controller.images.close()
+            self.cursor.suspend(); controller.webView.stopLoading(); controller.window?.orderOut(nil)
             self.popups.removeAll { $0 === controller }
             self.hiddenWindows.removeAll { $0 === controller }
         }
     }
     private func updatePreferences(_ next: ChatPreferences) {
         guard !clearing, main != nil else { return }
+        if next.mode == .normal { cursor.disable() } else { cursor.suspend() }
         let controllers = [main!] + popups
         let owned = controllers.flatMap(\.ownedWindows)
         let visible = NSApp.orderedWindows.filter { owned.contains($0) && $0.isVisible && !$0.isMiniaturized }
@@ -60,6 +78,7 @@ import CaptureCore
         if changedMode { visible.forEach { $0.orderOut(nil) } }
         preferences = next; next.save(to: defaults)
         controllers.forEach { $0.applyPreferences(next) }
+        refreshCursorButtons()
         if changedMode {
             visible.reversed().forEach { $0.orderFront(nil) }
             if NSApp.isActive, let key, visible.contains(key) { key.makeKey() }
@@ -67,9 +86,11 @@ import CaptureCore
     }
     @objc private func hideAll() {
         guard !clearing, main != nil else { return }
+        cursor.suspend()
         hiddenWindows = ChatInteraction.pendingRestore(previous: hiddenWindows,
             visible: ([main!] + popups).filter { $0.window?.isVisible == true })
         for controller in hiddenWindows {
+            controller.cancelScreenshot()
             controller.window?.attachedSheet?.orderOut(nil)
             controller.window?.orderOut(nil)
         }
@@ -95,7 +116,8 @@ import CaptureCore
         main.configureAppearance(of: alert.window)
         alert.beginSheetModal(for: window) { [weak self] response in
             guard let self, response == .alertSecondButtonReturn else { return }
-            self.clearing = true
+            self.clearing = true; self.cursor.disable()
+            ([self.main!] + self.popups).forEach { $0.cancelScreenshot(); $0.images.close() }
             for popup in self.popups { popup.webView.stopLoading(); popup.window?.orderOut(nil) }
             self.popups.removeAll(); self.hiddenWindows.removeAll()
             self.main.webView.stopLoading(); self.main.window?.orderOut(nil)
@@ -117,19 +139,72 @@ import CaptureCore
     private func registerShortcut() {
         var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
         let context = Unmanaged.passUnretained(self).toOpaque()
-        let installed = InstallEventHandler(GetApplicationEventTarget(), { _, _, context in
-            guard let context else { return OSStatus(eventNotHandledErr) }
+        let installed = InstallEventHandler(GetApplicationEventTarget(), { _, event, context in
+            guard let context, let event else { return OSStatus(eventNotHandledErr) }
+            var identifier = EventHotKeyID()
+            guard GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil,
+                                    MemoryLayout<EventHotKeyID>.size, nil, &identifier) == noErr else { return OSStatus(eventNotHandledErr) }
             MainActor.assumeIsolated {
                 let owner = Unmanaged<ChatDelegate>.fromOpaque(context).takeUnretainedValue()
-                if !owner.clearing { owner.toggleVisibility() }
+                if !owner.clearing {
+                    if identifier.id == 1 { owner.toggleVisibility() }
+                    if identifier.id == 2 { owner.takeScreenshot() }
+                }
             }
             return noErr
         }, 1, &spec, context, &hotKeyHandler)
-        let registered = installed == noErr ? RegisterEventHotKey(UInt32(kVK_Space), UInt32(cmdKey | shiftKey),
+        let visibility = installed == noErr ? RegisterEventHotKey(UInt32(kVK_Space), UInt32(cmdKey | shiftKey),
             EventHotKeyID(signature: 0x43534844, id: 1), GetApplicationEventTarget(), 0, &hotKey) : installed
-        if registered != noErr {
-            main.setStatus("⌘⇧Space is unavailable or already in use. Use the app menu to Show / Hide.")
-            main.didFinish = { [weak self] in self?.main.setStatus("⌘⇧Space unavailable. Use the app menu to Show / Hide.") }
+        let screenshot = installed == noErr ? RegisterEventHotKey(UInt32(kVK_ANSI_2), UInt32(cmdKey | shiftKey),
+            EventHotKeyID(signature: 0x43534844, id: 2), GetApplicationEventTarget(), 0, &screenshotHotKey) : installed
+        var missing: [String] = []
+        if visibility != noErr { missing.append("⌘⇧Space") }
+        if screenshot != noErr { missing.append("⌘⇧2") }
+        if !missing.isEmpty {
+            let message = "Shortcut unavailable: " + missing.joined(separator: ", ") + ". Use the toolbar or app menu."
+            main.setStatus(message); main.didFinish = { [weak self] in self?.main.setStatus(message) }
+        }
+    }
+    private func activeChat() -> ChatWindow {
+        popups.first { $0.window === NSApp.keyWindow } ?? main
+    }
+    private func refreshCursorButtons() {
+        guard main != nil else { return }
+        ([main!] + popups).forEach { $0.updateCursorButton(enabled: cursor.enabled, available: cursor.available) }
+    }
+    @objc private func toggleCursor() {
+        guard cursor.available else { activeChat().setStatus("Private Cursor is not receiver-verified. Its experiment is available only in --chat-preview."); return }
+        cursor.toggle(legacy: preferences.mode == .legacy)
+    }
+    private func handleKey(_ event: NSEvent) -> NSEvent? {
+        guard NSApp.isActive, main != nil, !clearing,
+              let controller = ([main!] + popups).first(where: { $0.window === event.window }) else { return event }
+        if event.keyCode == 53 { cursor.disable(); return event }
+        let marked = (event.window?.firstResponder as? any NSTextInputClient)?.hasMarkedText() ?? false
+        let modal = NSApp.modalWindow != nil || event.window?.attachedSheet != nil
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
+        if !marked, !modal, flags == [.command, .option], event.charactersIgnoringModifiers?.lowercased() == "c" {
+            if !event.isARepeat { toggleCursor() }; return nil
+        }
+        if let direction = ChatKeyboard.direction(keyCode: event.keyCode, modifiers: event.modifierFlags, markedText: marked, modal: modal) {
+            cursor.suspend(); controller.move(direction); return nil
+        }
+        return event
+    }
+    @objc private func loadSampleImage() { if preview { activeChat().images.prepare(ChatPreview.sampleImage()) } }
+    @objc private func takeScreenshot() {
+        guard !clearing, main != nil, NSApp.modalWindow == nil, activeChat().window?.attachedSheet == nil else { return }
+        activeChat().captureScreenshot()
+    }
+    @objc private func captureDisplay(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? NSNumber, main != nil, !clearing else { return }
+        activeChat().captureScreenshot(displayID: id.uint32Value)
+    }
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        menu.removeAllItems()
+        for screen in NSScreen.screens {
+            let item = menu.addItem(withTitle: screen.localizedName, action: #selector(captureDisplay(_:)), keyEquivalent: "")
+            item.target = self; item.representedObject = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")]
         }
     }
     private func installMenu() {
@@ -139,6 +214,13 @@ import CaptureCore
                                      ("Clear local login…", #selector(clearLogin), ""), ("Quit CaptureShield", #selector(quit), "q")] {
             app.addItem(withTitle: title, action: action, keyEquivalent: key).target = self
         }
+        if preview { app.addItem(withTitle: "Load sample image (offline)", action: #selector(loadSampleImage), keyEquivalent: "").target = self }
+        app.addItem(.separator())
+        app.addItem(withTitle: "Screenshot", action: #selector(takeScreenshot), keyEquivalent: "").target = self
+        let displays = NSMenuItem(title: "Capture Display", action: nil, keyEquivalent: "")
+        let displayMenu = NSMenu(title: "Capture Display"); displayMenu.delegate = self
+        displays.submenu = displayMenu; app.addItem(displays)
+        app.addItem(withTitle: "Private Cursor (⌘⌥C)", action: #selector(toggleCursor), keyEquivalent: "").target = self
         let edit = NSMenuItem(title: "Edit", action: nil, keyEquivalent: ""); let menu = NSMenu(title: "Edit")
         edit.submenu = menu; bar.addItem(edit)
         for (title, action, key) in [("Undo", Selector(("undo:")), "z"), ("Cut", #selector(NSText.cut(_:)), "x"),
@@ -155,8 +237,12 @@ import CaptureCore
         if !clearing { showAll() }; return false
     }
     func applicationWillTerminate(_ notification: Notification) {
+        cursor.shutdown()
+        if main != nil { ([main!] + popups).forEach { $0.cancelScreenshot(); $0.images.close() } }
+        if let keyboardMonitor { NSEvent.removeMonitor(keyboardMonitor) }
         if let pasteMonitor { NSEvent.removeMonitor(pasteMonitor) }
         if let hotKey { UnregisterEventHotKey(hotKey) }
+        if let screenshotHotKey { UnregisterEventHotKey(screenshotHotKey) }
         if let hotKeyHandler { RemoveEventHandler(hotKeyHandler) }
     }
 }

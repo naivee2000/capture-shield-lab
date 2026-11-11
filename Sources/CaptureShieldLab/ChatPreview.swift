@@ -1,9 +1,9 @@
-import Foundation
+import AppKit
 
 enum ChatPreview {
     static let html = #"""
     <!doctype html><html data-theme="light" lang="en"><head><meta charset="utf-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; form-action 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src blob: data:; form-action 'none'">
     <style>
     :root {font:16px -apple-system,sans-serif;color:#eee;background:#101010;--spacing:4px}
     body {margin:0} nav {width:220px;background:#222;padding:16px;position:fixed;inset:0 auto 0 0}
@@ -21,6 +21,8 @@ enum ChatPreview {
     <pre><code>const reply = "Hello, 世界";
     // Long code line for horizontal scrolling: ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ</code></pre>
     <div data-composer-body><div data-rich-text-layout="single-line"><div data-composer-markdown contenteditable="true" role="textbox" aria-label="Synthetic chat input" spellcheck="true"></div></div>
+    <label>Attach synthetic image <input id="image-file" type="file" accept="image/png,image/jpeg"></label>
+    <p id="image-status">No image attached.</p><img id="image-preview" alt="Synthetic attachment preview" style="max-width:240px;max-height:160px;display:none">
     <button id="send">Stream reply</button></div><p id="reply" aria-live="polite">Ready.</p>
     <div class="actions"><button id="popup">Open test popup</button><button id="dialog">Open test dialog</button></div>
     <p>English: teh recieve. Chinese: 输入与换行测试。</p>
@@ -29,8 +31,26 @@ enum ChatPreview {
     const toggle=document.querySelector('[aria-controls="app-shell-sidebar"]');
     toggle.onclick=()=>{const open=toggle.getAttribute('aria-expanded')==='true';toggle.setAttribute('aria-expanded',String(!open));document.body.classList.toggle('folded',open);};
     document.querySelector('#send').onclick=()=>{const target=document.querySelector('#reply');target.textContent='';let i=0;const text='Synthetic reply complete. 中文输入保持正常。';const id=setInterval(()=>{target.textContent+=text[i++];if(i===text.length)clearInterval(id)},60);};
+    document.querySelector('#image-file').onchange=async e=>{
+      const file=e.target.files[0];if(!file)return;
+      const bytes=(await file.arrayBuffer()).byteLength;
+      document.querySelector('#image-status').textContent=`Synthetic image attached: ${bytes} bytes. No message sent.`;
+      const preview=document.querySelector('#image-preview');preview.src=URL.createObjectURL(file);preview.style.display='block';
+    };
     document.querySelector('#popup').onclick=()=>window.open('about:blank','CaptureShieldSyntheticPopup');
     document.querySelector('#dialog').onclick=()=>confirm('Synthetic dialog. Check mode and opacity inheritance.');
     </script></body></html>
     """#
+    @MainActor static func sampleImage() -> CGImage {
+        let image = NSImage(size: NSSize(width: 1000, height: 600))
+        image.lockFocus()
+        NSColor.white.setFill(); NSRect(x: 0, y: 0, width: 1000, height: 600).fill()
+        let text = "CaptureShield · synthetic image test\n\nWhat is 21 + 21?\n\n中文示例 · No personal data"
+        (text as NSString).draw(in: NSRect(x: 50, y: 100, width: 900, height: 440), withAttributes: [
+            .font: NSFont.systemFont(ofSize: 40), .foregroundColor: NSColor.black])
+        NSColor.systemBlue.setFill(); NSRect(x: 800, y: 30, width: 100, height: 100).fill()
+        image.unlockFocus()
+        return image.cgImage(forProposedRect: nil, context: nil, hints: nil)!
+    }
+
 }
