@@ -23,6 +23,7 @@ enum ChatPreview {
     <div data-composer-body><div data-rich-text-layout="single-line"><div data-composer-markdown contenteditable="true" role="textbox" aria-label="Synthetic chat input" spellcheck="true"></div></div>
     <label>Attach synthetic image <input id="image-file" type="file" accept="image/png,image/jpeg"></label>
     <p id="image-status">No image attached.</p><img id="image-preview" alt="Synthetic attachment preview" style="max-width:240px;max-height:160px;display:none">
+    <button id="remove-image" aria-label="Remove file" hidden>Remove image</button>
     <button id="send">Stream reply</button></div><p id="reply" aria-live="polite">Ready.</p>
     <div class="actions"><button id="popup">Open test popup</button><button id="dialog">Open test dialog</button></div>
     <p>English: teh recieve. Chinese: 输入与换行测试。</p>
@@ -35,8 +36,9 @@ enum ChatPreview {
       const file=e.target.files[0];if(!file)return;
       const bytes=(await file.arrayBuffer()).byteLength;
       document.querySelector('#image-status').textContent=`Synthetic image attached: ${bytes} bytes. No message sent.`;
-      const preview=document.querySelector('#image-preview');preview.src=URL.createObjectURL(file);preview.style.display='block';
+      const preview=document.querySelector('#image-preview');preview.src=URL.createObjectURL(file);preview.alt=file.name;preview.style.display='block';document.querySelector('#remove-image').hidden=false;
     };
+    document.querySelector('#remove-image').onclick=()=>{const image=document.querySelector('#image-preview');URL.revokeObjectURL(image.src);image.removeAttribute('src');image.style.display='none';document.querySelector('#image-file').value='';document.querySelector('#image-status').textContent='Image removed.';document.querySelector('#remove-image').hidden=true;};
     document.querySelector('#popup').onclick=()=>window.open('about:blank','CaptureShieldSyntheticPopup');
     document.querySelector('#dialog').onclick=()=>confirm('Synthetic dialog. Check mode and opacity inheritance.');
     </script></body></html>

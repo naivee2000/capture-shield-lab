@@ -25,7 +25,7 @@ Then validate the real ChatGPT window with synthetic messages:
 1. Sign in personally, verify the original account/history, create a fresh test chat and receive a complete reply. Never give the agent your password or OTP.
 2. Send a follow-up, use Chinese input, copy a reply, scroll, navigate back/forward and open an HTTPS link. Popup windows must stay within the app with Legacy set before display.
 3. Restart the app and check whether the session persists. Restore the app after disconnecting an external display; its window should be on a remaining display.
-4. Test Cmd-Shift-Space with both the app and another app focused. Main, popup and attached dialog windows should all disappear together and return together. Shortcut conflicts must be reported.
+4. Test Cmd-Shift-M with both the app and another app focused. Main, popup and attached dialog windows should all disappear together and return together. Shortcut conflicts must be reported.
 5. Test loss of network and Reload. A terminated WebKit content process must show a recovery message; never automatically resubmit a prompt.
 6. Test **Clear login…** only when you intend to sign this app out: Cancel must preserve the session; Confirm must close popups and return to a fresh signed-out page, without back-navigation into old private pages. Cloud history remains unchanged.
 7. File pickers, downloads and microphone/camera requests are unsupported in this version. System candidate windows and OS dialogs are separate surfaces; record their behavior separately.
@@ -86,9 +86,9 @@ Use synthetic content, never real conversations for capture evidence. Record mac
 
 1. In the normal app, does Cmd-Shift-2 request the correct app permission, exclude CaptureShield itself, and show a useful screenshot in the preview? Does cropping select the expected text on each monitor/Retina scale? Does denial fail without repeated prompts?
 2. After Add to Chat, does the website show the intended cropped attachment? Is the original draft intact? After you manually ask about the image, does ChatGPT answer it correctly? If the automatic entry fails, does the website's own + attachment control accept the prepared image? Verify cancellation, oversized-image error, reopening/re-cropping, navigation and an upload failure.
-3. Does Cmd-Option-arrow move 40 logical points while the chat input is focused, stop at the screen edge, and preserve normal Cmd-arrow text navigation and Chinese composition?
+3. Does Cmd-Shift-arrow move 40 logical points while the chat input is focused, stop at the screen edge, and preserve normal Cmd-arrow text navigation and Chinese composition?
 4. With cursor off, compare Normal (visible control) and Legacy in full-display Teams sharing. Can the receiver see the complete background and other windows updating, without a panel, border, shadow or transition flash?
-5. Quit that build, start `bash scripts/dev.sh --chat-preview`, select Legacy and enable Private Cursor (cursor-arrow button or Cmd-Option-C). Can you see/click/select/scroll with the replacement pointer locally? Can the receiver see any pointer movement over the chat, toolbar or image preview? Normal builds intentionally keep this control unavailable.
+5. Quit that build, start `bash scripts/dev.sh --chat-preview`, select Legacy and enable Private Cursor (cursor-arrow button or Cmd-Shift-C). Can you see/click/select/scroll with the replacement pointer locally? Can the receiver see any pointer movement over the chat, toolbar or image preview? Normal builds intentionally keep this control unavailable.
 6. Does the normal pointer return on leaving the window, switching apps, hiding/minimizing, choosing Normal, Esc, sleep/wake and quitting? Test native dialogs/IME candidates separately; do not extend the window verdict to those surfaces.
 7. Optionally use CaptureProbe's new full-display + cursor recording. It must record the visible cursor-off control with `showsCursor=true`, no exclusions, and other changing windows. Check manual Stop, two-minute auto-stop and Stop-then-Quit produce a playable finalized MP4. It remains separate from the Teams receiver verdict.
 

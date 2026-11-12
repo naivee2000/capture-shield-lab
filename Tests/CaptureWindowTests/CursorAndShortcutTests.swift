@@ -31,9 +31,21 @@ import CaptureCore
         #expect(!CursorEligibility.allows(enabled: true, legacy: true, foreground: true, insideOwnedWindow: true, visible: true, obstructed: true))
     }
     @Test func movementLeavesIMEAndModalEventsUntouched() {
-        #expect(ChatKeyboard.direction(keyCode: 126, modifiers: [.command, .option], markedText: false, modal: false) == .up)
+        #expect(ChatKeyboard.direction(keyCode: 126, modifiers: [.command, .shift], markedText: false, modal: false) == .up)
+        #expect(ChatKeyboard.direction(keyCode: 126, modifiers: [.command, .option], markedText: false, modal: false) == nil)
         #expect(ChatKeyboard.direction(keyCode: 126, modifiers: [.command], markedText: false, modal: false) == nil)
-        #expect(ChatKeyboard.direction(keyCode: 123, modifiers: [.command, .option], markedText: true, modal: false) == nil)
-        #expect(ChatKeyboard.direction(keyCode: 124, modifiers: [.command, .option], markedText: false, modal: true) == nil)
+        #expect(ChatKeyboard.direction(keyCode: 123, modifiers: [.command, .shift], markedText: true, modal: false) == nil)
+        #expect(ChatKeyboard.direction(keyCode: 124, modifiers: [.command, .shift], markedText: false, modal: true) == nil)
+    }
+    @Test func unknownWebCompositionBlocksMovementAndNewKeysAreCentralized() {
+        #expect(ChatKeyboard.blocksMovement(nativeMarked: false, webFocused: true, webComposing: nil))
+        #expect(ChatKeyboard.blocksMovement(nativeMarked: nil, webFocused: true, webComposing: false))
+        #expect(ChatKeyboard.blocksMovement(nativeMarked: true, webFocused: false, webComposing: false))
+        #expect(ChatKeyboard.blocksMovement(nativeMarked: false, webFocused: true, webComposing: true))
+        #expect(!ChatKeyboard.blocksMovement(nativeMarked: false, webFocused: true, webComposing: false))
+        #expect(ChatKeyboard.visibilityKey == 46)
+        #expect(ChatKeyboard.screenshotKey == 19)
+        #expect(ChatKeyboard.cursorKey == 8)
+        #expect(ChatKeyboard.summary.contains("⌘⇧M"))
     }
 }

@@ -19,8 +19,10 @@ read -r SWIFT_MAJOR SWIFT_MINOR <<< "$SWIFT_VERSION"
 if [[ -z "${SWIFT_MAJOR:-}" || "$SWIFT_MAJOR" -lt 6 || ( "$SWIFT_MAJOR" -eq 6 && "$SWIFT_MINOR" -lt 2 ) ]]; then
   echo 'Swift 6.2 or later is required. Update Apple Command Line Tools or select a compatible Xcode.' >&2; exit 1
 fi
-xcrun swift build
-BIN="$(xcrun swift build --show-bin-path)"
+xcrun swift build "$@"
+BIN="$(xcrun swift build "$@" --show-bin-path)"
+BUILD_COMMIT="$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)"
+if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then BUILD_COMMIT="$BUILD_COMMIT-dirty"; fi
 for NAME in CaptureShieldLab CaptureProbe; do
   APP="$APP_ROOT/$NAME.app"
   mkdir -p "$APP/Contents/MacOS"
@@ -37,13 +39,14 @@ for NAME in CaptureShieldLab CaptureProbe; do
 <key>CFBundleIdentifier</key><string>$BUNDLE_PREFIX.$SUFFIX</string>
 <key>CFBundleName</key><string>$NAME</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.4.0</string>
-<key>CFBundleVersion</key><string>4</string>
+<key>CFBundleShortVersionString</key><string>0.4.1</string>
+<key>CFBundleVersion</key><string>5</string>
+<key>CaptureShieldBuildCommit</key><string>$BUILD_COMMIT</string>
 <key>CFBundleIconFile</key><string>CaptureShield</string>
 <key>LSMinimumSystemVersion</key><string>26.0</string>
 <key>NSPrincipalClass</key><string>NSApplication</string>
 <key>NSHighResolutionCapable</key><true/>
-<key>NSScreenCaptureUsageDescription</key><string>Capture synthetic test content to measure window protection. No network upload.</string>
+<key>NSScreenCaptureUsageDescription</key><string>Capture a screen for local review or protection testing. Images are handed to ChatGPT only after you confirm Add to Chat.</string>
 </dict></plist>
 PLIST
   codesign --force --sign - --identifier "$BUNDLE_PREFIX.$SUFFIX" "$APP"

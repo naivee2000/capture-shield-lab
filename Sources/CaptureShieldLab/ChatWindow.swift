@@ -43,6 +43,7 @@ import CaptureCore
 }
 
 @MainActor final class ChatWindow: NSWindowController, NSWindowDelegate, NSToolbarDelegate, WKNavigationDelegate, WKUIDelegate {
+    let composition = CompositionTracker()
     let webView: ChatWebView
     let isMain: Bool
     lazy var images = ImageAttachmentCoordinator(owner: self)
@@ -73,8 +74,12 @@ import CaptureCore
     init(configuration: WKWebViewConfiguration, isMain: Bool, preferences: ChatPreferences = ChatPreferences(),
          defaults: UserDefaults = .standard, preview: Bool = false) {
         self.isMain = isMain; self.preferences = preferences; self.defaults = defaults; self.preview = preview
+        let scripts = configuration.userContentController.userScripts
+        configuration.userContentController = WKUserContentController()
+        scripts.forEach { configuration.userContentController.addUserScript($0) }
         ChatPageAdapter.disableInputSuggestions(persist: !preview)
         ChatPageAdapter.install(in: configuration, preview: preview)
+        composition.install(in: configuration)
         webView = ChatWebView(frame: .zero, configuration: configuration)
         let saved = isMain ? defaults.string(forKey: "ChatWindowFrame").map(NSRectFromString) : nil
         let frame = WindowPlacement.restore(saved, screens: NSScreen.screens.map(\.visibleFrame))
@@ -148,7 +153,7 @@ import CaptureCore
             item.label = "Sidebar"
             item.view = NSButton(image: NSImage(systemSymbolName: "sidebar.left", accessibilityDescription: "Toggle sidebar")!, target: self, action: #selector(toggleSidebar))
         case "screenshot":
-            item.label = "Screenshot"; item.toolTip = "Screenshot (⌘⇧2)"
+            item.label = "Screenshot"; item.toolTip = "Screenshot (\(ChatKeyboard.screenshotLabel))"
             item.view = NSButton(image: NSImage(systemSymbolName: "camera", accessibilityDescription: "Screenshot")!, target: self, action: #selector(takeScreenshot))
         case "pasteImage":
             item.label = "Paste Image"
@@ -219,7 +224,7 @@ import CaptureCore
     func updateCursorButton(enabled: Bool, available: Bool) {
         cursorButton.state = enabled ? .on : .off
         cursorButton.isEnabled = available && preferences.mode == .legacy
-        cursorButton.toolTip = available ? "Experimental local pointer · ⌘⌥C toggles · Esc restores" : "Not receiver-verified. Test only with --chat-preview."
+        cursorButton.toolTip = available ? "Experimental local pointer · \(ChatKeyboard.cursorLabel) toggles · Esc restores" : "Not receiver-verified. Test only with --chat-preview."
     }
     @objc private func toggleCursor() { togglePrivateCursor?() }
     func move(_ direction: WindowDirection) {
@@ -285,13 +290,15 @@ import CaptureCore
         if navigationResponse.canShowMIMEType { decisionHandler(.allow) }
         else { setStatus("Downloads are not supported."); decisionHandler(.cancel) }
     }
-    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) { cancelScreenshot(); images.invalidate(); setStatus("Loading…") }
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) { composition.reset(); cancelScreenshot(); images.invalidate(); setStatus("Loading…") }
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         // Only the host is displayed: URLs may contain login codes or private conversation IDs.
         window?.subtitle = webView.url?.host ?? "Offline preview"
     }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        setStatus("⌘⇧2 screenshot · ⌘⌥arrows move · ⌘⇧Space hide/show · Verify Legacy on your receiver")
+        let generation = composition.generation
+        Task { await composition.synchronize(in: webView, generation: generation) }
+        setStatus(ChatKeyboard.summary)
         didFinish?()
     }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { loadFailed(error) }
@@ -303,7 +310,7 @@ import CaptureCore
         setStatus("Page could not load (code \(error.code)). Check your connection, then Reload or choose ChatGPT.")
     }
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
-        images.invalidate(); cancelScreenshot()
+        composition.reset(); images.invalidate(); cancelScreenshot()
         setStatus("Web content stopped. Choose Reload to recover. Messages are never automatically resent.")
     }
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,

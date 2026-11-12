@@ -2,6 +2,21 @@
 
 Date: 2026-11-10. Development host: Apple Silicon, macOS 26.6.2 (25G83), 1920 × 1080 display.
 
+## Version 0.4.1 repair validation (2026-11-12)
+
+| Check | Result and boundary |
+| --- | --- |
+| User's reported meeting setup | Teams desktop, entire-screen sharing on macOS 26.6.2 (25G83), Chrome receiver: Normal visible, Legacy hidden, Pinyin candidates visible before this repair. Client versions and three-repeat retest pending |
+| Candidate ownership | Public WindowServer metadata and app NSWindow metadata agree: the reproduced Pinyin strip is an app-hosted NSPanel, layer 20, originally sharing=1. Input-source menu belongs to TextInputMenuAgent and is a separate surface |
+| Candidate repair, local | A new real Pinyin candidate logged sharing=0 before its first order call in Legacy. Switching to Normal restores the original sharing setting. Selection/expansion remain functional. No receiver/flash verdict |
+| Keyboard, local | Actual Pinyin composition blocks Cmd-Shift-Down; after commit it moves 40 points. All four directions, screen constraints, modifiers and unknown/modal composition gates also have regression coverage |
+| Attachment repair, synthetic | Lazy and generic controls, chooser consent, unchanged draft/no send, display/error/timeout and navigation/re-crop recovery covered. Offline UI displayed a cropped sample attachment |
+| Live ChatGPT attachment/readback | Pending official login and a synthetic image trial. Build remains labeled a test build until actual attachment visibility is confirmed; image understanding requires the user to send manually |
+| Private Cursor | Other reported faults deferred; normal builds remain disabled, offline experiment only |
+| Wider input/capture lifecycle | Other predictor/correction UI, external-process candidates, sleep/crash, Teams first-frame/mode-switch flashes and second physical Mac remain untested |
+
+Detailed repair evidence and review findings: [0.4.1 ledger](repair-041.md). Raw captures, real conversations and account data are excluded from Git.
+
 ## Version 0.4: images, movement and gated cursor experiment (2026-11-11)
 
 The user requested source delivery first and a questionnaire for later laptop/receiver tests. No new meeting result or physical-local pointer success is claimed.
