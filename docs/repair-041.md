@@ -16,7 +16,7 @@ Baseline: `e812b54`. Approved scope: investigate Chinese candidate-window leakag
 - Investigation and baseline build: complete; actual candidate ownership and first-order settings observed.
 - Attachment regression and repair: synthetic/local repair complete; live website validation pending.
 - Shortcut/composition regression and repair: complete, including actual Pinyin commit-to-movement recovery.
-- Final review, clean clone, GitHub synchronization: pending.
+- Final review and clean clone: complete. GitHub synchronization follows the documented pre-commit summary. Live/receiver trials remain pending.
 
 ## Evidence boundary
 
@@ -43,3 +43,5 @@ User reports Teams desktop entire-screen sharing from macOS 26.6.2 (25G83), view
 - Final review fixes: all four dedicated regressions first failed on the relevant behavior (after correcting the async fixture to return a serializable value), then the complete suite passed **63 tests / 13 suites**. Input association now requires composer/form ownership or synchronous dispatch from a recognized attachment action; a new unrelated input is insufficient. Preview acknowledgment requires file-name association and a visible remove control. Document identity is independent of composer visibility. Composition synchronization is generation-bound.
 - No minor review findings were deferred. Live/receiver and wider lifecycle limitations above remain explicit; this is a test build pending live validation.
 - The original ABC input source was restored and read back from HIToolbox after the local Pinyin tests.
+
+- Clean clone of `b474a969144ad8ac5147005b50db8c11b0670685` in a fresh local path containing spaces built both apps and passed strict ad-hoc signature checks; **63 tests / 13 suites passed**, and the clone remained clean. Info.plist reported version 0.4.1 and build commit b474a969144a. This was the development host, not a second physical Mac.

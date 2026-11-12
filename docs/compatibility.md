@@ -10,6 +10,7 @@ Date: 2026-11-10. Development host: Apple Silicon, macOS 26.6.2 (25G83), 1920 ×
 | Candidate ownership | Public WindowServer metadata and app NSWindow metadata agree: the reproduced Pinyin strip is an app-hosted NSPanel, layer 20, originally sharing=1. Input-source menu belongs to TextInputMenuAgent and is a separate surface |
 | Candidate repair, local | A new real Pinyin candidate logged sharing=0 before its first order call in Legacy. Switching to Normal restores the original sharing setting. Selection/expansion remain functional. No receiver/flash verdict |
 | Keyboard, local | Actual Pinyin composition blocks Cmd-Shift-Down; after commit it moves 40 points. All four directions, screen constraints, modifiers and unknown/modal composition gates also have regression coverage |
+| Reproducibility | Clean clone of `b474a96`, including a source path with spaces: both apps built/signed, 63 tests passed, clone clean. Same development host |
 | Attachment repair, synthetic | Lazy and generic controls, chooser consent, unchanged draft/no send, display/error/timeout and navigation/re-crop recovery covered. Offline UI displayed a cropped sample attachment |
 | Live ChatGPT attachment/readback | Pending official login and a synthetic image trial. Build remains labeled a test build until actual attachment visibility is confirmed; image understanding requires the user to send manually |
 | Private Cursor | Other reported faults deferred; normal builds remain disabled, offline experiment only |
