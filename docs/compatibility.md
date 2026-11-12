@@ -8,9 +8,9 @@ Date: 2026-11-10. Development host: Apple Silicon, macOS 26.6.2 (25G83), 1920 ×
 | --- | --- |
 | Real Screenshot and crop | Actual toolbar capture succeeded after app registration/permission refresh; cropped only a synthetic question |
 | Real Add to Chat | Cropped image visible in the signed-in composer and opened correctly in the website image viewer; synthetic draft preserved, no message sent |
-| Preview-state repair | First live trial exposed a false timeout for the website's filename-labelled popup thumbnail. Added positive/negative regressions; final rebuilt-app recheck pending permission refresh |
+| Preview-state repair | First live trial exposed a false timeout for the website's filename-labelled popup thumbnail. Final rebuilt-app trial passed: upload-in-progress then attachment-visible status, correct crop in the website viewer, unchanged draft, no send |
 | Automated suite | 69 tests / 13 suites passed |
-| Reproducibility | Persistent QA bundles built, registered and strictly signed; clean-clone validation pending |
+| Reproducibility | Clean clone of `7cf1d3c061d8` with a source path containing spaces: both apps built, registered and strictly signed, 69 tests passed, clone clean. Same development host |
 | Image understanding | User must send manually; not tested |
 | Teams / IME / Private Cursor | No new receiver test. Prior candidate-panel evidence remains local-only; Private Cursor remains offline-only |
 
