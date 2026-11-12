@@ -111,6 +111,50 @@ import CaptureCore
     <input type="file" accept="image/png,image/jpeg" id="file"><button id="send">Send</button>
     <script>window.changes=0;window.sent=0;document.querySelector('#file').onchange=async e=>{window.changes++;window.bytes=(await e.target.files[0].arrayBuffer()).byteLength;};document.querySelector('#send').onclick=()=>window.sent++;</script></body></html>
     """
+    @Test(arguments: [false, true]) func repeatedAttachmentsInSameDocument(removePrevious: Bool) async throws {
+        let controller = fixture(); defer { controller.images.close(); controller.window?.close() }
+        controller.webView.loadHTMLString("""
+        <form><div id="prompt-textarea" contenteditable="true">Keep this multi-image draft</div>
+        <button type="button" id="composer-plus-btn">Add files</button>
+        <input id="file" type="file" hidden><div id="attachments"></div><button id="send">Send</button></form>
+        <script>
+        window.changes=0;window.sent=0;
+        document.querySelector('form').onsubmit=e=>{e.preventDefault();window.sent++};
+        document.querySelector('#composer-plus-btn').onclick=()=>document.querySelector('#file').click();
+        document.querySelector('#file').onchange=e=>{
+          window.changes++;const file=e.target.files[0];
+          const card=document.createElement('span');
+          const popup=document.createElement('button');popup.type='button';popup.setAttribute('aria-haspopup','menu');popup.setAttribute('aria-label',file.name);
+          const image=document.createElement('img');image.src=URL.createObjectURL(file);image.width=80;image.height=80;popup.append(image);
+          const remove=document.createElement('button');remove.type='button';remove.textContent='Remove';remove.onclick=()=>card.remove();
+          card.append(popup,remove);document.querySelector('#attachments').append(card);
+        };
+        </script>
+        """, baseURL: nil)
+        try await wait(controller.webView, "typeof window.changes === 'number'")
+        let image = try ImagePreparation.decode(ImagePipelineTests.fixture())
+        var firstFilename: String?
+        var delivered = Set<String>()
+        for attempt in 1...3 {
+            if removePrevious, attempt > 1 {
+                _ = try await controller.webView.evaluateJavaScript("document.querySelector('#attachments span > button:last-child').click()")
+            }
+            controller.images.prepare(image)
+            await controller.images.confirm()
+            try await wait(controller.webView, "window.changes === \(attempt)")
+            try await waitPhase(controller, .visible)
+            // Repeating confirmation without a new preview must not duplicate it.
+            await controller.images.confirm()
+            let filenames = try #require(try await controller.webView.evaluateJavaScript("[...document.querySelectorAll('#attachments [aria-haspopup]')].map(e=>e.getAttribute('aria-label'))") as? [String])
+            #expect(filenames.count == (removePrevious ? 1 : attempt))
+            let last = try #require(filenames.last)
+            #expect(delivered.insert(last).inserted)
+            if attempt == 1 { firstFilename = last }
+            if !removePrevious { #expect(filenames.first == firstFilename) }
+            #expect(try await controller.webView.evaluateJavaScript("[window.changes,window.sent]") as? [Int] == [attempt,0])
+            #expect(try await controller.webView.evaluateJavaScript("document.querySelector('#prompt-textarea').textContent") as? String == "Keep this multi-image draft")
+        }
+    }
     @Test(arguments: [false, true]) func currentChineseAttachmentButtonsAndSubtitlesUseNativeChooser(pointerOnly: Bool) async throws {
         let controller = fixture(); defer { controller.images.close(); controller.window?.close() }
         controller.webView.loadHTMLString("""

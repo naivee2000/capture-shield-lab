@@ -2,6 +2,18 @@
 
 Date: 2026-11-10. Development host: Apple Silicon, macOS 26.6.2 (25G83), 1920 × 1080 display.
 
+## Version 0.4.3 repeated attachment repair (2026-11-12)
+
+| Check | Result and boundary |
+| --- | --- |
+| Root cause | The isolated-world script declared request configuration as a top-level const; the second evaluation in the same document failed before replacing the old request. Configuration now stays inside the per-request function |
+| Regression | Both keep-existing and remove-previous scenarios failed on the second image before the fix. Each now completes three additions, retains the draft, and prevents duplicate confirmation/send. Full suite: 70 tests / 13 suites passed |
+| Real signed-in ChatGPT | Actual Screenshot/crop/Add to Chat used four times without navigation or reload: two images coexist; removing one permits a replacement; removing all permits a new image. Every addition reached attachment-visible status. Synthetic draft unchanged; no message sent |
+| Packaging | Version 0.4.3/build 7. Persistent QA apps built, strictly signed and registered; clean-clone verification pending |
+| Cleanup and boundaries | Task background window closed and absence verified from window metadata. Pre-existing chat window retained with its synthetic draft and one replacement test image. Manual image-understanding and Teams/IME/cursor claims unchanged |
+
+No authentication data, real conversation, meeting link or raw screenshot is included. The fix changes only the request variable scope; origin, document identity, file association and one-use confirmation checks remain intact.
+
 ## Version 0.4.2 live attachment validation (2026-11-12)
 
 | Check | Result and boundary |

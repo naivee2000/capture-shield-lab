@@ -39,8 +39,10 @@ import CaptureCore
     // recognized attachment action. Merely appearing elsewhere is never association.
     static func request(in webView: WKWebView, preview: Bool) async -> Bool {
         guard await context(in: webView, preview: preview) != nil else { return false }
-        let script = "const captureShieldAttachmentPreview=\(preview);\n" + #"""
-        (()=>{
+        // evaluateJavaScript reuses the document's global lexical environment.
+        // Keep request configuration local so another image can start a fresh
+        // request without redeclaring a top-level const in the same document.
+        let script = "(()=>{const captureShieldAttachmentPreview=\(preview);\n" + #"""
           window.captureShieldAttachment?.cancel();
           const editor=[...document.querySelectorAll('[data-composer-markdown][contenteditable="true"],#prompt-textarea[contenteditable="true"],textarea#prompt-textarea,textarea#mobile-composer-prompt')].find(e=>e.getBoundingClientRect().height>0);
           const scope=(editor?.closest('form')||editor?.closest('[data-composer-body]'))||(captureShieldAttachmentPreview?document.body:null);
