@@ -16,8 +16,17 @@ for path in CommandLine.arguments.dropFirst() {
     guard result == noErr else {
         fputs("Application registration failed (\(result)): \(identifier)\n", stderr); exit(1)
     }
-    guard let found = NSWorkspace.shared.urlForApplication(withBundleIdentifier: identifier),
-          found.resolvingSymlinksInPath().standardizedFileURL == url else {
+    // Registration may return before NSWorkspace sees a newly created bundle.
+    // Keep the exact-path check, but allow its lookup cache a bounded refresh.
+    var resolved = false
+    for attempt in 0..<20 {
+        if let found = NSWorkspace.shared.urlForApplication(withBundleIdentifier: identifier),
+           found.resolvingSymlinksInPath().standardizedFileURL == url {
+            resolved = true; break
+        }
+        if attempt < 19 { RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1)) }
+    }
+    guard resolved else {
         fputs("The system could not resolve this build by its bundle ID: \(identifier). Use a persistent local app folder and check for duplicate builds.\n", stderr); exit(1)
     }
     print("Registered \(identifier)")
