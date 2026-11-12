@@ -3,9 +3,9 @@
 A native ChatGPT web window and a separate macOS capture-protection lab. Can the window remain visible locally while disappearing from a full-display capture?
 
 **Experimental. No universal invisibility claim.**
-Version 0.4.1 (repair test build) embeds the official ChatGPT website in a persistent WKWebView with Normal/Legacy modes, screenshot cropping, confirmed image attachments and keyboard window movement. Account login and sharing compatibility must be verified on your own Mac. The lab compares four configurations and provides a separate, unfiltered ScreenCaptureKit recorder; a local screenshot does not prove Zoom, Meet or Teams behavior.
+Version 0.4.2 embeds the official ChatGPT website in a persistent WKWebView with Normal/Legacy modes, screenshot cropping, confirmed image attachments and keyboard window movement. Account login and sharing compatibility must be verified on your own Mac. The lab compares four configurations and provides a separate, unfiltered ScreenCaptureKit recorder; a local screenshot does not prove Zoom, Meet or Teams behavior.
 
-**Operator feedback:** Teams desktop entire-screen sharing from macOS 26.6.2 (25G83), viewed in Chrome: Normal visible, Legacy hidden, but Pinyin candidates visible. Receiver retesting of 0.4.1 is pending; this is not a blanket privacy guarantee.
+**Operator feedback:** Teams desktop entire-screen sharing from macOS 26.6.2 (25G83), viewed in Chrome: Normal visible, Legacy hidden, but Pinyin candidates visible. Receiver retesting of the candidate-panel repair is pending; this is not a blanket privacy guarantee.
 
 **Earlier operator observation (native text lab):** on the user's personal laptop, Teams whole-screen sharing with **Legacy sharing** kept the lab window visible locally while omitting it at the receiver; other windows continued updating. **Protected mask** disappeared locally as well. WebView content requires a new test; see [observed compatibility](docs/compatibility.md).
 
@@ -49,6 +49,8 @@ The build uses only Apple frameworks. It produces two locally ad-hoc signed appl
       CaptureShieldLab.app
       CaptureProbe.app
 
+The build registers each signed app with LaunchServices and verifies its bundle identifier resolves to the current path. Registration does not grant screen-recording permission. Use a persistent local app destination, including for QA builds; `/tmp` app bundles may not resolve reliably in System Settings.
+
 Bundles are built on the Mac's local filesystem because exFAT/SMB AppleDouble metadata can invalidate code-signature resource seals. You can keep this source repository on an external disk. A paid Apple Developer account is not required. These are local development builds, not notarized distribution binaries.
 
 ## Use ChatGPT
@@ -79,6 +81,8 @@ Legacy is a compatibility experiment, not a security guarantee. The main app doe
 - If the current website attachment control cannot be identified, the preview collapses and the status explains how to use ChatGPT's existing **+ / attachment** control. **Image Preview** reopens the staged image to edit or cancel. Navigation invalidates its confirmation. The app never automatically retries an upload or sends a prompt, and a native handoff is not an upload-success claim. The app now distinguishes preparation, file handoff, a new composer attachment preview, upload errors and a 30-second timeout. It handles lazy file controls opened from the recognized attachment button/menu. A missing callback or preview retains your crop for recovery, with no automatic retry. Check/remove any existing attachment before confirming again; canceling the app preview cannot undo an upload that the webpage already started.
 - Preview pixels stay in memory. Only confirmed images handed to WebKit become randomly named, mode-0600 files inside a mode-0700 application-specific temporary session directory. They stay available for that app session, are removed on exit, and abandoned sessions are cleaned at startup. Active sessions are protected by a file lock. No screenshot history, desktop export or automatic clipboard write is created.
 - **Cmd-Shift-Up/Down/Left/Right** moves the foreground chat window by **40 logical points**, with key repeat. The frame stays on its current monitor; drag to cross monitors. The position is remembered. Standard Cmd-arrow editing remains available. Cmd-Shift-arrow selection is deliberately replaced by window movement outside composition. Active or unknown native/web composition and modal dialogs keep their keys.
+
+If Screenshot reports denied access, grant permission to **CaptureShieldLab**, not CaptureProbe. In the System Settings app picker, press **Cmd-Shift-G**, enter `~/Library/Caches/CaptureShieldLab/Apps/`, and select **CaptureShieldLab.app**. Enable its switch and quit/reopen that exact built app if macOS requests it; opening the `.app` directly avoids another rebuild/signature change. If an old entry still fails, remove only that app's stale entry and add the current bundle again. Administrator authentication may be required; never disable system protections. The two apps have distinct purposes and permissions cannot be combined.
 
 Grant screenshot permission before a meeting if possible: System Settings → Privacy & Security → Screen & System Audio Recording → CaptureShieldLab. After a denial the app will explain how to enable it rather than repeatedly prompting. System permission panels, capture indicators, menus and IME candidate windows are outside the Legacy window claim.
 
@@ -224,8 +228,10 @@ bash scripts/dev.sh
 
 Use a separate branch for changes you want to keep. If Git reports local changes or divergence, resolve them explicitly; do not use a hard reset to update. Application data and recordings are not synchronized by Git.
 
-Rebuilding can change an ad-hoc signature; macOS may request permission again. Recheck CaptureProbe's permission if capture stops working. If toggling it does not refresh a stale registration, quit CaptureProbe, remove only its entry using System Settings, add the current app from the build-cache folder, enable it, then relaunch. macOS may require your administrator password. Do not disable Gatekeeper or reset the system permission database.
+Rebuilding can change an ad-hoc signature; macOS may request permission again. Recheck the permission for the app performing capture: CaptureShieldLab for Screenshot, CaptureProbe for verification. If toggling it does not refresh a stale registration, quit CaptureProbe, remove only its entry using System Settings, add the current app from the build-cache folder, enable it, then relaunch. macOS may require your administrator password. Do not disable Gatekeeper or reset the system permission database.
 
 ## Evidence and limitations
+
+The real screenshot → crop → ChatGPT attachment path was exercised with a synthetic question and an unchanged draft. Manual sending/image understanding and meeting receiver checks remain separate; see [0.4.2 evidence](docs/attachment-042.md).
 
 Read [observed compatibility](docs/compatibility.md), [research](docs/research.md), [testing](docs/testing.md), and [implementation notes](docs/implementation.md). Compatibility is always specific to the macOS build, capture application/version, and capture mode. Do not use this project as a claim of being undetectable by every application.

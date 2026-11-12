@@ -2,6 +2,20 @@
 
 Date: 2026-11-10. Development host: Apple Silicon, macOS 26.6.2 (25G83), 1920 × 1080 display.
 
+## Version 0.4.2 live attachment validation (2026-11-12)
+
+| Check | Result and boundary |
+| --- | --- |
+| Real Screenshot and crop | Actual toolbar capture succeeded after app registration/permission refresh; cropped only a synthetic question |
+| Real Add to Chat | Cropped image visible in the signed-in composer and opened correctly in the website image viewer; synthetic draft preserved, no message sent |
+| Preview-state repair | First live trial exposed a false timeout for the website's filename-labelled popup thumbnail. Added positive/negative regressions; final rebuilt-app recheck pending permission refresh |
+| Automated suite | 69 tests / 13 suites passed |
+| Reproducibility | Persistent QA bundles built, registered and strictly signed; clean-clone validation pending |
+| Image understanding | User must send manually; not tested |
+| Teams / IME / Private Cursor | No new receiver test. Prior candidate-panel evidence remains local-only; Private Cursor remains offline-only |
+
+See the [0.4.2 evidence ledger](attachment-042.md). No raw images, drafts or account data are committed.
+
 ## Version 0.4.1 repair validation (2026-11-12)
 
 | Check | Result and boundary |
@@ -12,7 +26,7 @@ Date: 2026-11-10. Development host: Apple Silicon, macOS 26.6.2 (25G83), 1920 ×
 | Keyboard, local | Actual Pinyin composition blocks Cmd-Shift-Down; after commit it moves 40 points. All four directions, screen constraints, modifiers and unknown/modal composition gates also have regression coverage |
 | Reproducibility | Clean clone of `b474a96`, including a source path with spaces: both apps built/signed, 63 tests passed, clone clean. Same development host |
 | Attachment repair, synthetic | Lazy and generic controls, chooser consent, unchanged draft/no send, display/error/timeout and navigation/re-crop recovery covered. Offline UI displayed a cropped sample attachment |
-| Live ChatGPT attachment/readback | Pending official login and a synthetic image trial. Build remains labeled a test build until actual attachment visibility is confirmed; image understanding requires the user to send manually |
+| Live ChatGPT attachment/readback | Not tested during 0.4.1; superseded by the 0.4.2 live attachment trial above. Image understanding still requires the user to send manually |
 | Private Cursor | Other reported faults deferred; normal builds remain disabled, offline experiment only |
 | Wider input/capture lifecycle | Other predictor/correction UI, external-process candidates, sleep/crash, Teams first-frame/mode-switch flashes and second physical Mac remain untested |
 

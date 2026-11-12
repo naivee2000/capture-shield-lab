@@ -39,8 +39,8 @@ for NAME in CaptureShieldLab CaptureProbe; do
 <key>CFBundleIdentifier</key><string>$BUNDLE_PREFIX.$SUFFIX</string>
 <key>CFBundleName</key><string>$NAME</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.4.1</string>
-<key>CFBundleVersion</key><string>5</string>
+<key>CFBundleShortVersionString</key><string>0.4.2</string>
+<key>CFBundleVersion</key><string>6</string>
 <key>CaptureShieldBuildCommit</key><string>$BUILD_COMMIT</string>
 <key>CFBundleIconFile</key><string>CaptureShield</string>
 <key>LSMinimumSystemVersion</key><string>26.0</string>
@@ -52,4 +52,5 @@ PLIST
   codesign --force --sign - --identifier "$BUNDLE_PREFIX.$SUFFIX" "$APP"
   codesign --verify --strict "$APP"
 done
+xcrun swift "$ROOT/scripts/register-app.swift" "$APP_ROOT/CaptureShieldLab.app" "$APP_ROOT/CaptureProbe.app"
 echo "Built both applications in $APP_ROOT"

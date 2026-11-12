@@ -219,6 +219,15 @@ import CaptureCore
         return event
     }
     @objc private func loadSampleImage() { if preview { activeChat().images.prepare(ChatPreview.sampleImage()) } }
+    @objc private func inspectAttachmentControls() {
+        guard ProcessInfo.processInfo.environment["CAPTURESHIELD_ATTACHMENT_DIAGNOSTICS"] == "1" else { return }
+        let controller = activeChat()
+        Task {
+            let metadata = await AttachmentPageBridge.controlDiagnostics(in: controller.webView, preview: preview)
+            try? FileHandle.standardError.write(contentsOf: Data(("CAPTURESHIELD_ATTACHMENT " + metadata + "\n").utf8))
+            controller.setStatus("Attachment control metadata recorded. No draft, chat text or credentials were read.")
+        }
+    }
     @objc private func takeScreenshot() {
         guard !clearing, main != nil, NSApp.modalWindow == nil, activeChat().window?.attachedSheet == nil else { return }
         activeChat().captureScreenshot()
@@ -243,6 +252,9 @@ import CaptureCore
         }
         app.addItem(withTitle: "Show / Hide (\(ChatKeyboard.visibilityLabel))", action: #selector(toggleVisibility), keyEquivalent: "").target = self
         if preview { app.addItem(withTitle: "Load sample image (offline)", action: #selector(loadSampleImage), keyEquivalent: "").target = self }
+        if ProcessInfo.processInfo.environment["CAPTURESHIELD_ATTACHMENT_DIAGNOSTICS"] == "1" {
+            app.addItem(withTitle: "Inspect attachment controls", action: #selector(inspectAttachmentControls), keyEquivalent: "").target = self
+        }
         app.addItem(.separator())
         app.addItem(withTitle: "Screenshot (\(ChatKeyboard.screenshotLabel))", action: #selector(takeScreenshot), keyEquivalent: "").target = self
         let displays = NSMenuItem(title: "Capture Display", action: nil, keyEquivalent: "")

@@ -51,6 +51,36 @@ import CaptureCore
         #expect(controller.images.phase == .handedToPage)
         #expect(controller.images.image != nil)
     }
+    @Test(arguments: [false, true]) func filenamePopupThumbnailConfirmsWithoutAlwaysVisibleRemove(background: Bool) async throws {
+        let controller = fixture(); defer { controller.images.close(); controller.window?.close() }
+        controller.webView.loadHTMLString(Self.html, baseURL: nil)
+        try await wait(controller.webView, "typeof window.changes === 'number'")
+        controller.images.prepare(try ImagePreparation.decode(ImagePipelineTests.fixture()))
+        await controller.images.confirm()
+        try await wait(controller.webView, "window.bytes > 0")
+        _ = try await controller.webView.evaluateJavaScript("""
+        const file=document.querySelector('#file').files[0];
+        const card=document.createElement('button');card.type='button';card.setAttribute('aria-haspopup','menu');
+        card.setAttribute('aria-label',file.name);card.style='width:100px;height:100px';
+        const image=document.createElement('\(background ? "div" : "img")');image.style='width:80px;height:80px';
+        \(background ? "image.style.backgroundImage='url('+URL.createObjectURL(file)+')'" : "image.src=URL.createObjectURL(file)");
+        card.append(image);document.body.append(card);true
+        """)
+        try await waitPhase(controller, .visible)
+        #expect(try await controller.webView.evaluateJavaScript("window.sent") as? Int == 0)
+        #expect(try await controller.webView.evaluateJavaScript("document.querySelector('[contenteditable]').textContent") as? String == "Existing synthetic draft")
+    }
+    @Test func filenamePopupWithoutThumbnailDoesNotConfirm() async throws {
+        let controller = fixture(); defer { controller.images.close(); controller.window?.close() }
+        controller.webView.loadHTMLString(Self.html, baseURL: nil)
+        try await wait(controller.webView, "typeof window.changes === 'number'")
+        controller.images.prepare(try ImagePreparation.decode(ImagePipelineTests.fixture()))
+        await controller.images.confirm()
+        try await wait(controller.webView, "window.bytes > 0")
+        _ = try await controller.webView.evaluateJavaScript("const card=document.createElement('button');card.type='button';card.setAttribute('aria-haspopup','menu');card.setAttribute('aria-label',document.querySelector('#file').files[0].name);card.textContent='Loading';document.body.append(card);true")
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(controller.images.phase == .handedToPage)
+    }
     @Test func temporaryComposerInvisibilityPreservesCrop() async throws {
         let controller = fixture(); defer { controller.images.close(); controller.window?.close() }
         controller.webView.loadHTMLString(Self.html, baseURL: nil)
@@ -81,6 +111,75 @@ import CaptureCore
     <input type="file" accept="image/png,image/jpeg" id="file"><button id="send">Send</button>
     <script>window.changes=0;window.sent=0;document.querySelector('#file').onchange=async e=>{window.changes++;window.bytes=(await e.target.files[0].arrayBuffer()).byteLength;};document.querySelector('#send').onclick=()=>window.sent++;</script></body></html>
     """
+    @Test(arguments: [false, true]) func currentChineseAttachmentButtonsAndSubtitlesUseNativeChooser(pointerOnly: Bool) async throws {
+        let controller = fixture(); defer { controller.images.close(); controller.window?.close() }
+        controller.webView.loadHTMLString("""
+        <form><div id="prompt-textarea" contenteditable="true">Preserve this draft</div>
+        <button type="button" id="plus" aria-label="添加文件等内容" aria-expanded="false" aria-controls="attachment-popover">+</button></form>
+        <div id="attachment-popover" hidden><button type="button" id="upload"><span>添加照片和文件</span><span>从计算机上传</span></button>
+        <button type="button" id="library">从资料库添加 浏览并搜索你的文件</button></div>
+        <script>window.changes=0;window.libraryClicks=0;
+        document.querySelector('#plus').\(pointerOnly ? "onpointerdown" : "onclick")=()=>{document.querySelector('#plus').setAttribute('aria-expanded','true');document.querySelector('#attachment-popover').hidden=false};
+        document.querySelector('#library').onclick=()=>window.libraryClicks++;
+        document.querySelector('#upload').onclick=()=>{const file=document.createElement('input');file.type='file';document.body.append(file);file.onchange=async()=>{window.bytes=(await file.files[0].arrayBuffer()).byteLength;window.changes++};file.click()};
+        </script>
+        """, baseURL: nil)
+        try await wait(controller.webView, "typeof window.changes === 'number'")
+        controller.images.prepare(try ImagePreparation.decode(ImagePipelineTests.fixture()))
+        await controller.images.confirm()
+        try await wait(controller.webView, "window.bytes > 0")
+        #expect(try await controller.webView.evaluateJavaScript("[window.changes,window.libraryClicks]") as? [Int] == [1,0])
+        #expect(try await controller.webView.evaluateJavaScript("document.querySelector('#prompt-textarea').textContent") as? String == "Preserve this draft")
+    }
+    @Test(arguments: [false, true]) func composerBodyDoesNotHideItsSiblingAttachmentControls(withoutControls: Bool) async throws {
+        let controller = fixture(); defer { controller.images.close(); controller.window?.close() }
+        controller.webView.loadHTMLString("""
+        <form id="composer"><div data-composer-body><div id="prompt-textarea" contenteditable="true">Preserve draft</div></div>
+        <button type="button" id="plus" aria-label="添加文件等内容" aria-expanded="false" \(withoutControls ? "" : "aria-controls=\"attachment-menu\"")>+</button></form>
+        <input type="file" accept="image/*" form="composer" id="other-image"><input type="file" accept="image/*,video/*" form="composer" id="other-video">
+        <input type="file" form="composer" id="chosen">
+        <div id="attachment-menu" hidden><button id="upload" type="button">添加照片和文件 从计算机上传</button></div>
+        <script>window.right=0;window.wrong=0;
+        document.querySelector('#plus').onclick=()=>{document.querySelector('#plus').setAttribute('aria-expanded','true');document.querySelector('#attachment-menu').hidden=false};
+        document.querySelector('#upload').onclick=()=>document.querySelector('#chosen').click();
+        document.querySelector('#chosen').onchange=()=>window.right++;
+        document.querySelector('#other-image').onchange=document.querySelector('#other-video').onchange=()=>window.wrong++;
+        </script>
+        """, baseURL: nil)
+        try await wait(controller.webView, "typeof window.right === 'number'")
+        controller.images.prepare(try ImagePreparation.decode(ImagePipelineTests.fixture()))
+        await controller.images.confirm()
+        try await wait(controller.webView, "window.right === 1")
+        #expect(try await controller.webView.evaluateJavaScript("window.wrong") as? Int == 0)
+        #expect(try await controller.webView.evaluateJavaScript("document.querySelector('#prompt-textarea').textContent") as? String == "Preserve draft")
+    }
+    @Test func unassociatedUploadButtonIsNeverActivated() async throws {
+        let controller = fixture(); defer { controller.images.close(); controller.window?.close() }
+        controller.webView.loadHTMLString("""
+        <form><div id="prompt-textarea" contenteditable="true">Draft</div><button type="button" id="composer-plus-btn">+</button></form>
+        <button id="unrelated">Upload files</button><script>window.wrong=0;
+        document.querySelector('#unrelated').onclick=()=>{window.wrong++;const file=document.createElement('input');file.type='file';document.body.append(file);file.click()};</script>
+        """, baseURL: nil)
+        try await wait(controller.webView, "typeof window.wrong === 'number'")
+        controller.images.prepare(try ImagePreparation.decode(ImagePipelineTests.fixture()))
+        await controller.images.confirm()
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(try await controller.webView.evaluateJavaScript("window.wrong") as? Int == 0)
+        #expect(controller.images.phase == .ready)
+    }
+    @Test func associatedMenuInsideComposerIsNotMistakenForTrigger() async throws {
+        let controller = fixture(); defer { controller.images.close(); controller.window?.close() }
+        controller.webView.loadHTMLString("""
+        <form><div id="prompt-textarea" contenteditable="true">Draft</div><button type="button" id="composer-plus-btn" aria-controls="menu">+</button>
+        <div id="menu" hidden><button type="button" role="menuitem" aria-label="Add photos & files" id="upload">Add photos &amp; files</button></div></form>
+        <script>window.changes=0;document.querySelector('#composer-plus-btn').onclick=()=>document.querySelector('#menu').hidden=false;
+        document.querySelector('#upload').onclick=()=>{const file=document.createElement('input');file.type='file';document.querySelector('form').append(file);file.onchange=()=>window.changes++;file.click()};</script>
+        """, baseURL: nil)
+        try await wait(controller.webView, "typeof window.changes === 'number'")
+        controller.images.prepare(try ImagePreparation.decode(ImagePipelineTests.fixture()))
+        await controller.images.confirm()
+        try await wait(controller.webView, "window.changes === 1")
+    }
     @Test func attachmentButtonCanCreateAGenericInputLazily() async throws {
         let controller = fixture(); defer { controller.images.close(); controller.webView.stopLoading(); controller.window?.close() }
         controller.webView.loadHTMLString("""
