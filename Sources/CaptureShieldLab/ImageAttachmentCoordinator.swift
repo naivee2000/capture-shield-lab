@@ -22,6 +22,9 @@ import CaptureCore
         view.add = { [weak self] crop in Task { await self?.confirm(cropped: crop) } }
         showPreview()
     }
+    func showCaptureFailure(_ message: String) {
+        if let view, !view.isHidden { view.showMessage(message) }
+    }
     func showPreview() {
         guard let root = owner?.window?.contentView, let view else { return }
         let mayHaveUploaded = phase == .handedToPage || phase == .failed

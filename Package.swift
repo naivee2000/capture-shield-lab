@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "CaptureShieldLab",
-    platforms: [.macOS(.v26)],
+    platforms: [.macOS("15.6")],
     products: [
         .executable(name: "CaptureShieldLab", targets: ["CaptureShieldLab"]),
         .executable(name: "CaptureProbe", targets: ["CaptureProbe"])

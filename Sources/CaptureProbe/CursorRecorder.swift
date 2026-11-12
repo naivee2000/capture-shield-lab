@@ -29,7 +29,7 @@ import CaptureCore
         let folder = output.appendingPathComponent("cursor-\(UUID())", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         directory = folder
-        metadata = ["os": ProcessInfo.processInfo.operatingSystemVersionString, "appVersion": "0.4.0",
+        metadata = ["os": ProcessInfo.processInfo.operatingSystemVersionString, "appVersion": BuildIdentity().version, "appCommit": BuildIdentity().commit,
                     "capture": "ScreenCaptureKit whole display; empty exclusion list", "showsCursor": "true",
                     "audio": "false", "displayID": String(displayID), "pixels": "\(width)x\(height)",
                     "verdict": "not-tested", "reason": "Manual video requires local visibility and independent receiver review.",

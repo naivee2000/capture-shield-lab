@@ -90,7 +90,7 @@ enum CursorEligibility {
             suspend()
             let panel = NSPanel(contentRect: parent.frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
             panel.isOpaque = false; panel.backgroundColor = .clear; panel.hasShadow = false
-            panel.ignoresMouseEvents = true; panel.sharingType = .none; panel.level = .normal
+            panel.ignoresMouseEvents = true; WindowProtection.setSharing(of: panel, legacy: true); panel.level = .normal
             panel.alphaValue = parent.alphaValue; panel.isReleasedWhenClosed = false
             panel.collectionBehavior = [.transient, .ignoresCycle]
             let view = CursorDrawing(frame: CGRect(origin: .zero, size: parent.frame.size))

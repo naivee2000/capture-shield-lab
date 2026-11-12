@@ -83,7 +83,8 @@ public struct RunReport: Codable, Sendable {
     public var createdAt = Date()
     public var os: String
     public var architecture = "arm64"
-    public var appVersion = "0.4.0"
+    public var appVersion = BuildIdentity().version
+    public var appCommit: String? = BuildIdentity().commit
     public var surface: String? = "native-editor"
     public var captureMethod = "ScreenCaptureKit SCStream, full display, empty exclusion list"
     public var displayID: UInt32

@@ -3,7 +3,7 @@
 A native ChatGPT web window and a separate macOS capture-protection lab. Can the window remain visible locally while disappearing from a full-display capture?
 
 **Experimental. No universal invisibility claim.**
-Version 0.4.3 embeds the official ChatGPT website in a persistent WKWebView with Normal/Legacy modes, screenshot cropping, confirmed image attachments and keyboard window movement. Account login and sharing compatibility must be verified on your own Mac. The lab compares four configurations and provides a separate, unfiltered ScreenCaptureKit recorder; a local screenshot does not prove Zoom, Meet or Teams behavior.
+Version 0.5.0 embeds the official ChatGPT website in a persistent WKWebView with Normal/Legacy modes, screenshot cropping, confirmed image attachments and keyboard window movement. Account login and sharing compatibility must be verified on your own Mac. The lab compares four configurations and provides a separate, unfiltered ScreenCaptureKit recorder; a local screenshot does not prove Zoom, Meet or Teams behavior.
 
 **Operator feedback:** Teams desktop entire-screen sharing from macOS 26.6.2 (25G83), viewed in Chrome: Normal visible, Legacy hidden, but Pinyin candidates visible. Receiver retesting of the candidate-panel repair is pending; this is not a blanket privacy guarantee.
 
@@ -11,8 +11,8 @@ Version 0.4.3 embeds the official ChatGPT website in a persistent WKWebView with
 
 ## Requirements
 
-- Apple Silicon Mac, macOS 26 or later. A newer OS is not automatically a verified OS.
-- Apple Command Line Tools with Swift 6.2 or later. Full Xcode is optional.
+- Apple Silicon Mac, **macOS 15.6 or later**. Older-system compatibility is implemented but real 15.6/15.x and 27 runtime/receiver verification remains pending. A newer OS is not automatically verified.
+- Build tools: **Swift 6.2+ and macOS SDK 26+**. On macOS 15.6–15.x use Xcode / Command Line Tools **26.0–26.3**; newer tool releases may require a newer OS. Full Xcode is optional.
 - Access to the private GitHub repository, naivee2000/capture-shield-lab.
 - Screen Recording permission for **CaptureShieldLab** when you explicitly take a screenshot, and separately for **CaptureProbe** when running capture tests. The original lab does not request recording. No microphone, camera, Accessibility or Input Monitoring permission is requested.
 
@@ -55,7 +55,7 @@ Bundles are built on the Mac's local filesystem because exFAT/SMB AppleDouble me
 
 ## Use ChatGPT
 
-`bash scripts/dev.sh` opens the chat window by default. Quit both development apps with **Cmd-Q** before rebuilding. You can also open the built CaptureShieldLab.app directly without Terminal.
+`bash scripts/dev.sh` builds and opens the chat window by default. For everyday use, `bash scripts/launch.sh` opens the existing app without rebuilding or changing its signature. Quit both development apps with **Cmd-Q** before rebuilding. You can also open the built CaptureShieldLab.app directly without Terminal.
 
 - Sign in personally on the official ChatGPT page. Your account and web history remain on ChatGPT; the app does not provide its own API account or synchronize browser profiles.
 - For Google-created accounts, embedded Google sign-in may be rejected. If your existing account offers it, add an OpenAI password in the official account/security settings and sign in with the same email. Never enter your Google password into an OpenAI-password field. See [OpenAI's password instructions](https://help.openai.com/en/articles/4936828-resetting-or-changing-your-chatgpt-password).
@@ -72,6 +72,19 @@ Bundles are built on the Mac's local filesystem because exFAT/SMB AppleDouble me
 Spelling correction, grammar checking and text replacement are disabled within this app, and known chat editors receive `spellcheck=false`, `autocorrect=off` and `writingsuggestions=false`. These settings do not disable the operating system's Chinese/other IME candidate windows. Test those separately at the receiver; no global keyboard settings are changed.
 
 Legacy is a compatibility experiment, not a security guarantee. The main app does not detect whether your meeting receiver sees it. Use synthetic messages until you have tested the exact machine and sharing setup.
+
+### Compatibility and updates
+
+Open **Compatibility…** from the app menu or the button at the bottom of the window. **Auto** selects the newer screenshot API on macOS 26+ and the compatible API on 15.6–15.x. **Compatible** always selects the earlier API, useful when diagnosing an OS upgrade. The setting is saved on this Mac. On the development host's remote-control session, Compatible returned the system privacy curtain; normal desktop capture on 15.6/15.x still needs a physical-device test. Switching does not capture, upload, reset Legacy or reload the webpage; take another screenshot yourself when ready.
+
+The panel shows the system/build, app/commit, selected implementation, recording-permission preflight and sanitized screenshot error stage/code. **Copy diagnostic summary** copies only those technical fields. A changed OS build triggers an in-window reminder to retest sharing, without changing modes. Neither the panel nor the script below certifies receiver invisibility.
+
+```bash
+bash scripts/doctor.sh   # inspect tools, app identity, signature and registration; change no settings
+bash scripts/launch.sh   # open the existing build
+```
+
+See [maintenance and repair instructions](docs/maintenance.md), including compatible toolchains and the separate old-OS/receiver test checklist.
 
 ### Screenshots, images and movement
 

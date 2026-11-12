@@ -24,9 +24,9 @@ import ObjectiveC
         guard let panel = window as? NSPanel else { return }
         if legacy {
             if original.object(forKey: panel) == nil { original.setObject(NSNumber(value: panel.sharingType.rawValue), forKey: panel) }
-            panel.sharingType = .none
+            WindowProtection.setSharing(of: panel, legacy: true)
         } else if let value = original.object(forKey: panel), let sharing = NSWindow.SharingType(rawValue: value.uintValue) {
-            panel.sharingType = sharing
+            WindowProtection.restoreSharing(of: panel, to: sharing)
             original.removeObject(forKey: panel)
         }
     }

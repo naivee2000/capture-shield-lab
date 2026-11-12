@@ -163,7 +163,7 @@ import CaptureCore
         guard validity.canConfigure(rendererHealthy: true) else {
             content.failClosed(validity.failure!); return
         }
-        panel.sharingType = next == .legacy ? .none : .readOnly
+        WindowProtection.setSharing(of: panel, legacy: next == .legacy)
         content.configure(next)
         selector.selectedSegment = ProtectionMode.allCases.firstIndex(of: next)!
         status.stringValue = "\(next.title) · renderer configured, capture protection UNVERIFIED"

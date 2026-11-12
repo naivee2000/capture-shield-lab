@@ -69,6 +69,9 @@ import CaptureCore
     private lazy var screenshots = ScreenshotService(defaults: defaults)
     private var screenshotTask: Task<Void, Never>?
     private var screenshotGeneration = 0
+    private var compatibilityPanel: CompatibilityPanel?
+    private var osUpgradeNotice = false
+    private var lastStatus = "Loading…"
 
 
     init(configuration: WKWebViewConfiguration, isMain: Bool, preferences: ChatPreferences = ChatPreferences(),
@@ -118,11 +121,14 @@ import CaptureCore
         window.contentView = root
         status.font = .systemFont(ofSize: 11); status.maximumNumberOfLines = 2
         status.setAccessibilityLabel("Page status")
-        for view in [webView, status] { view.translatesAutoresizingMaskIntoConstraints = false; root.addSubview(view) }
+        let compatibility = NSButton(title: "Compatibility…", target: self, action: #selector(showCompatibility))
+        for view in [webView, status, compatibility] { view.translatesAutoresizingMaskIntoConstraints = false; root.addSubview(view) }
         NSLayoutConstraint.activate([
             webView.topAnchor.constraint(equalTo: root.topAnchor), webView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             webView.trailingAnchor.constraint(equalTo: root.trailingAnchor), webView.bottomAnchor.constraint(equalTo: status.topAnchor, constant: -4),
-            status.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12), status.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),
+            status.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12), status.trailingAnchor.constraint(equalTo: compatibility.leadingAnchor, constant: -8),
+            compatibility.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),
+            compatibility.centerYAnchor.constraint(equalTo: status.centerYAnchor),
             status.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -4), status.heightAnchor.constraint(equalToConstant: 28)
         ])
         back.target = self; back.action = #selector(goBack); back.setAccessibilityLabel("Back")
@@ -192,8 +198,7 @@ import CaptureCore
         smaller.isEnabled = value.zoomPercent > 70; larger.isEnabled = value.zoomPercent < 140
     }
     func configureAppearance(of window: NSWindow) {
-        window.sharingType = preferences.mode == .legacy ? .none : .readOnly
-        window.alphaValue = preferences.mode.opacity; window.level = .normal; window.hasShadow = false
+        WindowProtection.apply(to: window, mode: preferences.mode)
     }
     private func request(_ value: ChatPreferences) {
         if let changePreferences { changePreferences(value) } else { applyPreferences(value) }
@@ -220,7 +225,33 @@ import CaptureCore
         window.makeKeyAndOrderFront(nil); window.makeFirstResponder(webView)
         NSApp.activate()
     }
-    func setStatus(_ text: String) { status.stringValue = text }
+    func setStatus(_ text: String) {
+        lastStatus = text
+        status.stringValue = (osUpgradeNotice ? "macOS changed: retest sharing. " : "") + text
+    }
+    func noteOSUpgrade() { osUpgradeNotice = true; setStatus(lastStatus) }
+    func compatibilitySummary() -> CompatibilitySummary {
+        CompatibilitySummary(os: ProcessInfo.processInfo.operatingSystemVersion, build: SystemCompatibility.osBuild,
+                             mode: preferences.screenshotMode, permissionGranted: screenshots.permissionGranted,
+                             failure: screenshots.lastFailure)
+    }
+    func selectScreenshotMode(_ mode: ScreenshotMode) {
+        cancelScreenshot()
+        var next = preferences; next.screenshotMode = mode; request(next)
+        setStatus("Screenshot method: \(mode.title). Click Screenshot when ready; nothing was captured or uploaded.")
+    }
+    @objc func showCompatibility() {
+        guard let window, window.attachedSheet == nil else { return }
+        let panel = CompatibilityPanel(snapshot: { [weak self] in
+            self?.compatibilitySummary() ?? CompatibilitySummary(os: ProcessInfo.processInfo.operatingSystemVersion,
+                build: SystemCompatibility.osBuild, mode: .auto, permissionGranted: false)
+        }, selectMode: { [weak self] mode in self?.selectScreenshotMode(mode) }, didClose: { [weak self] in
+            self?.compatibilityPanel = nil; self?.osUpgradeNotice = false
+            if let self { self.setStatus(self.lastStatus) }
+        })
+        compatibilityPanel = panel; configureAppearance(of: panel.window)
+        window.beginSheet(panel.window)
+    }
     func updateCursorButton(enabled: Bool, available: Bool) {
         cursorButton.state = enabled ? .on : .off
         cursorButton.isEnabled = available && preferences.mode == .legacy
@@ -242,7 +273,7 @@ import CaptureCore
         else { setStatus("Use Screenshot or Paste Image to prepare an image.") }
     }
     func captureScreenshot(displayID: CGDirectDisplayID? = nil) {
-        guard screenshotTask == nil else { return }
+        guard screenshotTask == nil, window?.attachedSheet == nil else { return }
         let target = displayID ?? ScreenshotService.pointerDisplay()
         let generation = screenshotGeneration
         setStatus("Capturing one screen…")
@@ -250,13 +281,14 @@ import CaptureCore
             guard let self else { return }
             defer { if generation == self.screenshotGeneration { self.screenshotTask = nil } }
             do {
-                let image = try await self.screenshots.capture(displayID: target)
+                let image = try await self.screenshots.capture(displayID: target, mode: self.preferences.screenshotMode)
                 guard !Task.isCancelled, generation == self.screenshotGeneration else { return }
                 self.present(); self.images.prepare(image)
             } catch {
                 guard !Task.isCancelled, generation == self.screenshotGeneration else { return }
                 self.present()
-                self.setStatus((error as? ImageInputError)?.localizedDescription ?? "Screenshot failed. Check screen recording permission and try again.")
+                let message = (error as? ScreenshotError)?.localizedDescription ?? "Screenshot failed. Open Compatibility… to check permission or select Compatible."
+                self.setStatus(message); self.images.showCaptureFailure(message)
             }
         }
     }

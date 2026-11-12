@@ -2,6 +2,24 @@
 
 Date: 2026-11-10. Development host: Apple Silicon, macOS 26.6.2 (25G83), 1920 × 1080 display.
 
+## Version 0.5 compatibility layer (2026-11-12)
+
+| Check | Result and boundary |
+| --- | --- |
+| Deployment | Apple Silicon macOS 15.6+; build requires Swift 6.2+ and SDK 26+. Both apps compile at the lower deployment target |
+| Screenshot selection | Auto selects modern on 26+ / compatible on older supported systems; Compatible can be selected manually on all supported systems. No automatic retry/fallback on failure |
+| Existing regression baseline | All 70 prior tests passed at the lower deployment target |
+| New regression | 77 tests / 15 suites passed, including minimum-version policy, 15.6/26/27/future selection, permission denial with no repeated prompt across engine switches, sanitized errors, manual-only retry, settings persistence and protected sheet inheritance |
+| Auto, actual UI | Captured the synthetic desktop, cropped and added two images; after deleting test attachments and returning from Compatible, a new synthetic question attached successfully. Existing draft/login preserved; nothing sent |
+| Compatible, actual UI | Two actual capture/Retake attempts returned the system remote-control curtain, not the visible synthetic desktop. Normal-desktop capture is **not verified** in this environment. A crop of only the non-personal wallpaper background was added through the real website successfully; this is attachment-pipeline evidence, not a normal-desktop capture pass |
+| Compatibility UI and diagnostics | Correct app/system/build/engine/preflight displayed; Compatible preference read back; switching preserved draft/remaining attachment; simulated prior OS-build triggered the notice and the real build was stored. QA ended in Auto. Doctor found the old default 0.1.0 installation and correctly accepted the 0.5 QA apps; launch preserved the code-signature hash |
+| macOS 15.6/15.x and 27 runtime | Compatibility implemented; actual-device runtime tests pending. Selection-policy tests do not certify either OS |
+| Receiver privacy | No new Teams/IME or cursor verdict; Private Cursor remains offline-only |
+| Reproducibility | Pending clean-clone build/sign/test and remote readback |
+| Cleanup | Task-created synthetic background closed; window metadata confirmed none remained. Existing QA chat retained with one synthetic question and draft; System Settings and other user windows preserved |
+
+See [maintenance](maintenance.md) for repair ownership, safe diagnostics and operator test steps. No login data, private chat, meeting links or raw captures are included.
+
 ## Version 0.4.3 repeated attachment repair (2026-11-12)
 
 | Check | Result and boundary |

@@ -5,20 +5,9 @@ cd "$ROOT"
 source "$ROOT/scripts/paths.sh"
 BUNDLE_PREFIX="${CAPTURESHIELD_BUNDLE_PREFIX:-dev.naivee2000.captureshield}"
 if [[ ! "$BUNDLE_PREFIX" =~ ^[A-Za-z0-9.-]+$ ]]; then echo 'Invalid bundle identifier prefix.' >&2; exit 2; fi
-if [[ "$(uname -s)" != Darwin || "$(uname -m)" != arm64 ]]; then
-  echo 'Apple Silicon macOS is required.' >&2; exit 1
-fi
-if [[ "$(sw_vers -productVersion | cut -d. -f1)" -lt 26 ]]; then
-  echo 'macOS 26 or newer is required. New OS versions remain unverified until retested.' >&2; exit 1
-fi
-if ! xcode-select -p >/dev/null 2>&1; then
-  echo 'Install Apple Command Line Tools first: xcode-select --install' >&2; exit 1
-fi
-SWIFT_VERSION="$(xcrun swift --version | sed -nE 's/.*Swift version ([0-9]+)\.([0-9]+).*/\1 \2/p' | head -1)"
-read -r SWIFT_MAJOR SWIFT_MINOR <<< "$SWIFT_VERSION"
-if [[ -z "${SWIFT_MAJOR:-}" || "$SWIFT_MAJOR" -lt 6 || ( "$SWIFT_MAJOR" -eq 6 && "$SWIFT_MINOR" -lt 2 ) ]]; then
-  echo 'Swift 6.2 or later is required. Update Apple Command Line Tools or select a compatible Xcode.' >&2; exit 1
-fi
+source "$ROOT/scripts/support.sh"
+require_stopped_build_apps
+capture_build_prerequisites
 xcrun swift build "$@"
 BIN="$(xcrun swift build "$@" --show-bin-path)"
 BUILD_COMMIT="$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)"
@@ -39,11 +28,11 @@ for NAME in CaptureShieldLab CaptureProbe; do
 <key>CFBundleIdentifier</key><string>$BUNDLE_PREFIX.$SUFFIX</string>
 <key>CFBundleName</key><string>$NAME</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.4.3</string>
-<key>CFBundleVersion</key><string>7</string>
+<key>CFBundleShortVersionString</key><string>0.5.0</string>
+<key>CFBundleVersion</key><string>8</string>
 <key>CaptureShieldBuildCommit</key><string>$BUILD_COMMIT</string>
 <key>CFBundleIconFile</key><string>CaptureShield</string>
-<key>LSMinimumSystemVersion</key><string>26.0</string>
+<key>LSMinimumSystemVersion</key><string>$MINIMUM_MACOS</string>
 <key>NSPrincipalClass</key><string>NSApplication</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>NSScreenCaptureUsageDescription</key><string>Capture a screen for local review or protection testing. Images are handed to ChatGPT only after you confirm Add to Chat.</string>

@@ -37,6 +37,7 @@ import CaptureCore
         let config = WKWebViewConfiguration(); config.websiteDataStore = preview ? .nonPersistent() : .default()
         main = ChatWindow(configuration: config, isMain: true, preferences: preferences, defaults: defaults, preview: preview)
         wire(main)
+        if SystemCompatibility.recordOSBuild(SystemCompatibility.osBuild, in: defaults) { main.noteOSUpgrade() }
         main.present(); main.goHome()
         registerShortcut()
         pasteMonitor = PlainTextPaste.installMonitor()
@@ -170,7 +171,7 @@ import CaptureCore
         }
     }
     private func activeChat() -> ChatWindow {
-        popups.first { $0.window === NSApp.keyWindow } ?? main
+        popups.first { $0.window === NSApp.keyWindow || $0.window === NSApp.keyWindow?.sheetParent } ?? main
     }
     private func refreshCursorButtons() {
         guard main != nil else { return }
@@ -208,7 +209,7 @@ import CaptureCore
         let contextual = NSTextInputContext.current?.client.hasMarkedText()
         let nativeMarked: Bool? = direct == true || contextual == true ? true : direct ?? contextual
         let marked = ChatKeyboard.blocksMovement(nativeMarked: nativeMarked, webFocused: webFocused, webComposing: controller.composition.composing)
-        let modal = NSApp.modalWindow != nil || event.window?.attachedSheet != nil
+        let modal = NSApp.modalWindow != nil || event.window?.attachedSheet != nil || event.window?.sheetParent != nil
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
         if !marked, !modal, flags == ChatKeyboard.modifiers, event.keyCode == ChatKeyboard.cursorKey {
             if !event.isARepeat { toggleCursor() }; return nil
@@ -227,6 +228,10 @@ import CaptureCore
             try? FileHandle.standardError.write(contentsOf: Data(("CAPTURESHIELD_ATTACHMENT " + metadata + "\n").utf8))
             controller.setStatus("Attachment control metadata recorded. No draft, chat text or credentials were read.")
         }
+    }
+    @objc private func showCompatibility() {
+        guard !clearing, main != nil else { return }
+        activeChat().showCompatibility()
     }
     @objc private func takeScreenshot() {
         guard !clearing, main != nil, NSApp.modalWindow == nil, activeChat().window?.attachedSheet == nil else { return }
@@ -255,6 +260,7 @@ import CaptureCore
         if ProcessInfo.processInfo.environment["CAPTURESHIELD_ATTACHMENT_DIAGNOSTICS"] == "1" {
             app.addItem(withTitle: "Inspect attachment controls", action: #selector(inspectAttachmentControls), keyEquivalent: "").target = self
         }
+        app.addItem(withTitle: "Compatibility…", action: #selector(showCompatibility), keyEquivalent: "").target = self
         app.addItem(.separator())
         app.addItem(withTitle: "Screenshot (\(ChatKeyboard.screenshotLabel))", action: #selector(takeScreenshot), keyEquivalent: "").target = self
         let displays = NSMenuItem(title: "Capture Display", action: nil, keyEquivalent: "")
