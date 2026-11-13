@@ -42,17 +42,18 @@ Version **0.6.3/build 12** explicitly weak-links ScreenCaptureKit for the app ta
 
 ## Run ledger
 
-Repaired source: **`5ca68ebf0e44a27d8353ff436750504d9dc5204a`**, [run 43490166026](https://github.com/naivee2000/capture-shield-lab/actions/runs/43490166026), 2026-11-13.
+Final tested source/workflow: **`2cd247ac3c46a536a14077144c86534427c28086`**, [successful run 43491343815](https://github.com/naivee2000/capture-shield-lab/actions/runs/43491343815), 2026-11-13. All three independent clean-checkout jobs succeeded. The earlier repaired-source run at `5ca68eb` is preserved [here](https://github.com/naivee2000/capture-shield-lab/actions/runs/43490166026).
 
 | Actual environment | Build/sign/register | Behavioral + native/WebKit tests | Packaging/minimum checks |
 | --- | --- | --- | --- |
 | macOS 15.8.2 (24H232), arm64, Xcode 26.3 / Swift 6.2.4 / SDK 26.2 | Pass | 98 tests / 20 suites reported passed | Pass |
+| macOS 26.7.2 (25G332), arm64, Xcode 26.6 / Swift 6.3.3 / SDK 26.5 | Pass | 98 tests / 20 suites reported passed | Pass |
 | macOS 27.0.1 (26A434), arm64, Xcode 27.2 / Swift 6.4.2 / SDK 27.2 | Pass | 98 tests / 20 suites reported passed (split into two test-target runs) | Pass |
 | Local macOS 26.6.2 (25G83), arm64, CLT Swift 6.2.4 / SDK 26.2 | Pass, isolated validation bundles | 98 tests / 20 suites reported passed | Pass |
 
-The macOS **26.7.2 / Xcode 26.6 / Swift 6.3.3 / SDK 26.5** job built, signed, registered and passed package checks, but its concurrent suite failed with six attachment-fixture issues: delivery/visibility timeouts and already-expired handoff states. The run took 174 seconds and did not crash on load; the background-alpha test passed. This outcome is retained as a failure, pending serial-fixture investigation. CI now passes `--no-parallel` to avoid simultaneously creating dozens of WebViews on the standard 7-GB runner; assertions and production deadlines are unchanged.
+The earlier macOS **26.7.2 / Xcode 26.6 / Swift 6.3.3 / SDK 26.5** concurrent suite failed with six attachment-fixture issues: delivery/visibility timeouts and already-expired handoff states. It took 174 seconds and did not crash on load. The final serial run passed the same suite in 124 seconds, without changing application code, assertions or production deadlines. CI uses `--no-parallel` to avoid simultaneously creating dozens of WebViews sharing native presentation resources on the standard 7-GB runner. Both outcomes remain linked; this is not an application stress/load guarantee.
 
-Each suite leaves the two optional real-speech and UI-export tests skipped. The background-alpha WebKit test actually executed and passed on macOS 15.8.2 and 27.0.1 as well. No recording permission, account or model was provisioned on CI, and no receiver test was performed.
+Each suite leaves the two optional real-speech and UI-export tests skipped. The background-alpha WebKit test actually executed and passed on all three CI hosts. Both application bundles report 0.6.3/build 12, and their Info.plist/Mach-O deployment floors agree at 15.6. Signatures, exact-path registration, arm64 architecture and clean-checkout checks passed. No recording permission, account or model was provisioned on CI, and no receiver test was performed.
 
 The screenshot/recognition selection remains: compatible screenshot + on-device `SFSpeechRecognizer` on 15.x; modern screenshot + `SpeechAnalyzer` on 26/27. Availability/selection tests do not prove the screen pixels or recognition quality of these engines on those hosts. The local validation output is separate from the running logged-in app, which was not replaced or restarted.
 
