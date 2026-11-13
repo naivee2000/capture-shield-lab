@@ -105,7 +105,6 @@ import CaptureCore
         let window = NSWindow(contentRect: frame, styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = preview ? "CaptureShield — UI Preview" : (isMain ? "CaptureShield — ChatGPT" : "CaptureShield — Web window")
         window.setAccessibilityIdentifier(isMain ? "chat-window" : "chat-popup")
-        window.identifier = NSUserInterfaceItemIdentifier(isMain ? "chat-window" : "chat-popup")
         window.standardWindowButton(.closeButton)?.setAccessibilityIdentifier("window-close")
         window.standardWindowButton(.miniaturizeButton)?.setAccessibilityIdentifier("window-minimize")
         window.standardWindowButton(.zoomButton)?.setAccessibilityIdentifier("window-zoom")
@@ -219,7 +218,15 @@ import CaptureCore
         case "screenshot":
             item.label = "Screenshot"; item.toolTip = "Screenshot (\(ChatKeyboard.screenshotLabel))"
             item.view = NSButton(image: NSImage(systemSymbolName: "camera", accessibilityDescription: "Screenshot")!, target: self, action: #selector(takeScreenshot))
-        case "sharingMode": item.label = "Sharing mode"; item.view = modeControl
+        case "sharingMode":
+            item.label = "Sharing mode"; item.view = modeControl; item.visibilityPriority = .high
+            let entry = NSMenuItem(title: "Sharing mode", action: nil, keyEquivalent: "")
+            let menu = NSMenu(title: "Sharing mode")
+            for (index, title) in ["Normal", "Legacy"].enumerated() {
+                let child = NSMenuItem(title: title, action: #selector(selectModeFromMenu(_:)), keyEquivalent: "")
+                child.target = self; child.tag = index; menu.addItem(child)
+            }
+            entry.submenu = menu; item.menuFormRepresentation = entry
         case "record":
             item.label = "Record / Stop"; item.toolTip = "Record selected app audio (\(ChatKeyboard.recordLabel))"
             item.visibilityPriority = .high
@@ -291,6 +298,9 @@ import CaptureCore
     }
     @objc private func selectMode() {
         var next = preferences; next.mode = modeControl.selectedSegment == 0 ? .normal : .legacy; request(next)
+    }
+    @objc private func selectModeFromMenu(_ sender: NSMenuItem) {
+        modeControl.selectedSegment = sender.tag; selectMode()
     }
     @objc private func zoomOut() { var next = preferences; next.changeZoom(by: -1); request(next) }
     @objc private func zoomIn() { var next = preferences; next.changeZoom(by: 1); request(next) }

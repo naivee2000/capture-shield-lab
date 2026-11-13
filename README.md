@@ -3,7 +3,7 @@
 A native ChatGPT web window and a separate macOS capture-protection lab. Can the window remain visible locally while disappearing from a full-display capture?
 
 **Experimental. No universal invisibility claim.**
-Version 0.6.3 fixes a macOS 15 launch failure found by cross-version testing. It includes selected-application, on-device speech transcription, a state-driven compact transcription panel and mode-dependent Dock visibility. It embeds the official ChatGPT website in a persistent WKWebView with Normal/Legacy modes, screenshot cropping, confirmed image attachments and keyboard window movement. Account login and sharing compatibility must be verified on your own Mac. The lab compares four configurations and provides a separate, unfiltered ScreenCaptureKit recorder; a local screenshot does not prove Zoom, Meet or Teams behavior.
+Version 0.6.4 adds packaged-application UI automation, a reusable compatibility Skill and working compact-toolbar overflow actions. It retains the macOS 15 loader repair, selected-application on-device speech transcription, compact transcription panel and mode-dependent Dock visibility. It embeds the official ChatGPT website in a persistent WKWebView with Normal/Legacy modes, screenshot cropping, confirmed image attachments and keyboard window movement. Account login and sharing compatibility must be verified on your own Mac. The lab compares four configurations and provides a separate, unfiltered ScreenCaptureKit recorder; a local screenshot does not prove Zoom, Meet or Teams behavior.
 
 **Operator feedback:** Teams desktop entire-screen sharing from macOS 26.6.2 (25G83), viewed in Chrome: Normal visible, Legacy hidden, but Pinyin candidates visible. Receiver retesting of the candidate-panel repair is pending; this is not a blanket privacy guarantee.
 
@@ -148,7 +148,7 @@ Do not use a hard reset to resolve divergence. New source builds and OS/meeting-
 
 For repeatable testing of the **packaged app** on macOS 15.8.2–27.x, see [UI automation and cleanup](docs/ui-validation.md). Run `bash scripts/test-ui.sh --preflight` with full Xcode, then `bash scripts/test-ui.sh` for three sequential offline rounds. This is separate from the ordinary CLT build and from real meeting/ChatGPT acceptance. The project [compatibility Skill](.agents/skills/capture-shield-compatibility/SKILL.md) is included in every clone.
 
-Run `bash scripts/dev.sh --chat-preview` for the normal chat window with a disposable offline page, synthetic popup/dialog controls and separate preview preferences. It does not load your account. The original capture lab remains available separately.
+Run `bash scripts/dev.sh --chat-preview` for the normal chat window with a disposable offline page, synthetic popup/dialog controls and separate preview preferences. It does not load your account. Record in this preview uses a clearly labelled synthetic source and transcript, without audio capture or speech-model preparation. Use the normal app for real audio acceptance. The original capture lab remains available separately.
 
 The original shield/window icon is bundled into both apps. `Assets/` contains the editable SVG, a PNG preview and the `.icns` used by the build. `scripts/render-icon.swift` is the editable vector generator; regenerate all formats with:
 

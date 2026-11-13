@@ -19,10 +19,16 @@ import XCTest
         app.launchEnvironment["CAPTURESHIELD_UI_METADATA"] = metadataURL.path
         let seed: [String: Any] = ["token": UUID().uuidString, "compact": name.contains("Compact"),
                                   "speechFailure": name.contains("RetainedError")]
-        app.launchEnvironment["CAPTURESHIELD_UI_SEED"] = String(data: try JSONSerialization.data(withJSONObject: seed), encoding: .utf8)
+        let seedFile = metadataURL.deletingLastPathComponent().appendingPathComponent("seed.json")
+        try JSONSerialization.data(withJSONObject: seed).write(to: seedFile, options: .atomic)
+        app.launchEnvironment["CAPTURESHIELD_UI_SEED_FILE"] = seedFile.path
         app.launch()
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 20))
         XCTAssertTrue(editor.waitForExistence(timeout: 15))
+        wait("Isolated fixture preferences are applied") {
+            self.record()["previewSourceSet"] as? Bool == true &&
+            abs((self.mainWindow()["width"] as? Double ?? 0) - (self.name.contains("Compact") ? 640 : 980)) < 1
+        }
     }
     override func tearDownWithError() throws {
         // This instance was created by the test and has no personal login or draft.
@@ -59,7 +65,7 @@ import XCTest
     private func wait(_ message: String, _ predicate: () -> Bool, file: StaticString = #filePath, line: UInt = #line) {
         let deadline = Date().addingTimeInterval(15)
         while !predicate(), Date() < deadline { RunLoop.current.run(until: Date().addingTimeInterval(0.05)) }
-        XCTAssertTrue(predicate(), message + " · native metadata: " + String(describing: mainWindow()), file: file, line: line)
+        XCTAssertTrue(predicate(), message + " · native metadata: " + String(describing: record()), file: file, line: line)
     }
     private func click(_ id: String) {
         let control = app.descendants(matching: .any).matching(identifier: id).firstMatch
@@ -136,14 +142,19 @@ import XCTest
         let x = try XCTUnwrap(mainWindow()["x"] as? Double)
         let y = try XCTUnwrap(mainWindow()["y"] as? Double)
         // Relative native title-bar coordinates, never absolute screen positions.
-        let title = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0)).withOffset(CGVector(dx: 0, dy: 20))
-        title.press(forDuration: 0.1, thenDragTo: title.withOffset(CGVector(dx: 40, dy: 40)))
+        let caption = try XCTUnwrap(window.staticTexts.allElementsBoundByIndex.first {
+            (($0.value as? String) ?? $0.label).hasPrefix("CaptureShield — UI Preview")
+        })
+        let title = caption.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        title.click(forDuration: 0.2, thenDragTo: title.withOffset(CGVector(dx: 40, dy: 40)))
         wait("Native title-bar drag") {
             abs((self.mainWindow()["x"] as? Double ?? x) - x - 40) < 3 &&
             abs((self.mainWindow()["y"] as? Double ?? y) - y + 40) < 3
         }
-        let corner = window.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 1)).withOffset(CGVector(dx: -2, dy: -2))
-        corner.press(forDuration: 0.1, thenDragTo: corner.withOffset(CGVector(dx: -340, dy: -220)))
+        let right = window.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5)).withOffset(CGVector(dx: -1, dy: 0))
+        right.click(forDuration: 0.2, thenDragTo: right.withOffset(CGVector(dx: -340, dy: 0)))
+        let bottom = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 1)).withOffset(CGVector(dx: 0, dy: -1))
+        bottom.click(forDuration: 0.2, thenDragTo: bottom.withOffset(CGVector(dx: 0, dy: -220)))
         wait("Native resize to minimum") {
             abs((self.mainWindow()["width"] as? Double ?? 0) - 640) < 3 &&
             abs((self.mainWindow()["height"] as? Double ?? 0) - 480) < 3
@@ -156,7 +167,7 @@ import XCTest
         draftContains("Replacement draft")
         app.typeKey("z", modifierFlags: .command)
         draftContains("Line eight")
-        app.webViews.firstMatch.swipeUp()
+        app.webViews.firstMatch.scroll(byDeltaX: 0, deltaY: 500)
         XCTAssertTrue(app.webViews.buttons["Open test popup"].isHittable)
         app.terminate(); app.launch()
         XCTAssertTrue(editor.waitForExistence(timeout: 15))
@@ -169,18 +180,21 @@ import XCTest
         XCTAssertTrue(canvas.waitForExistence(timeout: 10))
         let start = canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.3))
         let end = canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.7))
-        start.press(forDuration: 0.1, thenDragTo: end)
+        start.click(forDuration: 0.2, thenDragTo: end)
         click("crop-reset")
-        start.press(forDuration: 0.1, thenDragTo: end)
+        start.click(forDuration: 0.2, thenDragTo: end)
         click("image-add")
         waitText("Images: 1 · Sends: 0")
         wait("Native coordinator confirms the visible webpage attachment") {
             self.mainWindow()["attachmentPhase"] as? String == "visible"
         }
-        let dimensions = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Last image: ' OR value BEGINSWITH 'Last image: '")).firstMatch
-        XCTAssertTrue(dimensions.waitForExistence(timeout: 10))
-        let size = dimensions.value as? String ?? dimensions.label
-        XCTAssertTrue(size.hasPrefix("Last image: "))
+        var imageSize: String?
+        wait("Decoded image dimensions are visible") {
+            imageSize = self.app.staticTexts.allElementsBoundByIndex.compactMap { ($0.value as? String) ?? $0.label }
+                .first { $0.hasPrefix("Last image: ") }
+            return imageSize != nil
+        }
+        let size = try XCTUnwrap(imageSize)
         XCTAssertNotEqual(size, "Last image: 1000 x 600", "The visible crop must reach the webpage.")
         for count in 2...3 { loadImage(); click("image-add"); waitText("Images: \(count) · Sends: 0") }
         app.webViews.buttons["Remove file"].firstMatch.click()
@@ -229,12 +243,12 @@ import XCTest
         click("toolbar-transcript")
         wait("Synthetic source ready") { self.app.buttons["speech-record"].isEnabled }
         app.typeKey("r", modifierFlags: [.command, .shift])
-        wait("Recording state") { self.app.buttons["speech-record"].label == "Stop" }
+        wait("Recording state") { self.mainWindow()["speechPhase"] as? String == "recording" && self.mainWindow()["speechRecordTitle"] as? String == "Stop" && self.app.buttons["speech-record"].isHittable }
         click("speech-cancel")
-        wait("Cancelled state") { self.app.buttons["speech-record"].isEnabled && self.app.buttons["speech-record"].label == "Record" }
+        wait("Cancelled state") { self.mainWindow()["speechPhase"] as? String == "idle" && self.app.buttons["speech-record"].isEnabled }
         draftContains("Existing speech draft")
         click("speech-record")
-        wait("Recording again") { self.app.buttons["speech-record"].label == "Stop" }
+        wait("Recording again") { self.mainWindow()["speechPhase"] as? String == "recording" && self.mainWindow()["speechRecordTitle"] as? String == "Stop" && self.app.buttons["speech-record"].isHittable }
         click("speech-record")
         draftContains("Synthetic transcript")
         waitText("Images: 1 · Sends: 0")
@@ -247,7 +261,7 @@ import XCTest
         click("toolbar-transcript")
         wait("Fixture source ready") { self.app.buttons["speech-record"].isEnabled }
         click("speech-record")
-        wait("Recording") { self.app.buttons["speech-record"].label == "Stop" }
+        wait("Recording") { self.mainWindow()["speechPhase"] as? String == "recording" && self.mainWindow()["speechRecordTitle"] as? String == "Stop" && self.app.buttons["speech-record"].isHittable }
         click("speech-record")
         wait("Failed recognition retained partial") { self.app.staticTexts["speech-summary"].value as? String == "Review required" || self.app.staticTexts["speech-summary"].label == "Review required" }
         click("speech-review")

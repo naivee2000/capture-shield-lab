@@ -17,10 +17,11 @@ import AppKit
     }
     private func record() {
         let windows: [[String: Any]] = NSApp.windows.map { window in
+            let chat = window.delegate as? ChatWindow
             var row: [String: Any] = ["windowID": window.windowNumber, "class": NSStringFromClass(type(of: window)),
              "visible": window.isVisible, "sharing": window.sharingType.rawValue,
              "level": window.level.rawValue, "frame": NSStringFromRect(window.frame),
-             "identifier": window.identifier?.rawValue ?? "system-panel",
+             "identifier": chat.map { $0.isMain ? "chat-window" : "chat-popup" } ?? "system-panel",
              "alpha": window.alphaValue, "backgroundAlpha": window.backgroundColor.alphaComponent,
              "x": window.frame.minX, "y": window.frame.minY,
              "width": window.frame.width, "height": window.frame.height,
@@ -32,11 +33,24 @@ import AppKit
                     row["compositionKnown"] = owner.composition.composing != nil
                     row["composing"] = owner.composition.composing ?? false
                     row["attachmentPhase"] = String(describing: owner.images.phase)
+                    if metadataURL != nil {
+                        row["speechPhase"] = String(describing: owner.speech.phase)
+                        row["speechSourceSelected"] = owner.speechPane.selectedAudioSource != nil
+                        row["speechRecordTitle"] = owner.speechPane.record.title
+                    }
                 }
             }
             return row
         }.sorted { ($0["windowID"] as? Int ?? 0) < ($1["windowID"] as? Int ?? 0) }
-        let record: Any = metadataURL == nil ? windows : ["policy": NSApp.activationPolicy().rawValue, "windows": windows] as [String: Any]
+        var testRecord: [String: Any] = ["policy": NSApp.activationPolicy().rawValue, "windows": windows]
+        if metadataURL != nil {
+            let defaults = UserDefaults(suiteName: Bundle.main.bundleIdentifier! + ".preview")!
+            testRecord["previewFrame"] = defaults.string(forKey: "ChatWindowFrame") ?? "missing"
+            testRecord["previewSourceSet"] = defaults.string(forKey: "SpeechSourceBundleID") == "synthetic.offline.audio"
+            testRecord["seedReceived"] = ProcessInfo.processInfo.environment["CAPTURESHIELD_UI_SEED_FILE"] != nil
+            testRecord["screens"] = NSScreen.screens.map { NSStringFromRect($0.visibleFrame) }
+        }
+        let record: Any = metadataURL == nil ? windows : testRecord
         guard let data = try? JSONSerialization.data(withJSONObject: record, options: [.sortedKeys]),
               let line = String(data: data, encoding: .utf8), line != previous else { return }
         previous = line

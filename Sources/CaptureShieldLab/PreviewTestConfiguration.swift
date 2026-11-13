@@ -8,10 +8,11 @@ enum PreviewTestConfiguration {
         let compact: Bool
         let speechFailure: Bool
     }
-    static func apply(bundleID: String? = Bundle.main.bundleIdentifier,
-                      payload: String? = ProcessInfo.processInfo.environment["CAPTURESHIELD_UI_SEED"]) {
+    static func apply(bundleID: String? = Bundle.main.bundleIdentifier, payload: String? = nil,
+                      seedFile: String? = ProcessInfo.processInfo.environment["CAPTURESHIELD_UI_SEED_FILE"]) {
         guard let bundleID, bundleID.hasPrefix("dev.naivee2000.captureshield.uitest."),
-              let payload, let seed = try? JSONDecoder().decode(Seed.self, from: Data(payload.utf8)),
+              let payload = payload ?? launchPayload(at: seedFile),
+              let seed = try? JSONDecoder().decode(Seed.self, from: Data(payload.utf8)),
               let defaults = UserDefaults(suiteName: bundleID + ".preview") else { return }
         guard defaults.string(forKey: "UITestSeedToken") != seed.token.uuidString else { return }
         defaults.removePersistentDomain(forName: bundleID + ".preview")
@@ -21,5 +22,13 @@ enum PreviewTestConfiguration {
         defaults.set("synthetic.offline.audio", forKey: "SpeechSourceBundleID")
         defaults.set(seed.speechFailure, forKey: "PreviewSpeechFailure")
         defaults.set(seed.token.uuidString, forKey: "UITestSeedToken")
+    }
+    private static func launchPayload(at path: String?) -> String? {
+        guard let path, path.hasPrefix("/") else { return nil }
+        let url = URL(fileURLWithPath: path)
+        guard let info = try? url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey]),
+              info.isRegularFile == true, info.isSymbolicLink != true, (info.fileSize ?? 4097) <= 4096,
+              let data = try? Data(contentsOf: url) else { return nil }
+        return String(data: data, encoding: .utf8)
     }
 }
