@@ -65,7 +65,7 @@ def validate_id(value):
 
 def load_run(run_id):
     base = RUNS / validate_id(run_id)
-    if RUNS.is_symlink() or base.is_symlink() or base.resolve().parent != RUNS.resolve():
+    if (ROOT / "artifacts").is_symlink() or RUNS.is_symlink() or base.is_symlink() or base.resolve().parent != RUNS.resolve():
         raise ValueError("Refusing redirected run directory.")
     manifest = base / "manifest.json"
     if manifest.is_symlink():
@@ -73,6 +73,8 @@ def load_run(run_id):
     data = json.loads(manifest.read_text())
     if data.get("owner") != OWNER or data.get("run_id") != run_id or data.get("schema") != 1:
         raise ValueError("Run ownership does not match.")
+    if type(data.get("image")) is not bool or data.get("bundle_prefix") != "dev.naivee2000.captureshield.uitest." + run_id:
+        raise ValueError("Run identity does not match its isolated application.")
     return base, data
 
 def work_path(base, data):
@@ -82,12 +84,15 @@ def work_path(base, data):
 
 def prepare(run_id):
     validate_id(run_id)
+    mount = ROOT
+    while not os.path.ismount(mount):
+        mount = mount.parent
+    fs = plistlib.loads(subprocess.check_output(["diskutil", "info", "-plist", str(mount)]))
     RUNS.mkdir(parents=True, exist_ok=True)
-    if RUNS.is_symlink():
+    if (ROOT / "artifacts").is_symlink() or RUNS.is_symlink():
         raise ValueError("Refusing redirected run registry.")
     base = RUNS / run_id
     base.mkdir()
-    fs = plistlib.loads(subprocess.check_output(["diskutil", "info", "-plist", str(ROOT)]))
     image = fs.get("FilesystemType", "").lower() not in ("apfs", "hfs")
     data = {"schema": 1, "owner": OWNER, "run_id": run_id, "image": image,
             "bundle_prefix": "dev.naivee2000.captureshield.uitest." + run_id,
