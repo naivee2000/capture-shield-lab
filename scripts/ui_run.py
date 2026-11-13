@@ -51,6 +51,13 @@ def preflight():
     processes = output(["ps", "-axo", "comm="])
     if any(line.rstrip().endswith("/CaptureShieldLab.app/Contents/MacOS/CaptureShieldLab") for line in processes.splitlines()):
         problems.append("Another CaptureShield instance is running. Use a clean test session for global shortcuts; this script will not close it.")
+    if env["system"] and env["architecture"] == "arm64":
+        display = subprocess.run(["xcrun", "swift", str(ROOT / "scripts/ui-display.swift"), "--check"],
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try: env["display"] = json.loads(display.stdout)
+        except ValueError: env["display"] = {"ready": False}
+        if display.returncode or not env["display"].get("ready"):
+            problems.append("UI tests need a primary visible display area of at least 1200x850 logical points. This preflight will not change display settings.")
     return {"status": "not-tested" if problems else "ready", "environment": env,
             "reasons": problems, "ui_authorization": "not attested until XCTest launches; never modified by this script"}
 

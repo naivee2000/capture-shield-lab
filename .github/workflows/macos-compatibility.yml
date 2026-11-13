@@ -78,6 +78,10 @@ jobs:
             echo '```'
             echo 'Synthetic tests only: no account login, permission grant, recording, model download or meeting receiver.'
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Prepare the ephemeral UI display
+        run: |
+          xcrun swift scripts/ui-display.swift --ci-adjust
+          xcrun swift scripts/ui-display.swift --check
       - name: Build, sign and register both applications
         id: build
         run: bash scripts/build.sh

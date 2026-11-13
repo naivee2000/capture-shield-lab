@@ -34,6 +34,9 @@ import AppKit
                     row["composing"] = owner.composition.composing ?? false
                     row["attachmentPhase"] = String(describing: owner.images.phase)
                     if metadataURL != nil {
+                        if let image = owner.images.image {
+                            row["imageWidth"] = image.width; row["imageHeight"] = image.height
+                        }
                         row["speechPhase"] = String(describing: owner.speech.phase)
                         row["speechSourceSelected"] = owner.speechPane.selectedAudioSource != nil
                         row["speechRecordTitle"] = owner.speechPane.record.title
@@ -42,7 +45,8 @@ import AppKit
             }
             return row
         }.sorted { ($0["windowID"] as? Int ?? 0) < ($1["windowID"] as? Int ?? 0) }
-        var testRecord: [String: Any] = ["policy": NSApp.activationPolicy().rawValue, "windows": windows]
+        var testRecord: [String: Any] = ["policy": NSApp.activationPolicy().rawValue, "windows": windows,
+                                      "processID": ProcessInfo.processInfo.processIdentifier]
         if metadataURL != nil {
             let defaults = UserDefaults(suiteName: Bundle.main.bundleIdentifier! + ".preview")!
             testRecord["previewFrame"] = defaults.string(forKey: "ChatWindowFrame") ?? "missing"

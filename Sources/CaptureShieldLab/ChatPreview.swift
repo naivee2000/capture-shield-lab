@@ -22,7 +22,7 @@ enum ChatPreview {
     // Long code line for horizontal scrolling: ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ</code></pre>
     <div data-composer-body><div data-rich-text-layout="single-line"><div data-composer-markdown contenteditable="true" role="textbox" aria-label="Synthetic chat input" spellcheck="true"></div></div>
     <label>Attach synthetic image <input id="image-file" type="file" accept="image/png,image/jpeg"></label>
-    <p id="image-status" role="status">Images: 0 · Sends: 0</p><div id="attachments"></div><p id="image-dimensions" role="status">No image dimensions</p>
+    <p id="image-status" role="status">Images: 0 · Sends: 0</p><div id="attachments"></div><input id="image-dimensions" aria-label="Decoded image dimensions" readonly value="No image dimensions">
     <button id="send">Stream reply</button></div><p id="reply" aria-live="polite">Ready.</p>
     <div class="actions"><button id="popup">Open test popup</button><button id="dialog">Open test dialog</button></div>
     <button id="compose-start">Begin synthetic composition</button><button id="compose-end">Commit synthetic composition</button><p id="compose-status">Composition idle</p>
@@ -40,7 +40,7 @@ enum ChatPreview {
       const number=++imageSequence;
       const card=document.createElement('span');card.style='display:inline-flex;flex-direction:column;margin:4px';
       const image=document.createElement('img');const blob=URL.createObjectURL(file);
-      image.onload=()=>document.querySelector('#image-dimensions').textContent='Last image: '+image.naturalWidth+' x '+image.naturalHeight;
+      image.onload=()=>document.querySelector('#image-dimensions').value='Last image: '+image.naturalWidth+' x '+image.naturalHeight;
       image.src=blob;image.alt=file.name;image.width=80;image.height=80;
       const remove=document.createElement('button');remove.type='button';
       remove.textContent='Remove image '+number;remove.setAttribute('aria-label','Remove file');

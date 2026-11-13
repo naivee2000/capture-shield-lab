@@ -15,6 +15,10 @@ import XCTest
             throw NSError(domain: "Unsafe UI target", code: 1)
         }
         app = XCUIApplication(url: url)
+        guard app.state == .notRunning else {
+            app = nil
+            throw NSError(domain: "Previous isolated test instance is still running", code: 2)
+        }
         app.launchEnvironment["CAPTURESHIELD_UI_METADATA"] = metadataURL.path
         testToken = UUID().uuidString
         let seed: [String: Any] = ["token": testToken, "compact": name.contains("Compact"),
@@ -27,7 +31,7 @@ import XCTest
     }
     override func tearDownWithError() throws {
         // This instance was created by the test and has no personal login or draft.
-        if let app, app.state != .notRunning { app.terminate() }
+        if let app, app.state != .notRunning { quit() }
         app = nil
     }
     func testLaunchTypeAndRestart() throws {
@@ -39,16 +43,27 @@ import XCTest
         if ProcessInfo.processInfo.environment["CAPTURESHIELD_UI_NEGATIVE"] == "1" {
             XCTAssertTrue(app.buttons["Deliberately absent UI marker"].exists, "Negative control must fail")
         }
-        app.terminate()
-        app.launch()
-        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 20))
-        XCTAssertTrue(app.webViews.textViews["Synthetic chat input"].firstMatch.waitForExistence(timeout: 15))
+        relaunch()
     }
 
     private var metadataURL: URL {
         URL(fileURLWithPath: ProcessInfo.processInfo.environment["CAPTURESHIELD_UI_RUN"]!).appendingPathComponent("window.json")
     }
     private var editor: XCUIElement { app.webViews.textViews["Synthetic chat input"].firstMatch }
+    private var mainUI: XCUIElement { app.windows.matching(identifier: "chat-window").firstMatch }
+    private func quit() {
+        app.typeKey("q", modifierFlags: .command)
+        XCTAssertTrue(app.wait(for: .notRunning, timeout: 10), "The isolated app must quit normally; no force termination is used.")
+    }
+    private func relaunch() {
+        let previous = record()["processID"] as? Int
+        quit(); app.launch()
+        XCTAssertTrue(editor.waitForExistence(timeout: 15))
+        wait("Fresh process metadata after normal restart") {
+            let data = self.record()
+            return data["processID"] as? Int != previous && data["testToken"] as? String == self.testToken
+        }
+    }
     private func record() -> [String: Any] {
         guard let data = try? Data(contentsOf: metadataURL),
               let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [:] }
@@ -59,23 +74,26 @@ import XCTest
     }
     private func verifyFixtureSetup() {
         let expectedWidth: Double = name.contains("Compact") ? 640 : 980
+        let expectedHeight: Double = name.contains("Compact") ? 480 : 700
         wait("Isolated fixture preferences are applied") {
             let snapshot = self.record()
             let sourceReady = snapshot["previewSourceSet"] as? Bool == true
             let currentToken = snapshot["testToken"] as? String
             let width = self.mainWindow()["width"] as? Double ?? 0
-            return sourceReady && currentToken == self.testToken && abs(width - expectedWidth) < 1
+            let height = self.mainWindow()["height"] as? Double ?? 0
+            return sourceReady && currentToken == self.testToken && abs(width - expectedWidth) < 1 && abs(height - expectedHeight) < 1
         }
     }
     private func wait(_ message: String, _ predicate: @MainActor () -> Bool, file: StaticString = #filePath, line: UInt = #line) {
         let deadline = Date().addingTimeInterval(15)
         while !predicate(), Date() < deadline { RunLoop.current.run(until: Date().addingTimeInterval(0.05)) }
-        XCTAssertTrue(predicate(), message + " · native metadata: " + String(describing: record()), file: file, line: line)
+        let state = (try? JSONSerialization.data(withJSONObject: record(), options: [.sortedKeys])) ?? Data()
+        XCTAssertTrue(predicate(), message + " · native metadata: " + (String(data: state, encoding: .utf8) ?? "unavailable"), file: file, line: line)
     }
     private func click(_ id: String) {
-        let control = app.descendants(matching: .any).matching(identifier: id).firstMatch
+        let control = mainUI.descendants(matching: .any).matching(identifier: id).firstMatch
         if !control.isHittable && id.hasPrefix("zoom-") {
-            let overflow = app.toolbars.popUpButtons.firstMatch
+            let overflow = mainUI.toolbars.popUpButtons.firstMatch
             XCTAssertTrue(overflow.exists, "Toolbar overflow must remain accessible")
             overflow.click()
             menuClick("Page size")
@@ -94,7 +112,7 @@ import XCTest
         XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 10), .completed)
     }
     private func loadImage() {
-        app.menuButtons["Images"].firstMatch.click()
+        mainUI.menuButtons["Images"].firstMatch.click()
         // The app menu contains another sample command. Match the toolbar action.
         menuClick("loadPreviewImage")
         XCTAssertTrue(app.buttons["image-add"].waitForExistence(timeout: 10))
@@ -102,6 +120,7 @@ import XCTest
     private func menuClick(_ id: String) {
         let item = app.menuItems[id].firstMatch
         XCTAssertTrue(item.waitForExistence(timeout: 10))
+        wait("Menu action is hittable: " + id) { item.isHittable }
         XCTAssertGreaterThan(item.frame.width, 0)
         // XCTest's MenuItem.click traverses a menu-bar ancestor even for toolbar
         // menus on macOS 15. Click the resolved visible element, not screen pixels.
@@ -111,9 +130,12 @@ import XCTest
         editor.click(); editor.typeText("Preserve draft 1357")
         for _ in 0..<2 { click("zoom-out") }
         wait("70 percent page zoom") { abs((self.mainWindow()["webZoom"] as? Double ?? 0) - 0.7) < 0.01 }
-        for _ in 0..<7 { click("zoom-in") }
+        for step in 8...14 {
+            click("zoom-in")
+            wait("Page zoom reaches step \(step)") { abs((self.mainWindow()["webZoom"] as? Double ?? 0) - Double(step) / 10) < 0.01 }
+        }
         wait("140 percent page zoom") { abs((self.mainWindow()["webZoom"] as? Double ?? 0) - 1.4) < 0.01 }
-        app.radioButtons["Legacy"].click()
+        mainUI.radioButtons["Legacy"].click()
         wait("Legacy config and Dock policy") {
             self.mainWindow()["sharing"] as? Int == 0 && self.record()["policy"] as? Int == 1
         }
@@ -128,7 +150,7 @@ import XCTest
             }
         }
         app.windows.matching(identifier: "chat-popup").firstMatch.buttons["window-close"].click()
-        app.radioButtons["Normal"].click()
+        mainUI.radioButtons["Normal"].click()
         wait("Normal mode and Dock policy restored") {
             self.mainWindow()["sharing"] as? Int == 1 && self.record()["policy"] as? Int == 0
         }
@@ -136,8 +158,7 @@ import XCTest
         XCTAssertTrue(app.sheets.firstMatch.waitForExistence(timeout: 10))
         app.sheets.buttons["Cancel"].click()
         draftContains("1357")
-        app.terminate(); app.launch()
-        XCTAssertTrue(editor.waitForExistence(timeout: 15))
+        relaunch()
         wait("Persisted page zoom") { abs((self.mainWindow()["webZoom"] as? Double ?? 0) - 1.4) < 0.01 }
         click("zoom-reset")
         wait("Zoom reset") { abs((self.mainWindow()["webZoom"] as? Double ?? 0) - 0.9) < 0.01 }
@@ -151,15 +172,15 @@ import XCTest
             (($0.value as? String) ?? $0.label).hasPrefix("CaptureShield — UI Preview")
         })
         let title = caption.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        title.click(forDuration: 0.2, thenDragTo: title.withOffset(CGVector(dx: 40, dy: 40)))
+        drag(title, dx: 40, dy: -40)
         wait("Native title-bar drag") {
             abs((self.mainWindow()["x"] as? Double ?? x) - x - 40) < 3 &&
-            abs((self.mainWindow()["y"] as? Double ?? y) - y + 40) < 3
+            abs((self.mainWindow()["y"] as? Double ?? y) - y - 40) < 3
         }
         let right = window.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5)).withOffset(CGVector(dx: -1, dy: 0))
-        right.click(forDuration: 0.2, thenDragTo: right.withOffset(CGVector(dx: -340, dy: 0)))
+        drag(right, dx: -340, dy: 0)
         let bottom = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 1)).withOffset(CGVector(dx: 0, dy: -1))
-        bottom.click(forDuration: 0.2, thenDragTo: bottom.withOffset(CGVector(dx: 0, dy: -220)))
+        drag(bottom, dx: 0, dy: -220)
         wait("Native resize to minimum") {
             abs((self.mainWindow()["width"] as? Double ?? 0) - 640) < 3 &&
             abs((self.mainWindow()["height"] as? Double ?? 0) - 480) < 3
@@ -174,13 +195,15 @@ import XCTest
         draftContains("Line eight")
         app.webViews.firstMatch.scroll(byDeltaX: 0, deltaY: 500)
         XCTAssertTrue(app.webViews.buttons["Open test popup"].isHittable)
-        app.terminate(); app.launch()
-        XCTAssertTrue(editor.waitForExistence(timeout: 15))
+        relaunch()
         wait("Frame survives restart") { abs((self.mainWindow()["width"] as? Double ?? 0) - 640) < 3 }
     }
     func testCropThreeImagesDeleteReaddAndCancel() throws {
         editor.click(); editor.typeText("Keep image draft 8642")
         loadImage()
+        wait("Original image dimensions available") { (self.mainWindow()["imageWidth"] as? Int ?? 0) > 0 }
+        let originalWidth = try XCTUnwrap(mainWindow()["imageWidth"] as? Int)
+        let originalHeight = try XCTUnwrap(mainWindow()["imageHeight"] as? Int)
         let canvas = app.descendants(matching: .any).matching(identifier: "crop-canvas").firstMatch
         XCTAssertTrue(canvas.waitForExistence(timeout: 10))
         let start = canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.3))
@@ -193,14 +216,14 @@ import XCTest
         wait("Native coordinator confirms the visible webpage attachment") {
             self.mainWindow()["attachmentPhase"] as? String == "visible"
         }
-        var imageSize: String?
-        wait("Decoded image dimensions are visible") {
-            imageSize = self.app.staticTexts.allElementsBoundByIndex.compactMap { ($0.value as? String) ?? $0.label }
-                .first { $0.hasPrefix("Last image: ") }
-            return imageSize != nil
-        }
-        let size = try XCTUnwrap(imageSize)
-        XCTAssertNotEqual(size, "Last image: 1000 x 600", "The visible crop must reach the webpage.")
+        let dimensions = app.webViews.textFields["Decoded image dimensions"].firstMatch
+        XCTAssertTrue(dimensions.waitForExistence(timeout: 10))
+        wait("Decoded crop is displayed") { (dimensions.value as? String)?.hasPrefix("Last image: ") == true }
+        let size = try XCTUnwrap(dimensions.value as? String)
+        let pixels = size.replacingOccurrences(of: "Last image: ", with: "").components(separatedBy: " x ").compactMap(Int.init)
+        XCTAssertEqual(pixels.count, 2)
+        XCTAssertGreaterThan(pixels[0], 0); XCTAssertLessThan(pixels[0], originalWidth)
+        XCTAssertGreaterThan(pixels[1], 0); XCTAssertLessThan(pixels[1], originalHeight)
         for count in 2...3 { loadImage(); click("image-add"); waitText("Images: \(count) · Sends: 0") }
         app.webViews.buttons["Remove file"].firstMatch.click()
         waitText("Images: 2 · Sends: 0")
@@ -211,6 +234,14 @@ import XCTest
         app.webViews.buttons["Stream reply"].click()
         waitText("Synthetic reply complete. 中文输入保持正常。")
         waitText("Images: 3 · Sends: 1")
+    }
+    private func drag(_ start: XCUICoordinate, dx: CGFloat, dy: CGFloat) {
+        // A destination anchored to the moving window changes during the drag.
+        // The native menu bar is stationary; derive its offset from current AX geometry.
+        let anchor = app.menuBars.firstMatch.coordinate(withNormalizedOffset: .zero)
+        let from = start.screenPoint, fixed = anchor.screenPoint
+        let end = anchor.withOffset(CGVector(dx: from.x + dx - fixed.x, dy: from.y + dy - fixed.y))
+        start.click(forDuration: 0.2, thenDragTo: end)
     }
     func testCompactWindowMovementCompositionAndVisibility() throws {
         wait("Small initial window") { abs((self.mainWindow()["width"] as? Double ?? 0) - 640) < 1 }
