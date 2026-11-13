@@ -9,6 +9,7 @@ import CaptureCore
     init(image: CGImage) {
         self.image = image; super.init(frame: .zero)
         setAccessibilityElement(true); setAccessibilityLabel("Image crop preview. Drag a rectangle to crop.")
+        setAccessibilityIdentifier("crop-canvas")
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
     var imageRect: CGRect {
@@ -68,6 +69,9 @@ import CaptureCore
         let again = NSButton(title: "Retake", target: self, action: #selector(captureAgain))
         let discard = NSButton(title: "Cancel", target: self, action: #selector(discardImage))
         addButton.target = self; addButton.action = #selector(addImage); addButton.bezelStyle = .rounded
+        addButton.setAccessibilityIdentifier("image-add")
+        reset.setAccessibilityIdentifier("crop-reset"); discard.setAccessibilityIdentifier("image-cancel")
+        notice.setAccessibilityIdentifier("image-notice")
         let controls = NSStackView(views: [reset, again, discard, addButton]); controls.spacing = 8
         notice.font = .systemFont(ofSize: 12); notice.maximumNumberOfLines = 3
         for view in [title, canvas, notice, controls] { view.translatesAutoresizingMaskIntoConstraints = false; addSubview(view) }

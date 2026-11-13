@@ -74,7 +74,13 @@ import CaptureCore
     private var lastStatus = "Loading…"
     private var shortcutWarning = ""
     let speechPane = SpeechPane()
-    lazy var speech = SpeechCoordinator(owner: self, defaults: defaults)
+    lazy var speech: SpeechCoordinator = {
+        if preview {
+            return SpeechCoordinator(owner: self, defaults: defaults, capture: PreviewAudioCapture(),
+                                     backend: PreviewSpeechBackend(failure: defaults.bool(forKey: "PreviewSpeechFailure")))
+        }
+        return SpeechCoordinator(owner: self, defaults: defaults)
+    }()
     var toggleRecording: (() -> Void)?
     var showTranscription: (() -> Void)?
     private let recordButton = NSButton(title: "Record", target: nil, action: nil)
@@ -98,6 +104,11 @@ import CaptureCore
         let frame = WindowPlacement.restore(saved, screens: NSScreen.screens.map(\.visibleFrame))
         let window = NSWindow(contentRect: frame, styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = preview ? "CaptureShield — UI Preview" : (isMain ? "CaptureShield — ChatGPT" : "CaptureShield — Web window")
+        window.setAccessibilityIdentifier(isMain ? "chat-window" : "chat-popup")
+        window.identifier = NSUserInterfaceItemIdentifier(isMain ? "chat-window" : "chat-popup")
+        window.standardWindowButton(.closeButton)?.setAccessibilityIdentifier("window-close")
+        window.standardWindowButton(.miniaturizeButton)?.setAccessibilityIdentifier("window-minimize")
+        window.standardWindowButton(.zoomButton)?.setAccessibilityIdentifier("window-zoom")
         window.level = .normal; window.hidesOnDeactivate = false
         window.backgroundColor = .black; window.hasShadow = false
         window.isReleasedWhenClosed = false; window.minSize = NSSize(width: 640, height: 480)
@@ -138,6 +149,7 @@ import CaptureCore
         status.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         status.setContentHuggingPriority(.defaultLow, for: .horizontal)
         status.setAccessibilityLabel("Page status")
+        status.setAccessibilityIdentifier("page-status")
         let details = NSButton(image: NSImage(systemSymbolName: "info.circle", accessibilityDescription: "Page status details")!, target: self, action: #selector(showStatusDetails))
         let dismiss = NSButton(image: NSImage(systemSymbolName: "xmark", accessibilityDescription: "Dismiss page notice")!, target: self, action: #selector(dismissStatus))
         for button in [details, dismiss] { button.controlSize = .small }
@@ -165,6 +177,10 @@ import CaptureCore
         smaller.target = self; smaller.action = #selector(zoomOut); smaller.setAccessibilityLabel("Decrease page size")
         larger.target = self; larger.action = #selector(zoomIn); larger.setAccessibilityLabel("Increase page size")
         zoomLabel.target = self; zoomLabel.action = #selector(resetZoom); zoomLabel.setAccessibilityLabel("Reset page size to 90 percent")
+        modeControl.setAccessibilityIdentifier("sharing-mode")
+        smaller.setAccessibilityIdentifier("zoom-out"); larger.setAccessibilityIdentifier("zoom-in")
+        zoomLabel.setAccessibilityIdentifier("zoom-reset")
+        recordButton.setAccessibilityIdentifier("toolbar-record")
         let toolbar = NSToolbar(identifier: "CaptureShieldChatToolbar")
         toolbar.delegate = self; toolbar.displayMode = .iconOnly; toolbar.sizeMode = .small
         toolbar.allowsUserCustomization = false
@@ -183,6 +199,10 @@ import CaptureCore
             let menu = NSMenu()
             for (title, action) in [("Paste Image", #selector(pasteImage)), ("Review prepared image", #selector(reviewImage))] {
                 let entry = NSMenuItem(title: title, action: action, keyEquivalent: ""); entry.target = self; menu.addItem(entry)
+            }
+            if preview {
+                let sample = NSMenuItem(title: "Load sample image (offline)", action: #selector(loadPreviewImage), keyEquivalent: "")
+                sample.target = self; menu.addItem(sample)
             }
             item.menu = menu; return item
         }
@@ -365,6 +385,7 @@ import CaptureCore
         else { webView.load(URLRequest(url: URL(string: "https://chatgpt.com/")!)) }
     }
     @objc func reloadPage() { webView.reload() }
+    @objc private func loadPreviewImage() { if preview { images.prepare(ChatPreview.sampleImage()) } }
     @objc private func goBack() { webView.goBack() }
     @objc private func goForward() { webView.goForward() }
     @objc private func hideOrClose() {

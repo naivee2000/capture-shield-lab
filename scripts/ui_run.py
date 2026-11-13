@@ -12,6 +12,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -46,6 +47,9 @@ def preflight():
         problems.append("Full Xcode is required for XCTest UI tests. Set DEVELOPER_DIR to its Contents/Developer; CLT alone can still build the app.")
     if not Path("/dev/console").exists() or Path("/dev/console").stat().st_uid == 0:
         problems.append("An unlocked graphical login session is required.")
+    processes = output(["ps", "-axo", "comm="])
+    if any(line.rstrip().endswith("/CaptureShieldLab.app/Contents/MacOS/CaptureShieldLab") for line in processes.splitlines()):
+        problems.append("Another CaptureShield instance is running. Use a clean test session for global shortcuts; this script will not close it.")
     return {"status": "not-tested" if problems else "ready", "environment": env,
             "reasons": problems, "ui_authorization": "not attested until XCTest launches; never modified by this script"}
 
@@ -122,9 +126,23 @@ def result_counts(result):
     passed = result.get("passedTests", 0)
     failed = result.get("failedTests", 0)
     skipped = result.get("skippedTests", 0)
-    if not all(isinstance(v, int) and v >= 0 for v in (passed, failed, skipped)):
+    if not all(type(v) is int and v >= 0 for v in (passed, failed, skipped)):
         raise ValueError("Unrecognized xcresult counts.")
     return {"passed": passed, "failed": failed, "skipped": skipped}
+
+def result_passed(code, counts, expected=6):
+    return code == 0 and counts == {"passed": expected, "failed": 0, "skipped": 0}
+
+def validate_application(app, prefix):
+    if app.is_symlink() or not app.is_dir():
+        raise ValueError("Packaged application is missing or redirected.")
+    info = plistlib.loads((app / "Contents/Info.plist").read_bytes())
+    if info.get("CFBundleIdentifier") != prefix + ".lab":
+        raise ValueError("Unexpected application identity; personal applications are not test targets.")
+    if not (app / "Contents/MacOS/CaptureShieldLab").is_file():
+        raise ValueError("Packaged application executable is missing.")
+    return {"version": info["CFBundleShortVersionString"], "build": info["CFBundleVersion"],
+            "minimum_system": info["LSMinimumSystemVersion"]}
 
 def execute(args):
     check = preflight()
@@ -148,6 +166,8 @@ def execute(args):
         rc = run_command(["bash", "scripts/build.sh", "--scratch-path", str(work / "swift-build")], base / "build.log", env)
         if rc: return 1
         app = work / "Apps" / "CaptureShieldLab.app"
+        report["stage"] = "package-identity"
+        report["application"] = validate_application(app, manifest["bundle_prefix"])
         binary = app / "Contents/MacOS/CaptureShieldLab"
         report["application_sha256"] = hashlib.sha256(binary.read_bytes()).hexdigest()
         report["stage"] = "ui-build"
@@ -174,15 +194,19 @@ def execute(args):
             log = base / ("round-" + str(index) + ".log")
             rc = run_command(["xcodebuild", "test-without-building", "-xctestrun", str(specs[0]),
                               "-destination", "platform=macOS", "-parallel-testing-enabled", "NO",
-                              "-resultBundlePath", str(result)], log, env, timeout=480)
+                              "-resultBundlePath", str(result)] +
+                             (["-only-testing:CaptureShieldUITests/AppUITests/testLaunchTypeAndRestart"] if args.negative else []),
+                             log, env, timeout=480)
             try:
                 raw = output(["xcrun", "xcresulttool", "get", "test-results", "summary", "--path", str(result)])
                 counts = result_counts(json.loads(raw))
             except (subprocess.CalledProcessError, ValueError):
                 counts = {"passed": 0, "failed": 0, "skipped": 0}
             report["rounds"].append({"round": index, "exit_code": rc, **counts})
-            if rc or not counts["passed"] or counts["failed"] or counts["skipped"]:
+            if not result_passed(rc, counts):
                 text = log.read_text(errors="replace").lower()
+                report["negative_control_expected_failure"] = bool(args.negative and counts["failed"] == 1
+                    and counts["passed"] == 0 and "negative control must fail" in text)
                 if any(s in text for s in ("does not have permission to use accessibility",
                                           "not authorized for ui testing",
                                           "failed to get authorization")):
@@ -196,6 +220,10 @@ def execute(args):
         report["status"] = "pass"
         report["stage"] = "complete"
         return 0
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        report["error_type"] = type(error).__name__
+        # Exception text can contain machine-specific paths. Raw local logs remain local.
+        return 1
     finally:
         write_json(base / "summary.json", report)
         manifest["state"] = "finished"
@@ -204,27 +232,76 @@ def execute(args):
         print(json.dumps(report, indent=2), flush=True)
         print("Raw evidence retained until review. Cleanup run:", run_id, flush=True)
 
+def inspect_tree(path):
+    """Do not traverse links or nested mounts during accounting/deletion."""
+    if path.is_symlink():
+        raise ValueError("Refusing redirected generated artifact.")
+    if not path.exists(): return 0
+    total = 0
+    for root, dirs, files in os.walk(path, followlinks=False):
+        for name in dirs + files:
+            child = Path(root) / name
+            if child.is_symlink():
+                # SwiftPM/Xcode generate links inside build products. Account for
+                # the link itself; os.walk/rmtree never follow it into its target.
+                total += child.lstat().st_blocks * 512
+                continue
+            if os.path.ismount(child):
+                raise ValueError("Refusing nested mount; retain for inspection.")
+            if child.is_file(): total += child.stat().st_blocks * 512
+    return total
+
+def open_files(path):
+    result = subprocess.run(["/usr/sbin/lsof", "-t"] + (["+D", str(path)] if path.is_dir() else [str(path)]),
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if result.stderr or result.returncode not in (0, 1):
+        raise ValueError("Cannot reliably inspect resource use; retain files.")
+    return bool(result.stdout)
+
+def cleanup_candidates(base, data):
+    if not data.get("summary_saved") or data.get("state") != "finished":
+        return [], "unfinished or summary missing"
+    summary = base / "summary.json"
+    if summary.is_symlink() or not summary.is_file():
+        raise ValueError("A retained technical summary is required before cleanup.")
+    report = json.loads(summary.read_text())
+    if report.get("run_id") != data["run_id"] or report.get("status") not in ("pass", "fail", "not-tested"):
+        raise ValueError("Summary identity or verdict is invalid.")
+    return [p for p in base.iterdir() if p.name not in ("manifest.json", "summary.json")], ""
+
 def clean(args):
     ids = [args.run_id] if args.run_id else sorted(p.name for p in RUNS.glob("ui*") if p.is_dir())
     for run_id in ids:
         base, data = load_run(run_id)
         work = work_path(base, data)
-        if not data.get("summary_saved") or data.get("state") != "finished":
-            print(run_id + ": retain (unfinished or summary missing)")
+        candidates, reason = cleanup_candidates(base, data)
+        if reason:
+            print(run_id + ": retain (" + reason + ")")
             continue
         # Never interrupt applications to permit deletion.
-        paths = [base]
+        paths = [p for p in candidates if p.name != "work.sparsebundle"]
         if data["image"]: paths.append(work)
-        busy = any(subprocess.run(["/usr/sbin/lsof", "-t", "+D", str(p)],
-                   stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout for p in paths if p.exists())
+        attachment = Path(tempfile.gettempdir()) / "CaptureShieldAttachments" / (data["bundle_prefix"] + ".lab")
+        if attachment.parent.is_symlink(): raise ValueError("Refusing redirected attachment root.")
+        paths.append(attachment)
+        # Inspect complete trees before any mutation, including all siblings.
+        if any(p.is_symlink() for p in candidates): raise ValueError("Refusing redirected run artifact.")
+        estimated = sum(inspect_tree(p) if p.is_dir() else p.lstat().st_blocks * 512 for p in candidates)
+        inspect_tree(attachment)
+        busy = any(open_files(p) for p in paths if p.exists())
         if busy:
             print(run_id + ": retain (open files/processes)")
             continue
         if args.dry_run:
-            print(run_id + ": eligible; raw evidence/workspace will be removed; summary retained")
+            print(run_id + ": eligible; allocated bytes=" + str(estimated) + "; summary retained")
             continue
         if not args.run_id:
             raise ValueError("Execute cleanup with one explicit --run-id.")
+        # Unregister only these now-unused test bundles, before detaching their volume.
+        register = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+        for name in ("CaptureShieldLab.app", "CaptureProbe.app"):
+            app = work / "Apps" / name
+            if app.exists(): subprocess.run([register, "-u", str(app)], check=True)
         if data["image"] and work.exists():
             info = plistlib.loads(subprocess.check_output(["hdiutil", "info", "-plist"]))
             expected = str(base / "work.sparsebundle")
@@ -232,16 +309,15 @@ def clean(args):
             if len(matches) != 1 or not any(e.get("mount-point") == str(work) for e in matches[0].get("system-entities", [])):
                 raise ValueError("Mounted image identity does not match this run.")
             subprocess.run(["hdiutil", "detach", str(work)], check=True)
-        for child in base.iterdir():
-            if child.name in ("manifest.json", "summary.json"): continue
-            if child.is_symlink():
-                raise ValueError("Refusing redirected generated artifact.")
+        for child in candidates:
             if child.is_dir(): shutil.rmtree(child)
             else: child.unlink()
+        if attachment.exists(): shutil.rmtree(attachment)
         # Only the per-run preview defaults; never the real application domain.
         domain = data["bundle_prefix"] + ".lab.preview"
         subprocess.run(["defaults", "delete", domain], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         data["state"] = "cleaned"
+        data["reclaimed_allocated_bytes"] = estimated
         write_json(base / "manifest.json", data)
         print(run_id + ": cleaned (technical summary and ownership manifest retained)")
     return 0

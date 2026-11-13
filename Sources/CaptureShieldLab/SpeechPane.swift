@@ -54,6 +54,10 @@ import CaptureCore
             (refresh, #selector(refreshClicked)), (add, #selector(addClicked)), (discard, #selector(discardClicked)),
             (review, #selector(toggleTranscript)), (settings, #selector(toggleSettings)), (details, #selector(toggleDetails)), (close, #selector(closePanel))]
         for (button, action) in bindings { button.target = self; button.action = action }
+        record.setAccessibilityIdentifier("speech-record"); discard.setAccessibilityIdentifier("speech-cancel")
+        review.setAccessibilityIdentifier("speech-review"); add.setAccessibilityIdentifier("speech-add")
+        summary.setAccessibilityIdentifier("speech-summary"); status.setAccessibilityIdentifier("speech-status")
+        result.setAccessibilityIdentifier("speech-text"); settings.setAccessibilityIdentifier("speech-settings")
         for control in [source, language, refresh, prepare, close, record, add, discard, review, settings, details] as [NSControl] {
             control.controlSize = .small; control.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
             control.setContentCompressionResistancePriority(.required, for: .horizontal)

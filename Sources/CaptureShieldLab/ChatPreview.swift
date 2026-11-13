@@ -22,24 +22,34 @@ enum ChatPreview {
     // Long code line for horizontal scrolling: ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ</code></pre>
     <div data-composer-body><div data-rich-text-layout="single-line"><div data-composer-markdown contenteditable="true" role="textbox" aria-label="Synthetic chat input" spellcheck="true"></div></div>
     <label>Attach synthetic image <input id="image-file" type="file" accept="image/png,image/jpeg"></label>
-    <p id="image-status">No image attached.</p><img id="image-preview" alt="Synthetic attachment preview" style="max-width:240px;max-height:160px;display:none">
-    <button id="remove-image" aria-label="Remove file" hidden>Remove image</button>
+    <p id="image-status" role="status">Images: 0 · Sends: 0</p><div id="attachments"></div><p id="image-dimensions" role="status">No image dimensions</p>
     <button id="send">Stream reply</button></div><p id="reply" aria-live="polite">Ready.</p>
     <div class="actions"><button id="popup">Open test popup</button><button id="dialog">Open test dialog</button></div>
+    <button id="compose-start">Begin synthetic composition</button><button id="compose-end">Commit synthetic composition</button><p id="compose-status">Composition idle</p>
     <p>English: teh recieve. Chinese: 输入与换行测试。</p>
     <p>Other applications should cover this window when focused.</p><p>End of synthetic content.</p>
     </main><script>
     const toggle=document.querySelector('[aria-controls="app-shell-sidebar"]');
     toggle.onclick=()=>{const open=toggle.getAttribute('aria-expanded')==='true';toggle.setAttribute('aria-expanded',String(!open));document.body.classList.toggle('folded',open);};
-    document.querySelector('#send').onclick=()=>{const target=document.querySelector('#reply');target.textContent='';let i=0;const text='Synthetic reply complete. 中文输入保持正常。';const id=setInterval(()=>{target.textContent+=text[i++];if(i===text.length)clearInterval(id)},60);};
+    let sends=0; let imageSequence=0;
+    const status=()=>document.querySelector('#image-status').textContent='Images: '+document.querySelector('#attachments').children.length+' · Sends: '+sends;
+    document.querySelector('#send').onclick=()=>{sends++;status();const target=document.querySelector('#reply');target.textContent='';let i=0;const text='Synthetic reply complete. 中文输入保持正常。';const id=setInterval(()=>{target.textContent+=text[i++];if(i===text.length)clearInterval(id)},60);};
     document.querySelector('#image-file').onchange=async e=>{
       const file=e.target.files[0];if(!file)return;
       const bytes=(await file.arrayBuffer()).byteLength;
-      document.querySelector('#image-status').textContent=`Synthetic image attached: ${bytes} bytes. No message sent.`;
-      const preview=document.querySelector('#image-preview');preview.src=URL.createObjectURL(file);preview.alt=file.name;preview.style.display='block';document.querySelector('#remove-image').hidden=false;
+      const number=++imageSequence;
+      const card=document.createElement('span');card.style='display:inline-flex;flex-direction:column;margin:4px';
+      const image=document.createElement('img');const blob=URL.createObjectURL(file);
+      image.onload=()=>document.querySelector('#image-dimensions').textContent='Last image: '+image.naturalWidth+' x '+image.naturalHeight;
+      image.src=blob;image.alt=file.name;image.width=80;image.height=80;
+      const remove=document.createElement('button');remove.type='button';
+      remove.textContent='Remove image '+number;remove.setAttribute('aria-label','Remove file '+number);
+      remove.onclick=()=>{URL.revokeObjectURL(blob);card.remove();status()};
+      card.append(image,remove);document.querySelector('#attachments').append(card);
+      document.querySelector('#image-file').value='';status();
     };
-    document.querySelector('#remove-image').onclick=()=>{const image=document.querySelector('#image-preview');URL.revokeObjectURL(image.src);image.removeAttribute('src');image.style.display='none';document.querySelector('#image-file').value='';document.querySelector('#image-status').textContent='Image removed.';document.querySelector('#remove-image').hidden=true;};
     document.querySelector('#popup').onclick=()=>window.open('about:blank','CaptureShieldSyntheticPopup');
+    for(const [id,event,label] of [['compose-start','compositionstart','Composition active'],['compose-end','compositionend','Composition idle']]){document.getElementById(id).onclick=()=>{const editor=document.querySelector('[contenteditable]');editor.focus();editor.dispatchEvent(new CompositionEvent(event,{bubbles:true}));document.querySelector('#compose-status').textContent=label;};}
     document.querySelector('#dialog').onclick=()=>confirm('Synthetic dialog. Check mode and opacity inheritance.');
     </script></body></html>
     """#

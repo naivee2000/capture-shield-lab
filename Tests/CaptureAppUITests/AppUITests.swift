@@ -17,12 +17,18 @@ import XCTest
         defaults.removePersistentDomain(forName: identifier + ".preview")
         defaults.set("normal", forKey: "ChatSharingMode")
         defaults.set(90, forKey: "ChatZoomPercent")
-        defaults.set("{{100, 100}, {980, 700}}", forKey: "ChatWindowFrame")
+        let compact = name.contains("Compact")
+        defaults.set(compact ? "{{100, 100}, {640, 480}}" : "{{100, 100}, {980, 700}}", forKey: "ChatWindowFrame")
+        defaults.set("synthetic.offline.audio", forKey: "SpeechSourceBundleID")
+        defaults.set(name.contains("RetainedError"), forKey: "PreviewSpeechFailure")
         defaults.synchronize()
+        try? FileManager.default.removeItem(at: metadataURL)
         app = XCUIApplication(url: url)
         app.launchArguments = ["--chat-preview"]
+        app.launchEnvironment["CAPTURESHIELD_UI_METADATA"] = metadataURL.path
         app.launch()
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 20))
+        XCTAssertTrue(editor.waitForExistence(timeout: 15))
     }
     override func tearDownWithError() throws {
         // This instance was created by the test and has no personal login or draft.
@@ -43,5 +49,170 @@ import XCTest
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 20))
         XCTAssertTrue(app.webViews.textViews["Synthetic chat input"].firstMatch.waitForExistence(timeout: 15))
     }
+
+    private var metadataURL: URL {
+        URL(fileURLWithPath: ProcessInfo.processInfo.environment["CAPTURESHIELD_UI_RUN"]!).appendingPathComponent("window.json")
+    }
+    private var editor: XCUIElement { app.webViews.textViews["Synthetic chat input"].firstMatch }
+    private func record() -> [String: Any] {
+        guard let data = try? Data(contentsOf: metadataURL),
+              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [:] }
+        return root
+    }
+    private func mainWindow() -> [String: Any] {
+        (record()["windows"] as? [[String: Any]] ?? []).first { $0["identifier"] as? String == "chat-window" } ?? [:]
+    }
+    private func wait(_ message: String, _ predicate: () -> Bool, file: StaticString = #filePath, line: UInt = #line) {
+        let deadline = Date().addingTimeInterval(15)
+        while !predicate(), Date() < deadline { RunLoop.current.run(until: Date().addingTimeInterval(0.05)) }
+        XCTAssertTrue(predicate(), message, file: file, line: line)
+    }
+    private func click(_ id: String) {
+        let control = app.descendants(matching: .any).matching(identifier: id).firstMatch
+        XCTAssertTrue(control.waitForExistence(timeout: 10), "Missing control: " + id)
+        control.click()
+    }
+    private func waitText(_ text: String) {
+        XCTAssertTrue(app.staticTexts[text].firstMatch.waitForExistence(timeout: 10), "Missing visible text: " + text)
+    }
+    private func draftContains(_ text: String) {
+        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value CONTAINS %@", text), object: editor)
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 10), .completed)
+    }
+    private func loadImage() {
+        app.menuButtons["Images"].firstMatch.click()
+        app.menuItems["Load sample image (offline)"].firstMatch.click()
+        XCTAssertTrue(app.buttons["image-add"].waitForExistence(timeout: 10))
+    }
+    func testModesZoomPopupAndDraftPreservation() throws {
+        editor.click(); editor.typeText("Preserve draft 1357")
+        for _ in 0..<2 { click("zoom-out") }
+        wait("70 percent page zoom") { abs((self.mainWindow()["webZoom"] as? Double ?? 0) - 0.7) < 0.01 }
+        for _ in 0..<7 { click("zoom-in") }
+        wait("140 percent page zoom") { abs((self.mainWindow()["webZoom"] as? Double ?? 0) - 1.4) < 0.01 }
+        app.radioButtons["Legacy"].click()
+        wait("Legacy config and Dock policy") {
+            self.mainWindow()["sharing"] as? Int == 0 && self.record()["policy"] as? Int == 1
+        }
+        XCTAssertEqual(mainWindow()["alpha"] as? Double, 1)
+        XCTAssertEqual(mainWindow()["backgroundAlpha"] as? Double ?? 0, 0.8, accuracy: 0.01)
+        XCTAssertEqual(mainWindow()["webAlpha"] as? Double, 1)
+        draftContains("1357")
+        app.webViews.buttons["Open test popup"].click()
+        wait("Popup is configured before being used") {
+            (self.record()["windows"] as? [[String: Any]] ?? []).contains {
+                $0["identifier"] as? String == "chat-popup" && $0["sharing"] as? Int == 0
+            }
+        }
+        app.windows.matching(identifier: "chat-popup").firstMatch.buttons["window-close"].click()
+        app.radioButtons["Normal"].click()
+        wait("Normal mode and Dock policy restored") {
+            self.mainWindow()["sharing"] as? Int == 1 && self.record()["policy"] as? Int == 0
+        }
+        app.webViews.buttons["Open test dialog"].click()
+        XCTAssertTrue(app.sheets.firstMatch.waitForExistence(timeout: 10))
+        app.sheets.buttons["Cancel"].click()
+        draftContains("1357")
+        app.terminate(); app.launch()
+        XCTAssertTrue(editor.waitForExistence(timeout: 15))
+        wait("Persisted page zoom") { abs((self.mainWindow()["webZoom"] as? Double ?? 0) - 1.4) < 0.01 }
+        click("zoom-reset")
+        wait("Zoom reset") { abs((self.mainWindow()["webZoom"] as? Double ?? 0) - 0.9) < 0.01 }
+    }
+    func testCropThreeImagesDeleteReaddAndCancel() throws {
+        editor.click(); editor.typeText("Keep image draft 8642")
+        loadImage()
+        let canvas = app.descendants(matching: .any).matching(identifier: "crop-canvas").firstMatch
+        XCTAssertTrue(canvas.waitForExistence(timeout: 10))
+        let start = canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.3))
+        let end = canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.7))
+        start.press(forDuration: 0.1, thenDragTo: end)
+        click("crop-reset")
+        start.press(forDuration: 0.1, thenDragTo: end)
+        click("image-add")
+        waitText("Images: 1 · Sends: 0")
+        let dimensions = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Last image: '")).firstMatch
+        XCTAssertTrue(dimensions.waitForExistence(timeout: 10))
+        XCTAssertNotEqual(dimensions.label, "Last image: 1000 x 600", "The visible crop must reach the webpage.")
+        for count in 2...3 { loadImage(); click("image-add"); waitText("Images: \(count) · Sends: 0") }
+        app.webViews.buttons["Remove file 1"].click()
+        waitText("Images: 2 · Sends: 0")
+        loadImage(); click("image-add"); waitText("Images: 3 · Sends: 0")
+        loadImage(); click("image-cancel"); waitText("Images: 3 · Sends: 0")
+        draftContains("8642")
+        // This button is on the offline fixture, never the ChatGPT website.
+        app.webViews.buttons["Stream reply"].click()
+        waitText("Synthetic reply complete. 中文输入保持正常。")
+        waitText("Images: 3 · Sends: 1")
+    }
+    func testCompactWindowMovementCompositionAndVisibility() throws {
+        wait("Small initial window") { abs((self.mainWindow()["width"] as? Double ?? 0) - 640) < 1 }
+        editor.click(); editor.typeText("Small window text")
+        wait("Composition tracker ready") { self.mainWindow()["compositionKnown"] as? Bool == true }
+        let before = try XCTUnwrap(mainWindow()["y"] as? Double)
+        app.typeKey(.upArrow, modifierFlags: [.command, .shift])
+        wait("Window moved 40 points") { abs((self.mainWindow()["y"] as? Double ?? before) - before - 40) < 1 }
+        app.webViews.buttons["Begin synthetic composition"].click()
+        wait("Synthetic composition active") { self.mainWindow()["composing"] as? Bool == true }
+        let composingY = mainWindow()["y"] as? Double
+        app.typeKey(.upArrow, modifierFlags: [.command, .shift])
+        XCTAssertEqual(mainWindow()["y"] as? Double, composingY)
+        app.webViews.buttons["Commit synthetic composition"].click()
+        wait("Synthetic composition ended") { self.mainWindow()["composing"] as? Bool == false }
+        app.typeKey("m", modifierFlags: [.command, .shift])
+        wait("Main window hidden") { self.mainWindow()["visible"] as? Bool == false }
+        // Send the global key while another app owns focus; do not restart Finder.
+        let finder = XCUIApplication(bundleIdentifier: "com.apple.finder")
+        finder.activate()
+        finder.typeKey("m", modifierFlags: [.command, .shift])
+        wait("Global shortcut restored the window") { self.mainWindow()["visible"] as? Bool == true }
+        app.activate()
+        draftContains("Small window text")
+        app.windows.firstMatch.buttons["window-minimize"].click()
+        wait("Window minimized") { self.mainWindow()["miniaturized"] as? Bool == true }
+        app.activate()
+        app.typeKey("m", modifierFlags: [.command, .shift])
+        app.typeKey("m", modifierFlags: [.command, .shift])
+        wait("Window restored") { self.mainWindow()["miniaturized"] as? Bool == false }
+    }
+    func testSpeechUIAppendCancelAndPreserveImage() throws {
+        editor.click(); editor.typeText("Existing speech draft")
+        loadImage(); click("image-add"); waitText("Images: 1 · Sends: 0")
+        app.buttons["Transcription"].firstMatch.click()
+        wait("Synthetic source ready") { self.app.buttons["speech-record"].isEnabled }
+        click("speech-record")
+        wait("Recording state") { self.app.buttons["speech-record"].label == "Stop" }
+        click("speech-cancel")
+        wait("Cancelled state") { self.app.buttons["speech-record"].isEnabled }
+        draftContains("Existing speech draft")
+        click("speech-record")
+        wait("Recording again") { self.app.buttons["speech-record"].label == "Stop" }
+        click("speech-record")
+        draftContains("Synthetic transcript")
+        waitText("Images: 1 · Sends: 0")
+        draftContains("Existing speech draft")
+        let draft = editor.value as? String ?? ""
+        XCTAssertEqual(draft.components(separatedBy: "Synthetic transcript").count - 1, 1)
+    }
+    func testSpeechRetainedErrorEditDiscard() throws {
+        editor.click(); editor.typeText("Retained draft")
+        app.buttons["Transcription"].firstMatch.click()
+        wait("Fixture source ready") { self.app.buttons["speech-record"].isEnabled }
+        click("speech-record")
+        wait("Recording") { self.app.buttons["speech-record"].label == "Stop" }
+        click("speech-record")
+        wait("Failed recognition retained partial") { self.app.staticTexts["speech-summary"].value as? String == "Review required" || self.app.staticTexts["speech-summary"].label == "Review required" }
+        click("speech-review")
+        let text = app.textViews["speech-text"]
+        XCTAssertTrue(text.waitForExistence(timeout: 10))
+        text.click(); text.typeKey("a", modifierFlags: .command); text.typeText("Edited retained transcript")
+        click("speech-review"); click("speech-review")
+        XCTAssertTrue((text.value as? String ?? "").contains("Edited retained transcript"))
+        click("speech-add")
+        draftContains("Edited retained transcript")
+        draftContains("Retained draft")
+        wait("Idle after adding") { !self.app.textViews["speech-text"].isHittable }
+    }
+
 }
 

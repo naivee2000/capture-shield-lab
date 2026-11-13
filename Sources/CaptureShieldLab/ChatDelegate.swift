@@ -52,7 +52,7 @@ import CaptureCore
             return handled ? nil : event
         }
         refreshCursorButtons()
-        windowDiagnostics.startIfRequested()
+        windowDiagnostics.startIfRequested(preview: preview)
     }
     private func wire(_ controller: ChatWindow) {
         controller.setShortcutWarning(shortcutWarning)
