@@ -80,7 +80,10 @@ jobs:
       - name: Run behavioral and native WebKit tests
         id: tests
         timeout-minutes: 5
-        run: bash scripts/test.sh
+        # WebViews share native presentation resources. Do not exhaust the
+        # 7-GB hosted runner with dozens of concurrent file-picker fixtures.
+        # Keep all assertions and production timeouts unchanged.
+        run: bash scripts/test.sh --no-parallel
       - name: Check installation and deployment floor
         id: package
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}

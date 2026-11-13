@@ -1,5 +1,9 @@
 # Observed compatibility
 
+## Version 0.6.3 cross-version validation (2026-11-13)
+
+See [exact OS, toolchain and CI results](os-validation.md). The first actual macOS 15 run found that the 0.6.2 executable strongly required screenshot classes introduced in macOS 26, despite source availability guards. Version 0.6.3 weak-links those references and checks the binary before packaging. Repaired source passed clean builds, signatures/registration and synthetic AppKit/WebKit tests on macOS 15.8.2 and 27.0.1, plus local 26.6.2 regression. These results supersede the older "15.x/27 runtime pending" statements **only for those automated checks and exact versions**, not physical-device capture, account/recognition or receiver behavior. The declared floor remains 15.6; that exact point release is not independently tested.
+
 ## Version 0.6.2 background and responsive UI (2026-11-13)
 
 See the [UI implementation and validation ledger](ui-062.md). Content alpha is now 1; Legacy background paint is 0.8. The compact speech strip is 36 points, settings and retained text are disclosures, and notices no longer reserve a permanent footer. Web background transparency uses an isolated **non-public WebKit appearance hook**; it requires per-system verification. Audio capture and the deferred blue/purple indicator investigation are unchanged. No new Teams receiver verdict is claimed.

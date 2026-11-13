@@ -11,7 +11,7 @@ Version 0.6.3 fixes a macOS 15 launch failure found by cross-version testing. It
 
 ## Requirements
 
-- Apple Silicon Mac, **macOS 15.6 or later**. Older-system compatibility is implemented but real 15.6/15.x and 27 runtime/receiver verification remains pending. A newer OS is not automatically verified.
+- Apple Silicon Mac, **macOS 15.6 or later**, using **0.6.3 or newer** for the macOS 15 loader repair. Clean-build and synthetic native/WebKit tests have run on macOS 15 and 27; see [exact OS/toolchain results](docs/os-validation.md). The exact 15.6 release, real account/capture/speech behavior on older/newer systems and receiver compatibility still need device checks. A newer OS is not automatically verified.
 - Build tools: **Swift 6.2+ and macOS SDK 26+**. On macOS 15.6–15.x use Xcode / Command Line Tools **26.0–26.3**; newer tool releases may require a newer OS. Full Xcode is optional.
 - Access to the private GitHub repository, naivee2000/capture-shield-lab.
 - Screen Recording permission for **CaptureShieldLab** when you explicitly take a screenshot or record selected-application audio, and separately for **CaptureProbe** when running capture tests. The original lab does not request recording. The compatible speech engine additionally requests Speech Recognition permission when you choose Prepare language. No microphone, camera, Accessibility or Input Monitoring permission is requested.
