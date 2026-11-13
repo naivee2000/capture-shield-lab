@@ -1,0 +1,111 @@
+name: macOS compatibility
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/macos-compatibility.yml'
+      - 'Package.swift'
+      - 'Sources/**'
+      - 'Tests/**'
+      - 'scripts/**'
+      - 'Assets/**'
+  pull_request:
+    paths:
+      - '.github/workflows/macos-compatibility.yml'
+      - 'Package.swift'
+      - 'Sources/**'
+      - 'Tests/**'
+      - 'scripts/**'
+      - 'Assets/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-compatibility-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compatibility:
+    name: macOS ${{ matrix.os }} / Xcode ${{ matrix.xcode }} / arm64
+    # Standard Apple Silicon runners; do not replace with paid -xlarge runners.
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: '15'
+            runner: macos-15
+            xcode: '26.3'
+          - os: '26'
+            runner: macos-26
+            xcode: '26.6'
+          - os: '27'
+            runner: xcode-27
+            xcode: '27.2'
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
+      CAPTURESHIELD_BUNDLE_PREFIX: dev.naivee2000.captureshield.ci
+      EXPECTED_OS: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Verify and record the actual host
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = arm64
+          test "$(sw_vers -productVersion | cut -d. -f1)" = "$EXPECTED_OS"
+          test -d "$DEVELOPER_DIR"
+          echo "CAPTURESHIELD_APP_ROOT=$HOME/Library/Caches/CaptureShield CI/Apps" >> "$GITHUB_ENV"
+          {
+            echo '### Actual compatibility test environment'
+            echo '```text'
+            sw_vers
+            uname -m
+            xcodebuild -version
+            xcrun swift --version
+            xcrun --sdk macosx --show-sdk-version
+            git rev-parse HEAD
+            echo '```'
+            echo 'Synthetic tests only: no account login, permission grant, recording, model download or meeting receiver.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Build, sign and register both applications
+        id: build
+        run: bash scripts/build.sh
+      - name: Run behavioral and native WebKit tests
+        id: tests
+        run: bash scripts/test.sh
+      - name: Check installation and deployment floor
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/doctor.sh
+          for name in CaptureShieldLab CaptureProbe; do
+            app="$CAPTURESHIELD_APP_ROOT/$name.app"
+            test "$(/usr/libexec/PlistBuddy -c 'Print LSMinimumSystemVersion' "$app/Contents/Info.plist")" = 15.6
+            test "$(lipo -archs "$app/Contents/MacOS/$name")" = arm64
+            minimum="$(xcrun vtool -show-build "$app/Contents/MacOS/$name" | awk '$1 == "minos" {print $2}')"
+            test "$minimum" = 15.6
+          done
+          test -z "$(git status --porcelain)"
+      - name: Record scope and results
+        if: always()
+        env:
+          BUILD_RESULT: ${{ steps.build.outcome }}
+          TEST_RESULT: ${{ steps.tests.outcome }}
+          PACKAGE_RESULT: ${{ steps.package.outcome }}
+        shell: bash
+        run: |
+          {
+            echo "Build/sign/register: $BUILD_RESULT"
+            echo "Synthetic runtime tests: $TEST_RESULT"
+            echo "Package checks: $PACKAGE_RESULT"
+            echo ''
+            echo 'This result applies only to the OS/build and toolchain recorded above. It does not verify ChatGPT login/uploads, screen/audio permission, on-device speech accuracy, physical IME behavior or Teams/Zoom/Meet hiding. Those require separate device/receiver tests.'
+          } >> "$GITHUB_STEP_SUMMARY"

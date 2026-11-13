@@ -235,7 +235,7 @@ bash scripts/dev.sh
 bash scripts/test.sh
 ~~~
 
-The test script runs Swift Testing without external dependencies. It adds framework lookup flags on affected Command Line Tools installations and disables a missing optional Foundation overlay. A correctly configured full Xcode/toolchain also supports:
+The test script runs Swift Testing without external dependencies. [Cross-version CI and its evidence boundaries](docs/os-validation.md) cover clean Apple Silicon builds and synthetic AppKit/WebKit tests on macOS 15, 26 and 27. This is separate from device and receiver validation. The script adds framework lookup flags on affected Command Line Tools installations and disables a missing optional Foundation overlay. A correctly configured full Xcode/toolchain also supports:
 
 ~~~bash
 swift test
