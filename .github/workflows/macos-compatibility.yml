@@ -36,7 +36,7 @@ jobs:
     name: macOS ${{ matrix.os }} / Xcode ${{ matrix.xcode }} / arm64
     # Standard Apple Silicon runners; do not replace with paid -xlarge runners.
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 35
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -127,7 +127,8 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Test the packaged application through XCTest UI automation
         id: app_ui
-        timeout-minutes: 20
+        # Three bounded eight-minute rounds plus packaging/runner compilation.
+        timeout-minutes: 27
         run: |
           set +e
           bash scripts/test-ui.sh --run-id "ui-ci-${{ github.run_id }}-${{ matrix.os }}"
