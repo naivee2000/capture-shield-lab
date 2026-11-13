@@ -103,7 +103,9 @@ import CaptureCore
         add.isEnabled = phase == .ready && !result.string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !inserting && !uncertain
         discard.isEnabled = !inserting
         discard.title = phase == .ready ? "Discard" : "Cancel"
-        if result.string.isEmpty { transcriptExpanded = false }
+        // Selecting all and replacing a retained transcript must not collapse
+        // the editor at the moment the user deletes the old text.
+        if result.string.isEmpty && phase != .ready { transcriptExpanded = false }
         if phase != .idle { settingsExpanded = false }
         switch phase {
         case .idle: summary.stringValue = busy ? "Preparing…" : (error ? "Needs attention" : "Ready · \(self.sourceName)")
@@ -143,7 +145,7 @@ import CaptureCore
     private func refreshLayout() {
         let pending = !result.string.isEmpty
         clock.isHidden = phase != .recording
-        review.isHidden = !pending
+        review.isHidden = !pending && !transcriptExpanded
         review.title = transcriptExpanded ? "Hide transcript" : "Review transcript"
         discard.isHidden = phase == .idle && !busy && !pending
         settings.isEnabled = phase == .idle && !busy
@@ -160,7 +162,7 @@ import CaptureCore
         settingsExpanded.toggle(); transcriptExpanded = false; detailsExpanded = false; refreshLayout()
     }
     @objc func toggleTranscript() {
-        guard !result.string.isEmpty else { return }
+        guard !result.string.isEmpty || transcriptExpanded else { return }
         transcriptExpanded.toggle(); settingsExpanded = false; detailsExpanded = false; refreshLayout()
     }
     @objc private func toggleDetails() {

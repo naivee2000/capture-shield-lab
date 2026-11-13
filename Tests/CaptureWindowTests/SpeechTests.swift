@@ -171,6 +171,9 @@ import CaptureCore
         let pane = owner.speechPane
         pane.toggleTranscript()
         #expect(pane.result.isEditable)
+        pane.result.string = ""
+        pane.textDidChange(Notification(name: NSText.didChangeNotification))
+        #expect(pane.transcriptExpanded && pane.result.isEditable)
         pane.result.string = "Reviewed synthetic text 中文"
         pane.textDidChange(Notification(name: NSText.didChangeNotification))
         backend.retainedPartial?("Late recognition must not replace the edited result")
