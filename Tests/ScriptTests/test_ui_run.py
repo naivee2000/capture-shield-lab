@@ -53,10 +53,11 @@ class CleanupTests(unittest.TestCase):
         (self.base / "work/file").write_text("synthetic")
         self.root_patch = patch.object(runner, "ROOT", self.root)
         self.runs_patch = patch.object(runner, "RUNS", self.runs)
-        self.root_patch.start(); self.runs_patch.start()
+        self.temp_patch = patch.object(runner.tempfile, "gettempdir", return_value=str(self.root / "temp"))
+        self.root_patch.start(); self.runs_patch.start(); self.temp_patch.start()
 
     def tearDown(self):
-        self.root_patch.stop(); self.runs_patch.stop(); self.temp.cleanup()
+        self.root_patch.stop(); self.runs_patch.stop(); self.temp_patch.stop(); self.temp.cleanup()
 
     def test_traversal_and_foreign_identity_rejected(self):
         for name in ("../other", "/tmp/other", "ui../other", "ui x"):

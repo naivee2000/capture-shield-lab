@@ -13,19 +13,13 @@ import XCTest
         guard identifier.hasPrefix("dev.naivee2000.captureshield.uitest.") else {
             throw NSError(domain: "Unsafe UI target", code: 1)
         }
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: identifier + ".preview"))
-        defaults.removePersistentDomain(forName: identifier + ".preview")
-        defaults.set("normal", forKey: "ChatSharingMode")
-        defaults.set(90, forKey: "ChatZoomPercent")
-        let compact = name.contains("Compact")
-        defaults.set(compact ? "{{100, 100}, {640, 480}}" : "{{100, 100}, {980, 700}}", forKey: "ChatWindowFrame")
-        defaults.set("synthetic.offline.audio", forKey: "SpeechSourceBundleID")
-        defaults.set(name.contains("RetainedError"), forKey: "PreviewSpeechFailure")
-        defaults.synchronize()
         try? FileManager.default.removeItem(at: metadataURL)
         app = XCUIApplication(url: url)
         app.launchArguments = ["--chat-preview"]
         app.launchEnvironment["CAPTURESHIELD_UI_METADATA"] = metadataURL.path
+        let seed: [String: Any] = ["token": UUID().uuidString, "compact": name.contains("Compact"),
+                                  "speechFailure": name.contains("RetainedError")]
+        app.launchEnvironment["CAPTURESHIELD_UI_SEED"] = String(data: try JSONSerialization.data(withJSONObject: seed), encoding: .utf8)
         app.launch()
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 20))
         XCTAssertTrue(editor.waitForExistence(timeout: 15))
@@ -65,7 +59,7 @@ import XCTest
     private func wait(_ message: String, _ predicate: () -> Bool, file: StaticString = #filePath, line: UInt = #line) {
         let deadline = Date().addingTimeInterval(15)
         while !predicate(), Date() < deadline { RunLoop.current.run(until: Date().addingTimeInterval(0.05)) }
-        XCTAssertTrue(predicate(), message, file: file, line: line)
+        XCTAssertTrue(predicate(), message + " · native metadata: " + String(describing: mainWindow()), file: file, line: line)
     }
     private func click(_ id: String) {
         let control = app.descendants(matching: .any).matching(identifier: id).firstMatch
@@ -74,7 +68,8 @@ import XCTest
             XCTAssertTrue(overflow.exists, "Toolbar overflow must remain accessible")
             overflow.click()
             menuClick("Page size")
-            menuClick(id + "-menu")
+            let titles = ["zoom-out": "Decrease page size", "zoom-in": "Increase page size", "zoom-reset": "Reset page size to 90 percent"]
+            menuClick(titles[id]!)
             return
         }
         XCTAssertTrue(control.waitForExistence(timeout: 10), "Missing control: " + id)
@@ -141,7 +136,7 @@ import XCTest
         let x = try XCTUnwrap(mainWindow()["x"] as? Double)
         let y = try XCTUnwrap(mainWindow()["y"] as? Double)
         // Relative native title-bar coordinates, never absolute screen positions.
-        let title = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.015))
+        let title = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0)).withOffset(CGVector(dx: 0, dy: 20))
         title.press(forDuration: 0.1, thenDragTo: title.withOffset(CGVector(dx: 40, dy: 40)))
         wait("Native title-bar drag") {
             abs((self.mainWindow()["x"] as? Double ?? x) - x - 40) < 3 &&
@@ -182,9 +177,11 @@ import XCTest
         wait("Native coordinator confirms the visible webpage attachment") {
             self.mainWindow()["attachmentPhase"] as? String == "visible"
         }
-        let dimensions = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Last image: '")).firstMatch
+        let dimensions = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Last image: ' OR value BEGINSWITH 'Last image: '")).firstMatch
         XCTAssertTrue(dimensions.waitForExistence(timeout: 10))
-        XCTAssertNotEqual(dimensions.label, "Last image: 1000 x 600", "The visible crop must reach the webpage.")
+        let size = dimensions.value as? String ?? dimensions.label
+        XCTAssertTrue(size.hasPrefix("Last image: "))
+        XCTAssertNotEqual(size, "Last image: 1000 x 600", "The visible crop must reach the webpage.")
         for count in 2...3 { loadImage(); click("image-add"); waitText("Images: \(count) · Sends: 0") }
         app.webViews.buttons["Remove file"].firstMatch.click()
         waitText("Images: 2 · Sends: 0")
@@ -231,10 +228,10 @@ import XCTest
         loadImage(); click("image-add"); waitText("Images: 1 · Sends: 0")
         click("toolbar-transcript")
         wait("Synthetic source ready") { self.app.buttons["speech-record"].isEnabled }
-        click("speech-record")
+        app.typeKey("r", modifierFlags: [.command, .shift])
         wait("Recording state") { self.app.buttons["speech-record"].label == "Stop" }
         click("speech-cancel")
-        wait("Cancelled state") { self.app.buttons["speech-record"].isEnabled }
+        wait("Cancelled state") { self.app.buttons["speech-record"].isEnabled && self.app.buttons["speech-record"].label == "Record" }
         draftContains("Existing speech draft")
         click("speech-record")
         wait("Recording again") { self.app.buttons["speech-record"].label == "Stop" }

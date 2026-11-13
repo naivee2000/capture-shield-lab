@@ -4,6 +4,24 @@ import Testing
 @testable import CaptureShieldLab
 
 @MainActor struct PreviewIsolationTests {
+    @Test func testSeedIsIsolatedAndDoesNotResetRestartedPreferences() throws {
+        let id = "dev.naivee2000.captureshield.uitest.seed-\(UUID())"
+        let defaults = UserDefaults(suiteName: id + ".preview")!
+        defer { defaults.removePersistentDomain(forName: id + ".preview") }
+        let payload = "{\"token\":\"\(UUID())\",\"compact\":true,\"speechFailure\":true}"
+        PreviewTestConfiguration.apply(bundleID: id, payload: payload)
+        #expect(defaults.string(forKey: "ChatSharingMode") == "normal")
+        #expect(defaults.string(forKey: "ChatWindowFrame") == "{{100, 100}, {640, 480}}")
+        defaults.set(140, forKey: "ChatZoomPercent")
+        PreviewTestConfiguration.apply(bundleID: id, payload: payload)
+        #expect(defaults.integer(forKey: "ChatZoomPercent") == 140)
+        let unrelated = "CaptureShield-seed-negative-\(UUID())"
+        let other = UserDefaults(suiteName: unrelated + ".preview")!
+        defer { other.removePersistentDomain(forName: unrelated + ".preview") }
+        other.set(70, forKey: "ChatZoomPercent")
+        PreviewTestConfiguration.apply(bundleID: unrelated, payload: payload)
+        #expect(other.integer(forKey: "ChatZoomPercent") == 70)
+    }
     @Test func offlineSpeechDoesNotUseSystemCaptureOrModels() async throws {
         let capture = PreviewAudioCapture()
         let sources = try await capture.sources()

@@ -11,7 +11,9 @@ catch {
 let delegate: any NSApplicationDelegate
 switch mode {
 case .chat: delegate = ChatDelegate()
-case .chatPreview: delegate = ChatDelegate(preview: true)
+case .chatPreview:
+    PreviewTestConfiguration.apply()
+    delegate = ChatDelegate(preview: true)
 case .lab: delegate = LabDelegate()
 }
 switch mode {

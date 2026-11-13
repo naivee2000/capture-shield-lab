@@ -27,7 +27,8 @@ def write_json(path, value):
 
 def environment():
     result = {"architecture": platform.machine(), "system": platform.mac_ver()[0],
-              "source_commit": output(["git", "rev-parse", "HEAD"], cwd=ROOT)}
+              "source_commit": output(["git", "rev-parse", "HEAD"], cwd=ROOT),
+              "source_dirty": bool(output(["git", "status", "--porcelain"], cwd=ROOT))}
     for key, command in [
         ("system_build", ["sw_vers", "-buildVersion"]),
         ("swift", ["xcrun", "swift", "--version"]),
@@ -92,9 +93,9 @@ def prepare(run_id):
     while not os.path.ismount(mount):
         mount = mount.parent
     fs = plistlib.loads(subprocess.check_output(["diskutil", "info", "-plist", str(mount)]))
-    RUNS.mkdir(parents=True, exist_ok=True)
     if (ROOT / "artifacts").is_symlink() or RUNS.is_symlink():
         raise ValueError("Refusing redirected run registry.")
+    RUNS.mkdir(parents=True, exist_ok=True)
     base = RUNS / run_id
     base.mkdir()
     image = fs.get("FilesystemType", "").lower() not in ("apfs", "hfs")
@@ -149,6 +150,7 @@ def validate_application(app, prefix):
     if not (app / "Contents/MacOS/CaptureShieldLab").is_file():
         raise ValueError("Packaged application executable is missing.")
     return {"version": info["CFBundleShortVersionString"], "build": info["CFBundleVersion"],
+            "build_commit": info.get("CaptureShieldBuildCommit", "unknown"),
             "minimum_system": info["LSMinimumSystemVersion"]}
 
 def execute(args):
