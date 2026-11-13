@@ -5,7 +5,7 @@ import XCTest
 @MainActor final class AppUITests: XCTestCase {
     private var app: XCUIApplication!
     private var testToken = ""
-    override func setUpWithError() throws {
+    @MainActor override func setUp() async throws {
         continueAfterFailure = false
         let path = try XCTUnwrap(ProcessInfo.processInfo.environment["CAPTURESHIELD_UI_APP"])
         let url = URL(fileURLWithPath: path)
@@ -29,7 +29,7 @@ import XCTest
         XCTAssertTrue(editor.waitForExistence(timeout: 15))
         verifyFixtureSetup()
     }
-    override func tearDownWithError() throws {
+    @MainActor override func tearDown() async throws {
         // This instance was created by the test and has no personal login or draft.
         if let app, app.state != .notRunning { quit() }
         app = nil

@@ -13,7 +13,7 @@ Version 0.6.4 adds packaged-application UI automation, a reusable compatibility 
 
 - Apple Silicon Mac, **macOS 15.6 or later**, using **0.6.3 or newer** for the macOS 15 loader repair. Clean-build and synthetic native/WebKit tests passed on **15.8.2, 26.7.2 and 27.0.1**, plus local **26.6.2** regression; see [exact OS/toolchain results](docs/os-validation.md). The exact 15.6 release, real account/capture/speech behavior on older/newer systems and receiver compatibility still need device checks. A newer OS is not automatically verified.
 - Build tools: **Swift 6.2+ and macOS SDK 26+**. On macOS 15.6–15.x use Xcode / Command Line Tools **26.0–26.3**; newer tool releases may require a newer OS. Full Xcode is optional.
-- Access to the private GitHub repository, naivee2000/capture-shield-lab.
+- Access to the GitHub repository, naivee2000/capture-shield-lab (currently public).
 - Screen Recording permission for **CaptureShieldLab** when you explicitly take a screenshot or record selected-application audio, and separately for **CaptureProbe** when running capture tests. The original lab does not request recording. The compatible speech engine additionally requests Speech Recognition permission when you choose Prepare language. No microphone, camera, Accessibility or Input Monitoring permission is requested.
 
 ## First setup
