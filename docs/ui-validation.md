@@ -37,7 +37,7 @@ The default run performs **three sequential rounds**, without parallel UI execut
 - Synthetic transcription idle/recording/cancel/processing/completed states, append exactly once, existing draft and attachment preservation.
 - Synthetic recognition error, retained editable transcript, folding/reopening and explicit add.
 
-Read-only native metadata supplements visible UI assertions for window geometry, sharing settings and alpha. That output is enabled only for an isolated UI-test bundle launched with `--chat-preview`. It contains no page text and exposes no application-control commands. An actual image decoded by the offline webpage is required after file handoff; returning a file URL alone is insufficient.
+Read-only native metadata supplements visible UI assertions for window geometry, sharing settings and alpha. It samples in common run-loop modes during menu/resize tracking and includes monotonic sample time; stale samples cannot satisfy an assertion. That output is enabled only for an isolated UI-test bundle launched with `--chat-preview`. It contains no page text and exposes no application-control commands. An actual image decoded by the offline webpage is required after file handoff; returning a file URL alone is insufficient.
 
 The JSON summary records actual OS/build, architecture, source commit, toolchain, app version/build/hash, each round's counts and failure stage. Exit 0 means all expected UI cases passed in every requested round. Zero, skipped, partial or unknown counts fail. Exit 1 means failure; exit 2 means a missing environment or UI-authorization prerequisite. The first failed round is retained and subsequent rounds do not run. Separate `real_capture`, `real_speech`, `real_chatgpt` and `receiver` fields stay `not-tested`.
 

@@ -11,9 +11,11 @@ import AppKit
             metadataURL = URL(fileURLWithPath: path)
         }
         guard metadataURL != nil || ProcessInfo.processInfo.environment["CAPTURESHIELD_WINDOW_DIAGNOSTICS"] == "1" else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+        let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.record() }
         }
+        self.timer = timer
+        RunLoop.main.add(timer, forMode: .common)
     }
     private func record() {
         let windows: [[String: Any]] = NSApp.windows.map { window in
@@ -25,11 +27,13 @@ import AppKit
              "alpha": window.alphaValue, "backgroundAlpha": window.backgroundColor.alphaComponent,
              "x": window.frame.minX, "y": window.frame.minY,
              "width": window.frame.width, "height": window.frame.height,
+             "minimumWidth": window.minSize.width, "minimumHeight": window.minSize.height,
              "miniaturized": window.isMiniaturized]
             if let view = window.contentView.flatMap(Self.webView) {
                 row["webZoom"] = view.pageZoom
                 row["webAlpha"] = view.alphaValue
                 if let owner = view.navigationDelegate as? ChatWindow {
+                    row["mode"] = owner.preferences.mode.rawValue
                     row["compositionKnown"] = owner.composition.composing != nil
                     row["composing"] = owner.composition.composing ?? false
                     row["attachmentPhase"] = String(describing: owner.images.phase)
@@ -48,6 +52,7 @@ import AppKit
         var testRecord: [String: Any] = ["policy": NSApp.activationPolicy().rawValue, "windows": windows,
                                       "processID": ProcessInfo.processInfo.processIdentifier]
         if metadataURL != nil {
+            testRecord["sampleUptime"] = ProcessInfo.processInfo.systemUptime
             let defaults = UserDefaults(suiteName: Bundle.main.bundleIdentifier! + ".preview")!
             testRecord["previewFrame"] = defaults.string(forKey: "ChatWindowFrame") ?? "missing"
             testRecord["previewSourceSet"] = defaults.string(forKey: "SpeechSourceBundleID") == "synthetic.offline.audio"

@@ -84,11 +84,16 @@ import XCTest
             return sourceReady && currentToken == self.testToken && abs(width - expectedWidth) < 1 && abs(height - expectedHeight) < 1
         }
     }
+    private func hasFreshSample() -> Bool {
+        guard let sampled = record()["sampleUptime"] as? Double else { return false }
+        let age = ProcessInfo.processInfo.systemUptime - sampled
+        return age >= 0 && age < 5
+    }
     private func wait(_ message: String, _ predicate: @MainActor () -> Bool, file: StaticString = #filePath, line: UInt = #line) {
         let deadline = Date().addingTimeInterval(15)
-        while !predicate(), Date() < deadline { RunLoop.current.run(until: Date().addingTimeInterval(0.05)) }
+        while !(hasFreshSample() && predicate()), Date() < deadline { RunLoop.current.run(until: Date().addingTimeInterval(0.05)) }
         let state = (try? JSONSerialization.data(withJSONObject: record(), options: [.sortedKeys])) ?? Data()
-        XCTAssertTrue(predicate(), message + " · native metadata: " + (String(data: state, encoding: .utf8) ?? "unavailable"), file: file, line: line)
+        XCTAssertTrue(hasFreshSample() && predicate(), message + " · native metadata: " + (String(data: state, encoding: .utf8) ?? "unavailable"), file: file, line: line)
     }
     private func click(_ id: String) {
         let control = mainUI.descendants(matching: .any).matching(identifier: id).firstMatch
@@ -142,6 +147,11 @@ import XCTest
         XCTAssertEqual(mainWindow()["alpha"] as? Double, 1)
         XCTAssertEqual(mainWindow()["backgroundAlpha"] as? Double ?? 0, 0.8, accuracy: 0.01)
         XCTAssertEqual(mainWindow()["webAlpha"] as? Double, 1)
+        let cursor = mainUI.descendants(matching: .any).matching(identifier: "private-cursor-toggle").firstMatch
+        app.typeKey("c", modifierFlags: [.command, .shift])
+        wait("Offline private-cursor shortcut enables its control") { (cursor.value as? Int) == 1 || (cursor.value as? String) == "1" }
+        app.typeKey(.escape, modifierFlags: [])
+        wait("Escape restores the private-cursor control") { (cursor.value as? Int) == 0 || (cursor.value as? String) == "0" }
         draftContains("1357")
         app.webViews.buttons["Open test popup"].click()
         wait("Popup is configured before being used") {

@@ -13,8 +13,4 @@ import CaptureCore
         setSharing(of: window, legacy: mode == .legacy)
         window.alphaValue = 1; window.level = .normal; window.hasShadow = false
     }
-    static func prepareOwnedWindowForDisplay(_ window: NSWindow) {
-        guard let owner = window.delegate as? ChatWindow else { return }
-        setSharing(of: window, legacy: owner.preferences.mode == .legacy)
-    }
 }

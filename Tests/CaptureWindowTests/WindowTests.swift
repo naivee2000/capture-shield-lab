@@ -5,24 +5,12 @@ import CaptureCore
 @testable import CaptureShieldLab
 
 @MainActor struct WindowTests {
-    @Test func orderingOwnedWindowsReconcilesSharingWithTheirCurrentMode() {
+    @Test func confirmationDelegateIsExposedThroughWebKitsPublicSelector() {
         _ = NSApplication.shared
-        PanelSharingProtection.configure(legacy: false)
-        defer { PanelSharingProtection.configure(legacy: false) }
-        for main in [true, false] {
-            let config = WKWebViewConfiguration(); config.websiteDataStore = .nonPersistent()
-            let controller = ChatWindow(configuration: config, isMain: main, preview: true)
-            let window = controller.window!
-            defer { window.orderOut(nil) }
-            for mode in [ChatSharingMode.normal, .legacy, .normal] {
-                controller.applyPreferences(ChatPreferences(mode: mode))
-                window.orderOut(nil)
-                window.sharingType = mode == .normal ? .none : .readOnly
-                window.orderFront(nil)
-                #expect(window.sharingType == (mode == .normal ? .readOnly : .none))
-            }
-            #expect(controller.responds(to: #selector(WKUIDelegate.webView(_:runJavaScriptConfirmPanelWithMessage:initiatedByFrame:completionHandler:))))
-        }
+        let config = WKWebViewConfiguration(); config.websiteDataStore = .nonPersistent()
+        let controller = ChatWindow(configuration: config, isMain: false, preview: true)
+        defer { controller.window?.orderOut(nil) }
+        #expect(controller.responds(to: #selector(WKUIDelegate.webView(_:runJavaScriptConfirmPanelWithMessage:initiatedByFrame:completionHandler:))))
     }
     @Test func savedOuterFrameDoesNotGrowWhenTheNativeTitlebarIsRecreated() {
         _ = NSApplication.shared
@@ -49,6 +37,7 @@ import CaptureCore
         #expect(window.level == .normal)
         #expect(window.styleMask.contains([.titled, .closable, .miniaturizable, .resizable]))
         #expect(window.alphaValue == 1)
+        #expect(window.minSize == NSSize(width: 640, height: 480))
     }
     @Test func normalModeAndZoomSurvivePresentationAndSheetConfiguration() {
         _ = NSApplication.shared
@@ -57,6 +46,7 @@ import CaptureCore
         defer { controller.window?.close() }
         controller.applyPreferences(ChatPreferences(mode: .normal, zoomPercent: 140))
         controller.present()
+        #expect(controller.window?.minSize == NSSize(width: 640, height: 480))
         #expect(controller.window?.sharingType == .readOnly)
         #expect(controller.window?.alphaValue == 1)
         #expect(controller.webView.pageZoom == 1.4)
@@ -67,5 +57,8 @@ import CaptureCore
         controller.configureAppearance(of: sheet)
         #expect(sheet.sharingType == .none && sheet.alphaValue == 1)
         #expect(controller.webView.pageZoom == 0.7)
+        controller.applyPreferences(ChatPreferences(mode: .normal, zoomPercent: 90))
+        #expect(controller.window?.sharingType == .readOnly)
+        #expect(controller.window?.minSize == NSSize(width: 640, height: 480))
     }
 }

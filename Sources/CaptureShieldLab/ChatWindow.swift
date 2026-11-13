@@ -110,7 +110,7 @@ import CaptureCore
         window.standardWindowButton(.zoomButton)?.setAccessibilityIdentifier("window-zoom")
         window.level = .normal; window.hidesOnDeactivate = false
         window.backgroundColor = .black; window.hasShadow = false
-        window.isReleasedWhenClosed = false; window.minSize = NSSize(width: 640, height: 480)
+        window.isReleasedWhenClosed = false
         window.isMovableByWindowBackground = true
         window.appearance = NSAppearance(named: .darkAqua)
         window.toolbarStyle = .unifiedCompact
@@ -125,6 +125,9 @@ import CaptureCore
         // Saved rectangles are outer frames. Apply after installing native window chrome.
         window.setFrame(frame, display: false)
         applyPreferences(preferences)
+        // contentMinSize takes precedence over minSize. Derive it from the real
+        // toolbar/titlebar metrics instead of assuming a fixed chrome height.
+        window.contentMinSize = window.contentRect(forFrameRect: NSRect(x: 0, y: 0, width: 640, height: 480)).size
         webView.navigationDelegate = self; webView.uiDelegate = self
         webView.pasteImage = { [weak self] in self?.pasteImage() }
 
@@ -243,6 +246,7 @@ import CaptureCore
             item.label = "Private Cursor"; cursorButton.target = self; cursorButton.action = #selector(toggleCursor)
             cursorButton.image = NSImage(systemSymbolName: "cursorarrow", accessibilityDescription: "Private Cursor")
             cursorButton.imagePosition = .imageOnly; cursorButton.setAccessibilityLabel("Private Cursor")
+            cursorButton.setAccessibilityIdentifier("private-cursor-toggle")
             cursorButton.setButtonType(.pushOnPushOff); item.view = cursorButton
         case "zoom":
             item.label = "Page size"; item.view = group([smaller, zoomLabel, larger])
@@ -501,13 +505,16 @@ import CaptureCore
         guard let window, window.isVisible, window.attachedSheet == nil else { completionHandler(); return }
         dialog(message).beginSheetModal(for: window) { _ in completionHandler() }
     }
-    // SDK releases differ in their Swift isolation annotation for this optional
-    // callback. Export its Objective-C delegate selector explicitly on all of them.
-    @objc(webView:runJavaScriptConfirmPanelWithMessage:initiatedByFrame:completionHandler:)
+    // The async delegate form avoids SDK-specific completion-block isolation
+    // annotations while still using WebKit's public confirmation callback.
     func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String,
-                 initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping @MainActor @Sendable (Bool) -> Void) {
-        guard let window, window.isVisible, window.attachedSheet == nil else { completionHandler(false); return }
-        dialog(message, cancel: true).beginSheetModal(for: window) { response in completionHandler(response == .alertFirstButtonReturn) }
+                 initiatedByFrame frame: WKFrameInfo) async -> Bool {
+        guard let window, window.isVisible, window.attachedSheet == nil else { return false }
+        return await withCheckedContinuation { continuation in
+            dialog(message, cancel: true).beginSheetModal(for: window) { response in
+                continuation.resume(returning: response == .alertFirstButtonReturn)
+            }
+        }
     }
     func webView(_ webView: WKWebView, runJavaScriptTextInputPanelWithPrompt prompt: String, defaultText: String?,
                  initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping @MainActor @Sendable (String?) -> Void) {
