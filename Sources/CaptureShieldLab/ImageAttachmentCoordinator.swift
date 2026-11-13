@@ -59,7 +59,7 @@ import CaptureCore
             let triggered = await AttachmentPageBridge.request(in: owner.webView, preview: owner.preview)
             guard current == epoch else { return }
             if phase == .ready {
-                owner.setStatus(triggered ? "Image prepared. Waiting for the webpage file chooser…" : "Attachment control not identified. Click ChatGPT's + → Add photos & files, or use Image Preview to cancel/review.")
+                owner.setStatus(triggered ? "Image prepared. Waiting for the webpage file chooser…" : "Attachment control not identified. Click ChatGPT's + → Add photos & files, or use Images → Review prepared image to cancel/review.")
             }
             monitor = Task { [weak self] in await self?.verifyDelivery(epoch: current, document: document) }
         } catch {

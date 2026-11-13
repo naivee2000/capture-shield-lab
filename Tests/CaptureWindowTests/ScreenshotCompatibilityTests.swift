@@ -72,7 +72,7 @@ import CaptureCore
             controller.window?.close()
         }
         #expect(controller.window?.attachedSheet?.sharingType == NSWindow.SharingType.none)
-        #expect(controller.window?.attachedSheet?.alphaValue == 0.8)
+        #expect(controller.window?.attachedSheet?.alphaValue == 1)
         controller.selectScreenshotMode(.compatible)
         #expect(controller.webView === web && controller.preferences.mode == .legacy)
         #expect(controller.preferences.screenshotMode == .compatible)

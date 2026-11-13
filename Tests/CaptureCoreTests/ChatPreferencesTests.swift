@@ -13,8 +13,8 @@ struct ChatPreferencesTests {
         #expect(ChatPreferences.load(from: defaults) == chosen)
         chosen.mode = .legacy; chosen.save(to: defaults)
         #expect(ChatPreferences.load(from: defaults).zoomPercent == 120)
-        #expect(ChatPreferences.load(from: defaults).mode.opacity == 0.8)
-        #expect(ChatSharingMode.normal.opacity == 1)
+        #expect(ChatPreferences.load(from: defaults).mode.backgroundOpacity == 0.8)
+        #expect(ChatSharingMode.normal.backgroundOpacity == 1)
     }
     @Test func zoomStaysInSupportedRangeAndResetsToCompactDefault() {
         var settings = ChatPreferences(zoomPercent: 70)

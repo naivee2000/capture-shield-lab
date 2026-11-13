@@ -1,5 +1,9 @@
 # Observed compatibility
 
+## Version 0.6.2 background and responsive UI (2026-11-13)
+
+See the [UI implementation and validation ledger](ui-062.md). Content alpha is now 1; Legacy background paint is 0.8. The compact speech strip is 36 points, settings and retained text are disclosures, and notices no longer reserve a permanent footer. Web background transparency uses an isolated **non-public WebKit appearance hook**; it requires per-system verification. Audio capture and the deferred blue/purple indicator investigation are unchanged. No new Teams receiver verdict is claimed.
+
 ## Version 0.6.1 compact transcription panel (2026-11-13)
 
 The bottom panel is reduced from 180 to 112 logical points. Smaller native controls and a combined action/status row leave more space for the chat. The transcript scrolls within 40 points, content is aligned near the footer, and the full status is available as a tooltip. Recording and draft-insertion evidence remains in the [0.6 ledger](speech-06.md); receiver verification is still separate. Local verification: 55 existing window/speech tests passed; the running app was visually checked at 980- and 640-point window widths, then restored to its prior frame. All controls fit and closing/reopening the panel worked. No new audio or receiver-hiding claim is made. A clean clone of `97fef281d26b` in a path containing spaces built and strictly signed both 0.6.1/build 10 apps; registration and doctor checks passed and the clone stayed clean. This was on the same development Mac.

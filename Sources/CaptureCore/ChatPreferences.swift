@@ -2,7 +2,8 @@ import Foundation
 
 public enum ChatSharingMode: String, CaseIterable, Sendable {
     case normal, legacy
-    public var opacity: Double { self == .legacy ? 0.8 : 1 }
+    /// Background paint only. Never apply this value to the window or its content.
+    public var backgroundOpacity: Double { self == .legacy ? 0.8 : 1 }
 }
 
 public struct ChatPreferences: Equatable, Sendable {

@@ -79,6 +79,9 @@ import CaptureCore
     var showTranscription: (() -> Void)?
     private let recordButton = NSButton(title: "Record", target: nil, action: nil)
     private var speechHeight: NSLayoutConstraint!
+    private let statusBar = NSView()
+    private var statusHeight: NSLayoutConstraint!
+    private var appearanceBridge: WebAppearanceBridge?
 
 
     init(configuration: WKWebViewConfiguration, isMain: Bool, preferences: ChatPreferences = ChatPreferences(),
@@ -88,7 +91,7 @@ import CaptureCore
         configuration.userContentController = WKUserContentController()
         scripts.forEach { configuration.userContentController.addUserScript($0) }
         ChatPageAdapter.disableInputSuggestions(persist: !preview)
-        ChatPageAdapter.install(in: configuration, preview: preview)
+        ChatPageAdapter.install(in: configuration, preview: preview, mode: preferences.mode)
         composition.install(in: configuration)
         webView = ChatWebView(frame: .zero, configuration: configuration)
         let saved = isMain ? defaults.string(forKey: "ChatWindowFrame").map(NSRectFromString) : nil
@@ -102,6 +105,11 @@ import CaptureCore
         window.appearance = NSAppearance(named: .darkAqua)
         window.toolbarStyle = .unifiedCompact
         super.init(window: window)
+        appearanceBridge = WebAppearanceBridge(webView: webView, preview: preview)
+        appearanceBridge?.unavailable = { [weak self] in
+            guard let self, self.preferences.mode == .legacy else { return }
+            self.setStatus("Background transparency is unavailable in this WebKit version. Text remains fully opaque; Legacy sharing is unchanged.")
+        }
         window.delegate = self
         buildContent(window)
         // Saved rectangles are outer frames. Apply after installing native window chrome.
@@ -124,24 +132,32 @@ import CaptureCore
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
     private func buildContent(_ window: NSWindow) {
-        let root = NSView(); root.wantsLayer = true; root.layer?.backgroundColor = NSColor.black.cgColor
+        let root = NSView(); root.wantsLayer = true
         window.contentView = root
-        status.font = .systemFont(ofSize: 11); status.maximumNumberOfLines = 2
+        status.font = .systemFont(ofSize: 12); status.maximumNumberOfLines = 1; status.lineBreakMode = .byTruncatingTail
+        status.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        status.setContentHuggingPriority(.defaultLow, for: .horizontal)
         status.setAccessibilityLabel("Page status")
-        let compatibility = NSButton(title: "Compatibility…", target: self, action: #selector(showCompatibility))
+        let details = NSButton(image: NSImage(systemSymbolName: "info.circle", accessibilityDescription: "Page status details")!, target: self, action: #selector(showStatusDetails))
+        let dismiss = NSButton(image: NSImage(systemSymbolName: "xmark", accessibilityDescription: "Dismiss page notice")!, target: self, action: #selector(dismissStatus))
+        for button in [details, dismiss] { button.controlSize = .small }
         speechPane.isHidden = true
         speechHeight = speechPane.heightAnchor.constraint(equalToConstant: 0)
         speechHeight.isActive = true
-        for view in [webView, speechPane, status, compatibility] { view.translatesAutoresizingMaskIntoConstraints = false; root.addSubview(view) }
+        speechPane.heightChanged = { [weak self] in self?.updateSpeechHeight() }
+        for view in [webView, speechPane, statusBar] { view.translatesAutoresizingMaskIntoConstraints = false; root.addSubview(view) }
+        for view in [status, details, dismiss] { view.translatesAutoresizingMaskIntoConstraints = false; statusBar.addSubview(view) }
+        statusHeight = statusBar.heightAnchor.constraint(equalToConstant: 0); statusHeight.isActive = true; statusBar.isHidden = true
         NSLayoutConstraint.activate([
             webView.topAnchor.constraint(equalTo: root.topAnchor), webView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             webView.trailingAnchor.constraint(equalTo: root.trailingAnchor), webView.bottomAnchor.constraint(equalTo: speechPane.topAnchor),
             speechPane.leadingAnchor.constraint(equalTo: root.leadingAnchor), speechPane.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-            speechPane.bottomAnchor.constraint(equalTo: status.topAnchor, constant: -4),
-            status.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12), status.trailingAnchor.constraint(equalTo: compatibility.leadingAnchor, constant: -8),
-            compatibility.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),
-            compatibility.centerYAnchor.constraint(equalTo: status.centerYAnchor),
-            status.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -4), status.heightAnchor.constraint(equalToConstant: 28)
+            speechPane.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
+            statusBar.leadingAnchor.constraint(equalTo: root.leadingAnchor), statusBar.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            statusBar.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+            status.leadingAnchor.constraint(equalTo: statusBar.leadingAnchor, constant: 8), status.trailingAnchor.constraint(equalTo: details.leadingAnchor, constant: -6),
+            details.trailingAnchor.constraint(equalTo: dismiss.leadingAnchor, constant: -4), dismiss.trailingAnchor.constraint(equalTo: statusBar.trailingAnchor, constant: -8),
+            status.centerYAnchor.constraint(equalTo: statusBar.centerYAnchor), details.centerYAnchor.constraint(equalTo: statusBar.centerYAnchor), dismiss.centerYAnchor.constraint(equalTo: statusBar.centerYAnchor)
         ])
         back.target = self; back.action = #selector(goBack); back.setAccessibilityLabel("Back")
         forward.target = self; forward.action = #selector(goForward); forward.setAccessibilityLabel("Forward")
@@ -156,10 +172,20 @@ import CaptureCore
     }
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { toolbarDefaultItemIdentifiers(toolbar) }
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.init("navigation"), .init("sidebar"), .init("screenshot"), .init("pasteImage"), .init("imagePreview"), .init("record"), .init("transcript"), .flexibleSpace, .init("sharingMode"), .init("cursor"), .init("zoom"), .init("hide")]
+        [.init("navigation"), .init("sidebar"), .init("screenshot"), .init("imagePreview"), .init("record"), .init("transcript"), .flexibleSpace, .init("sharingMode"), .init("compatibility"), .init("cursor"), .init("zoom"), .init("hide")]
     }
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier,
                  willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
+        if identifier.rawValue == "imagePreview" {
+            let item = NSMenuToolbarItem(itemIdentifier: identifier)
+            item.label = "Images"; item.toolTip = "Paste Image or review a prepared image"
+            item.image = NSImage(systemSymbolName: "photo", accessibilityDescription: "Images")
+            let menu = NSMenu()
+            for (title, action) in [("Paste Image", #selector(pasteImage)), ("Review prepared image", #selector(reviewImage))] {
+                let entry = NSMenuItem(title: title, action: action, keyEquivalent: ""); entry.target = self; menu.addItem(entry)
+            }
+            item.menu = menu; return item
+        }
         let item = NSToolbarItem(itemIdentifier: identifier)
         switch identifier.rawValue {
         case "navigation":
@@ -173,16 +199,14 @@ import CaptureCore
         case "screenshot":
             item.label = "Screenshot"; item.toolTip = "Screenshot (\(ChatKeyboard.screenshotLabel))"
             item.view = NSButton(image: NSImage(systemSymbolName: "camera", accessibilityDescription: "Screenshot")!, target: self, action: #selector(takeScreenshot))
-        case "pasteImage":
-            item.label = "Paste Image"
-            item.view = NSButton(image: NSImage(systemSymbolName: "photo.badge.plus", accessibilityDescription: "Paste Image")!, target: self, action: #selector(pasteImage))
-        case "imagePreview":
-            item.label = "Image Preview"
-            item.view = NSButton(image: NSImage(systemSymbolName: "crop", accessibilityDescription: "Review or cancel prepared image")!, target: self, action: #selector(reviewImage))
         case "sharingMode": item.label = "Sharing mode"; item.view = modeControl
         case "record":
             item.label = "Record / Stop"; item.toolTip = "Record selected app audio (\(ChatKeyboard.recordLabel))"
+            item.visibilityPriority = .high
             recordButton.target = self; recordButton.action = #selector(recordAudio); item.view = recordButton
+        case "compatibility":
+            item.label = "Compatibility"; item.toolTip = "Compatibility and local diagnostics"
+            item.view = NSButton(image: NSImage(systemSymbolName: "checkmark.shield", accessibilityDescription: "Compatibility")!, target: self, action: #selector(showCompatibility))
         case "transcript":
             item.label = "Transcription"
             item.view = NSButton(image: NSImage(systemSymbolName: "waveform", accessibilityDescription: "Transcription settings and pending text")!, target: self, action: #selector(reviewTranscript))
@@ -211,12 +235,18 @@ import CaptureCore
         preferences = value
         for owned in ownedWindows { configureAppearance(of: owned) }
         webView.pageZoom = Double(value.zoomPercent) / 100
+        ChatPageAdapter.install(in: webView.configuration, preview: preview, mode: value.mode)
+        Task { [weak self] in
+            guard let self else { return }
+            await ChatPageAdapter.applyMode(self.preferences.mode, in: self.webView)
+        }
         modeControl.selectedSegment = value.mode == .normal ? 0 : 1
         zoomLabel.title = "\(value.zoomPercent)%"
         smaller.isEnabled = value.zoomPercent > 70; larger.isEnabled = value.zoomPercent < 140
     }
     func configureAppearance(of window: NSWindow) {
         WindowProtection.apply(to: window, mode: preferences.mode)
+        ChatAppearance.apply(to: window, mode: preferences.mode)
     }
     private func request(_ value: ChatPreferences) {
         if let changePreferences { changePreferences(value) } else { applyPreferences(value) }
@@ -246,17 +276,31 @@ import CaptureCore
     func setStatus(_ text: String) {
         lastStatus = text
         status.stringValue = shortcutWarning + (osUpgradeNotice ? "macOS changed: retest sharing. " : "") + text
+        status.toolTip = status.stringValue
+        let routine = (text == "Loading…" || text == ChatKeyboard.summary) && shortcutWarning.isEmpty && !osUpgradeNotice
+        statusBar.isHidden = routine; statusHeight.constant = routine ? 0 : 28
     }
     func setShortcutWarning(_ text: String) { shortcutWarning = text.isEmpty ? "" : text + " "; setStatus(lastStatus) }
     func noteOSUpgrade() { osUpgradeNotice = true; setStatus(lastStatus) }
-    func showSpeechPane(_ show: Bool) { speechPane.isHidden = !show; speechHeight.constant = show ? SpeechPane.preferredHeight : 0 }
+    func showSpeechPane(_ show: Bool) { speechPane.isHidden = !show; updateSpeechHeight() }
+    private func updateSpeechHeight() {
+        speechHeight.constant = speechPane.isHidden ? 0 : speechPane.preferredHeight
+    }
+    @objc private func dismissStatus() { statusBar.isHidden = true; statusHeight.constant = 0 }
+    @objc private func showStatusDetails() {
+        guard let window, window.attachedSheet == nil else { return }
+        let alert = NSAlert(); alert.messageText = "Page status"; alert.informativeText = status.stringValue
+        alert.addButton(withTitle: "Done"); configureAppearance(of: alert.window)
+        alert.beginSheetModal(for: window)
+    }
     func updateRecordButton(recording: Bool, enabled: Bool) { recordButton.title = recording ? "Stop" : "Record"; recordButton.isEnabled = enabled }
     @objc private func recordAudio() { toggleRecording?() }
     @objc private func reviewTranscript() { showTranscription?() }
     func compatibilitySummary() -> CompatibilitySummary {
         CompatibilitySummary(os: ProcessInfo.processInfo.operatingSystemVersion, build: SystemCompatibility.osBuild,
                              mode: preferences.screenshotMode, permissionGranted: screenshots.permissionGranted,
-                             failure: screenshots.lastFailure, speechDiagnostic: isMain ? speech.diagnostic : nil)
+                             failure: screenshots.lastFailure, speechDiagnostic: (isMain ? speech.diagnostic + "\n" : "") +
+                             "Web background: \(webView.responds(to: NSSelectorFromString("_setDrawsBackground:")) ? "appearance compatibility hook available (non-public WebKit)" : "unsupported; web backdrop remains opaque")")
     }
     func selectScreenshotMode(_ mode: ScreenshotMode) {
         cancelScreenshot()
@@ -330,7 +374,9 @@ import CaptureCore
     @objc private func clearLogin() { askToClear?() }
     func windowShouldClose(_ sender: NSWindow) -> Bool { hideOrClose(); return !isMain }
     func windowDidMove(_ notification: Notification) { saveFrame() }
-    func windowDidResize(_ notification: Notification) { saveFrame() }
+    func windowDidResize(_ notification: Notification) {
+        saveFrame(); speechPane.resizeForContentHeight(window?.contentView?.bounds.height ?? 480)
+    }
     private func saveFrame() {
         if isMain, let window { defaults.set(NSStringFromRect(window.frame), forKey: "ChatWindowFrame") }
     }
@@ -348,12 +394,16 @@ import CaptureCore
         if navigationResponse.canShowMIMEType { decisionHandler(.allow) }
         else { setStatus("Downloads are not supported."); decisionHandler(.cancel) }
     }
-    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) { composition.reset(); cancelScreenshot(); images.invalidate(); setStatus("Loading…") }
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        _ = WebBackgroundCompatibility.setTransparent(false, in: webView)
+        composition.reset(); cancelScreenshot(); images.invalidate(); setStatus("Loading…")
+    }
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         // Only the host is displayed: URLs may contain login codes or private conversation IDs.
         window?.subtitle = webView.url?.host ?? "Offline preview"
     }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        Task { await ChatPageAdapter.applyMode(preferences.mode, in: webView) }
         let generation = composition.generation
         Task { await composition.synchronize(in: webView, generation: generation) }
         setStatus(ChatKeyboard.summary)

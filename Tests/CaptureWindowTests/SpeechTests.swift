@@ -23,10 +23,11 @@ import CaptureCore
     let name = "Synthetic local recognizer"
     var modelMissing = false
     var text = "Synthetic question"
+    var retainedPartial: (@MainActor (String) -> Void)?
     func prepare(_ language: TranscriptionLanguage, download: Bool, progress: @escaping @MainActor (Double) -> Void) async throws {
         if modelMissing { throw SpeechFailure(stage: .model, code: 2, message: "Synthetic missing model") }; progress(1)
     }
-    func transcribe(_ samples: [Float], language: TranscriptionLanguage, partial: @escaping @MainActor (String) -> Void) async throws -> String { partial(text); return text }
+    func transcribe(_ samples: [Float], language: TranscriptionLanguage, partial: @escaping @MainActor (String) -> Void) async throws -> String { retainedPartial = partial; partial(text); return text }
     func cancel() {}
 }
 
@@ -155,6 +156,31 @@ import CaptureCore
         #expect(pane.selectedAudioSource == sources[2])
         pane.source.selectItem(at: 1)
         #expect(pane.selectedAudioSource?.bundleID == "test.two")
+    }
+    @Test func editedRetainedTranscriptAppendsOnceWithoutLosingDraftOrImage() async throws {
+        let owner = try await fixture(); defer { cleanup(owner) }
+        let audio = TestAudio(), backend = TestSpeech()
+        let coordinator = SpeechCoordinator(owner: owner, defaults: UserDefaults(suiteName: UUID().uuidString)!, capture: audio, backend: backend)
+        defer { coordinator.shutdown() }
+        coordinator.refreshSources()
+        try await wait { owner.speechPane.source.numberOfItems == 1 && owner.speechPane.source.isEnabled }
+        owner.speechPane.source.selectItem(at: 0); coordinator.toggle()
+        try await wait { coordinator.phase == .recording }
+        audio.failed?(99) // interrupted results are retained instead of auto-appended
+        try await wait { coordinator.phase == .ready }
+        let pane = owner.speechPane
+        pane.toggleTranscript()
+        #expect(pane.result.isEditable)
+        pane.result.string = "Reviewed synthetic text 中文"
+        pane.textDidChange(Notification(name: NSText.didChangeNotification))
+        backend.retainedPartial?("Late recognition must not replace the edited result")
+        #expect(pane.result.string == "Reviewed synthetic text 中文")
+        pane.toggleTranscript(); pane.toggleTranscript()
+        pane.add.performClick(nil); pane.add.performClick(nil)
+        try await wait { coordinator.phase == .idle }
+        #expect(try await text(owner) == "Existing draft Reviewed synthetic text 中文")
+        #expect(try await owner.webView.evaluateJavaScript("window.sent === 0 && !!document.querySelector('#attachment')") as? Bool == true)
+        #expect(pane.result.string.isEmpty && pane.preferredHeight == 36)
     }
     @Test func modePolicyDoesNotRequireWindowLevelChanges() {
         #expect(ApplicationPresentation.policy(for: .legacy) == .accessory)

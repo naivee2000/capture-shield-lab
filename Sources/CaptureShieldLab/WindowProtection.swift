@@ -11,6 +11,6 @@ import CaptureCore
     }
     static func apply(to window: NSWindow, mode: ChatSharingMode) {
         setSharing(of: window, legacy: mode == .legacy)
-        window.alphaValue = mode.opacity; window.level = .normal; window.hasShadow = false
+        window.alphaValue = 1; window.level = .normal; window.hasShadow = false
     }
 }

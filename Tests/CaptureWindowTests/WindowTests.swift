@@ -29,7 +29,7 @@ import CaptureCore
         #expect(!(window is NSPanel))
         #expect(window.level == .normal)
         #expect(window.styleMask.contains([.titled, .closable, .miniaturizable, .resizable]))
-        #expect(window.alphaValue == 0.8)
+        #expect(window.alphaValue == 1)
     }
     @Test func normalModeAndZoomSurvivePresentationAndSheetConfiguration() {
         _ = NSApplication.shared
@@ -46,7 +46,7 @@ import CaptureCore
         #expect(sheet.sharingType == .readOnly && sheet.alphaValue == 1)
         controller.applyPreferences(ChatPreferences(mode: .legacy, zoomPercent: 70))
         controller.configureAppearance(of: sheet)
-        #expect(sheet.sharingType == .none && sheet.alphaValue == 0.8)
+        #expect(sheet.sharingType == .none && sheet.alphaValue == 1)
         #expect(controller.webView.pageZoom == 0.7)
     }
 }

@@ -43,6 +43,10 @@ import CaptureCore
         pane?.addAction = { [weak self] in self?.addManually() }
         pane?.discardAction = { [weak self] in self?.cancel() }
         pane?.selectionAction = { [weak self] in self?.selectionChanged() }
+        pane?.editAction = { [weak self] text in
+            guard let self, self.state.phase == .ready, !self.inserting else { return }
+            self.transcript = text; self.render()
+        }
         pane?.closeAction = { [weak owner] in owner?.showSpeechPane(false) }
         self.capture.failed = { [weak self] code in self?.interrupt(SpeechFailure(stage: .capture, code: code, message: "Audio capture was interrupted. Review any recovered text before adding it.")) }
         observe(NSWorkspace.shared.notificationCenter, NSWorkspace.willSleepNotification)
@@ -81,6 +85,7 @@ import CaptureCore
         capability = "not checked"
         defaults.set(language.rawValue, forKey: "SpeechLanguage")
         if let source = selectedSource { defaults.set(source.bundleID, forKey: "SpeechSourceBundleID") }
+        render()
     }
     private var selectedSource: AudioSource? {
         pane?.selectedAudioSource
@@ -144,6 +149,7 @@ import CaptureCore
                     while !Task.isCancelled {
                         guard let self, self.state.phase == .recording else { return }
                         let seconds = Int(start.duration(to: clock.now).components.seconds)
+                        self.pane?.setElapsed(seconds)
                         self.message("Recording \(source.name) · \(language.title) · \(seconds)/120 s · \(ChatKeyboard.recordLabel) stops")
                         if clock.now >= start.advanced(by: self.limit) { self.stop(); return }
                         do { try await Task.sleep(for: .milliseconds(200)) } catch { return }
@@ -181,11 +187,11 @@ import CaptureCore
             do {
                 guard !samples.isEmpty, samples.contains(where: { abs($0) > 0.0001 }) else { throw SpeechFailure(stage: .capture, code: 4, message: "No audible samples arrived from this application. Check playback and the selected source.") }
                 let text = try await self.backend.transcribe(samples, language: language) { [weak self] text in
-                    guard let self, self.state.generation == generation else { return }
-                    self.transcript = text; self.pane?.result.string = text
+                    guard let self, self.state.generation == generation, self.state.phase == .transcribing else { return }
+                    self.transcript = text; self.pane?.setTranscript(text)
                 }
                 try Task.checkCancellation(); guard self.state.generation == generation else { return }
-                self.transcript = text; self.pane?.result.string = text
+                self.transcript = text; self.pane?.setTranscript(text)
                 guard !text.isEmpty else { throw SpeechFailure(stage: .recognition, code: 4, message: "No speech was recognized. The draft was not changed.") }
                 _ = self.state.transition(.ready, generation: generation); self.render()
                 if let interruption { self.report(interruption, stage: interruption.stage) }
@@ -206,7 +212,7 @@ import CaptureCore
         guard generation == state.generation else { return }
         switch outcome {
         case .inserted:
-            transcript = ""; pane?.result.string = ""; context = nil; state.reset()
+            transcript = ""; pane?.setTranscript(""); context = nil; state.reset()
             message("Transcript appended to your draft. Review it and send manually.")
         case .uncertain:
             insertionUncertain = true
@@ -217,7 +223,7 @@ import CaptureCore
     func cancel() {
         state.reset(); operation?.cancel(); operation = nil; timer?.cancel(); timer = nil
         recognitionTimeout?.cancel(); recognitionTimeout = nil; backend.cancel()
-        refreshing = false; transcript = ""; context = nil; activeSource = nil; pane?.result.string = ""
+        refreshing = false; transcript = ""; context = nil; activeSource = nil; pane?.setTranscript("")
         insertionUncertain = false
         let capture = capture
         // Await cleanup before accepting another start; otherwise an old stop can
@@ -233,23 +239,18 @@ import CaptureCore
     func shutdown() {
         operation?.cancel(); timer?.cancel(); recognitionTimeout?.cancel(); backend.cancel()
         for (center, observer) in observers { center.removeObserver(observer) }; observers.removeAll()
-        state.reset(); transcript = ""; pane?.result.string = ""
+        state.reset(); transcript = ""; pane?.setTranscript("")
         let capture = capture; Task { _ = await capture.stop() }
     }
     private func render() {
-        let idle = state.phase == .idle && !refreshing
-        let recording = state.phase == .recording
-        pane?.record.title = recording ? "Stop" : "Record"
-        pane?.record.isEnabled = idle || recording
-        pane?.source.isEnabled = idle; pane?.language.isEnabled = idle
-        pane?.refresh.isEnabled = idle; pane?.prepare.isEnabled = idle
-        pane?.add.isEnabled = state.phase == .ready && !transcript.isEmpty && !inserting && !insertionUncertain
-        pane?.discard.isEnabled = !inserting
-        owner?.updateRecordButton(recording: recording, enabled: idle || recording)
+        pane?.update(phase: state.phase, busy: refreshing, inserting: inserting, uncertain: insertionUncertain,
+                     sourceName: state.phase == .idle ? selectedSource?.name : activeSource?.name)
+        owner?.updateRecordButton(recording: state.phase == .recording,
+                                  enabled: (state.phase == .idle && !refreshing) || state.phase == .recording)
     }
-    private func message(_ text: String) { pane?.status.stringValue = text; pane?.status.toolTip = text; owner?.setStatus(text) }
+    private func message(_ text: String) { pane?.showMessage(text) }
     private func report(_ error: any Error, stage: SpeechFailure.Stage) {
         let failure = error as? SpeechFailure ?? SpeechFailure(stage: stage, code: (error as NSError).code, message: "\(stage.rawValue.capitalized) failed (code \((error as NSError).code)). Nothing was sent. Review settings and try again manually.")
-        lastFailure = failure; message(failure.message)
+        lastFailure = failure; pane?.showMessage(failure.message, error: true)
     }
 }
