@@ -25,10 +25,7 @@ import XCTest
         app.launch()
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 20))
         XCTAssertTrue(editor.waitForExistence(timeout: 15))
-        wait("Isolated fixture preferences are applied") {
-            self.record()["previewSourceSet"] as? Bool == true &&
-            abs((self.mainWindow()["width"] as? Double ?? 0) - (self.name.contains("Compact") ? 640 : 980)) < 1
-        }
+        verifyFixtureSetup()
     }
     override func tearDownWithError() throws {
         // This instance was created by the test and has no personal login or draft.
@@ -62,7 +59,15 @@ import XCTest
     private func mainWindow() -> [String: Any] {
         (record()["windows"] as? [[String: Any]] ?? []).first { $0["identifier"] as? String == "chat-window" } ?? [:]
     }
-    private func wait(_ message: String, _ predicate: () -> Bool, file: StaticString = #filePath, line: UInt = #line) {
+    private func verifyFixtureSetup() {
+        let expectedWidth: Double = name.contains("Compact") ? 640 : 980
+        wait("Isolated fixture preferences are applied") {
+            let sourceReady = self.record()["previewSourceSet"] as? Bool == true
+            let width = self.mainWindow()["width"] as? Double ?? 0
+            return sourceReady && abs(width - expectedWidth) < 1
+        }
+    }
+    private func wait(_ message: String, _ predicate: @MainActor () -> Bool, file: StaticString = #filePath, line: UInt = #line) {
         let deadline = Date().addingTimeInterval(15)
         while !predicate(), Date() < deadline { RunLoop.current.run(until: Date().addingTimeInterval(0.05)) }
         XCTAssertTrue(predicate(), message + " · native metadata: " + String(describing: record()), file: file, line: line)

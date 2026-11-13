@@ -106,6 +106,22 @@ class CleanupTests(unittest.TestCase):
         with patch.object(runner.os.path, "ismount", side_effect=lambda p: Path(p).name == "file"):
             with self.assertRaises(ValueError): runner.inspect_tree(self.base / "work")
 
+    def test_unregistered_incomplete_bundle_can_be_removed(self):
+        app = self.base / "work/Apps/CaptureShieldLab.app"
+        app.mkdir(parents=True)
+        absent = subprocess.CompletedProcess([], 1, "failed to scan app: -10814\n")
+        with patch.object(runner, "open_files", return_value=False), patch.object(runner.subprocess, "run", return_value=absent):
+            runner.clean(SimpleNamespace(run_id="ui-unit", dry_run=False))
+        self.assertFalse(app.exists())
+
+    def test_unknown_unregister_error_keeps_bundle(self):
+        app = self.base / "work/Apps/CaptureShieldLab.app"
+        app.mkdir(parents=True)
+        error = subprocess.CompletedProcess([], 1, "failed to scan /ui-10814/app: -54\n")
+        with patch.object(runner, "open_files", return_value=False), patch.object(runner.subprocess, "run", return_value=error):
+            with self.assertRaises(ValueError): runner.clean(SimpleNamespace(run_id="ui-unit", dry_run=False))
+        self.assertTrue(app.is_dir())
+
 
 if __name__ == "__main__":
     unittest.main()

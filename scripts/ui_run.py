@@ -182,7 +182,8 @@ def execute(args):
         report["stage"] = "ui-build"
         project = ROOT / "UITests/CaptureShieldUITests.xcodeproj"
         common = ["xcodebuild", "-project", str(project), "-scheme", "CaptureShieldUITests",
-                  "-destination", "platform=macOS", "-derivedDataPath", str(work / "DerivedData"),
+                  "-destination", "platform=macOS,arch=arm64", "-derivedDataPath", str(work / "DerivedData"),
+                  "ARCHS=arm64", "ONLY_ACTIVE_ARCH=YES",
                   "CODE_SIGN_IDENTITY=-", "CODE_SIGNING_ALLOWED=YES", "DEVELOPMENT_TEAM="]
         rc = run_command(common + ["build-for-testing"], base / "ui-build.log", env)
         if rc: return 1
@@ -202,7 +203,7 @@ def execute(args):
             result = work / ("round-" + str(index) + ".xcresult")
             log = base / ("round-" + str(index) + ".log")
             rc = run_command(["xcodebuild", "test-without-building", "-xctestrun", str(specs[0]),
-                              "-destination", "platform=macOS", "-parallel-testing-enabled", "NO",
+                              "-destination", "platform=macOS,arch=arm64", "-parallel-testing-enabled", "NO",
                               "-resultBundlePath", str(result)] +
                              (["-only-testing:CaptureShieldUITests/AppUITests/testLaunchTypeAndRestart"] if args.negative else []),
                              log, env, timeout=480)
@@ -320,7 +321,12 @@ def clean(args):
         test_apps = [work / "Apps" / name for name in ("CaptureShieldLab.app", "CaptureProbe.app")]
         test_apps.append(work / "DerivedData/Build/Products/Debug/CaptureShieldUITests-Runner.app")
         for app in test_apps:
-            if app.exists(): subprocess.run([register, "-u", str(app)], check=True)
+            if not app.exists(): continue
+            result = subprocess.run([register, "-u", str(app)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            # An incomplete test runner was never registered when compilation
+            # failed. LaunchServices explicitly reports ApplicationNotFound.
+            if result.returncode and not re.search(r": -10814(?:\r?\n|$)", result.stdout):
+                raise ValueError("Test application unregister failed; retain workspace for inspection.")
         if data["image"] and work.exists():
             subprocess.run(["hdiutil", "detach", str(work)], check=True)
         for child in candidates:
