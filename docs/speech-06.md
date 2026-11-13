@@ -30,6 +30,8 @@ Host: Apple Silicon, macOS 26.6.2 (25G83), Swift 6.2.4, SDK 26.2. Version 0.6.0/
 | Source exclusion | While the synthetic audio app played, a different silent application was selected. No audible samples arrived; the composer stayed unchanged |
 | Native application policy | Final real QA app read back Normal as regular (0), Legacy as accessory (1), then Normal as regular again; the same window and draft remained. Legacy Cmd-Q exercised in the separate preview |
 | Signing and registration | Both QA apps strictly signed and registered; doctor reports 0.6.0/build 9 and minimum 15.6 |
+| Clean clone | Implementation commit `3413f78fe833` built from a fresh clone in a source path containing spaces. Both apps signed/registered, doctor and script checks passed, 91 tests / 18 suites passed (including generated local speech), clone clean. Both Info.plist and Mach-O minimums are 15.6. Same development Mac, not a second physical device |
+| Task cleanup | Task audio player and Finder recovery window closed; independent preview exited during its Cmd-Q test. Window metadata confirmed no remaining fixture/preview windows. Existing signed-in chat and System Settings retained; original synthetic draft and PNG restored, test source selection cleared |
 | Receiver / physical keyboard / headphones | Not tested. CUA-sent Cmd-Shift-R did not stop a capture, so it is not counted as physical global-hotkey evidence; toolbar stop and actual timeout passed. Retest real keys, headphones and receiver separately |
 | macOS 15.6 / 27 | Adapted, runtime not tested; local-language capability is checked on each device |
 
