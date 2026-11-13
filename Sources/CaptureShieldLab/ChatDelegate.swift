@@ -87,16 +87,20 @@ import CaptureCore
         let key = NSApp.keyWindow
         let wasActive = NSApp.isActive
         let changedMode = next.mode != preferences.mode
+        if changedMode { windowDiagnostics.noteTransition("before", mode: next.mode.rawValue, windows: owned) }
         // Hide all owned surfaces first; no popup remains in the old mode during the update.
         if changedMode { visible.forEach { $0.orderOut(nil) } }
         PanelSharingProtection.configure(legacy: next.mode == .legacy)
         preferences = next; next.save(to: defaults)
         controllers.forEach { $0.applyPreferences(next) }
+        if changedMode { windowDiagnostics.noteTransition("window-settings", mode: next.mode.rawValue, windows: owned) }
         if !ApplicationPresentation.apply(next.mode) { main.setStatus("macOS could not change Dock visibility. Window sharing mode remains unchanged.") }
+        if changedMode { windowDiagnostics.noteTransition("app-policy", mode: next.mode.rawValue, windows: owned) }
         refreshCursorButtons()
         if changedMode {
             visible.reversed().forEach { $0.orderFront(nil) }
             if wasActive, let key, visible.contains(key) { NSApp.activate(); key.makeKey() }
+            windowDiagnostics.noteTransition("ordered", mode: next.mode.rawValue, windows: owned)
         }
     }
     @objc private func hideAll() {

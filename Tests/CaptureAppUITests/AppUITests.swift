@@ -101,9 +101,17 @@ import XCTest
             let overflow = mainUI.toolbars.popUpButtons.firstMatch
             XCTAssertTrue(overflow.exists, "Toolbar overflow must remain accessible")
             overflow.click()
-            menuClick("Page size")
+            let parent = app.menuItems["Page size"].firstMatch
+            XCTAssertTrue(parent.waitForExistence(timeout: 10))
+            parent.hover()
             let titles = ["zoom-out": "Decrease page size", "zoom-in": "Increase page size", "zoom-reset": "Reset page size to 90 percent"]
-            menuClick(titles[id]!)
+            let item = app.menuItems[titles[id]!].firstMatch
+            XCTAssertTrue(item.waitForExistence(timeout: 10))
+            wait("Zoom submenu action is hittable") { item.isHittable }
+            item.hover()
+            // Activate the highlighted native item after pointer placement;
+            // nested-menu animation can otherwise shift the click onto Reset.
+            app.typeKey("\r", modifierFlags: [])
             return
         }
         XCTAssertTrue(control.waitForExistence(timeout: 10), "Missing control: " + id)
@@ -205,8 +213,12 @@ import XCTest
         draftContains("Replacement draft")
         app.typeKey("z", modifierFlags: .command)
         draftContains("Line eight")
-        app.webViews.firstMatch.scroll(byDeltaX: 0, deltaY: 500)
-        XCTAssertTrue(app.webViews.buttons["Open test popup"].isHittable)
+        // A multiline editor may consume the first wheel event before scrolling
+        // chains to the page. Bound navigation by the actual lower control.
+        for _ in 0..<3 where !app.webViews.buttons["Open test popup"].isHittable {
+            app.webViews.firstMatch.scroll(byDeltaX: 0, deltaY: -500)
+        }
+        wait("Page scroll reveals its lower controls") { self.app.webViews.buttons["Open test popup"].isHittable }
         relaunch()
         wait("Frame survives restart") { abs((self.mainWindow()["width"] as? Double ?? 0) - 640) < 3 }
     }

@@ -5,6 +5,14 @@ import AppKit
     private var timer: Timer?
     private var previous = ""
     private var metadataURL: URL?
+    private var transitions: [[String: Any]] = []
+    func noteTransition(_ stage: String, mode: String, windows: [NSWindow]) {
+        guard metadataURL != nil else { return }
+        transitions.append(["stage": stage, "mode": mode, "policy": NSApp.activationPolicy().rawValue,
+            "windows": windows.map { ["id": $0.windowNumber, "sharing": $0.sharingType.rawValue,
+                "visible": $0.isVisible, "tabbedIDs": $0.tabbedWindows?.map(\.windowNumber) ?? []] as [String: Any] }])
+        if transitions.count > 20 { transitions.removeFirst(transitions.count - 20) }
+    }
     func startIfRequested(preview: Bool = false) {
         if preview, Bundle.main.bundleIdentifier?.hasPrefix("dev.naivee2000.captureshield.uitest.") == true,
            let path = ProcessInfo.processInfo.environment["CAPTURESHIELD_UI_METADATA"], path.hasPrefix("/") {
@@ -53,6 +61,7 @@ import AppKit
                                       "processID": ProcessInfo.processInfo.processIdentifier]
         if metadataURL != nil {
             testRecord["sampleUptime"] = ProcessInfo.processInfo.systemUptime
+            testRecord["transitions"] = transitions
             let defaults = UserDefaults(suiteName: Bundle.main.bundleIdentifier! + ".preview")!
             testRecord["previewFrame"] = defaults.string(forKey: "ChatWindowFrame") ?? "missing"
             testRecord["previewSourceSet"] = defaults.string(forKey: "SpeechSourceBundleID") == "synthetic.offline.audio"
