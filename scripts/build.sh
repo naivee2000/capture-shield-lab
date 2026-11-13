@@ -10,6 +10,7 @@ require_stopped_build_apps
 capture_build_prerequisites
 xcrun swift build "$@"
 BIN="$(xcrun swift build "$@" --show-bin-path)"
+bash "$ROOT/scripts/check-linkage.sh" "$BIN/CaptureShieldLab"
 BUILD_COMMIT="$(git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)"
 if [[ -n "$(git status --porcelain 2>/dev/null)" ]]; then BUILD_COMMIT="$BUILD_COMMIT-dirty"; fi
 for NAME in CaptureShieldLab CaptureProbe; do
@@ -28,8 +29,8 @@ for NAME in CaptureShieldLab CaptureProbe; do
 <key>CFBundleIdentifier</key><string>$BUNDLE_PREFIX.$SUFFIX</string>
 <key>CFBundleName</key><string>$NAME</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.6.2</string>
-<key>CFBundleVersion</key><string>11</string>
+<key>CFBundleShortVersionString</key><string>0.6.3</string>
+<key>CFBundleVersion</key><string>12</string>
 <key>CaptureShieldBuildCommit</key><string>$BUILD_COMMIT</string>
 <key>CFBundleIconFile</key><string>CaptureShield</string>
 <key>LSMinimumSystemVersion</key><string>$MINIMUM_MACOS</string>

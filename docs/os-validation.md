@@ -34,8 +34,14 @@ Real ChatGPT login and attachment upload, screen/audio permissions, screenshot p
 
 Before sharing after an OS upgrade: run the tests, use a harmless image to check screenshot/crop/attachment, confirm English/Mandarin transcription if needed, then compare Normal/Legacy at the receiver (including candidates, popups and other windows). Record exact sender OS/build and sender/receiver application versions. Preserve failed or untested outcomes.
 
+## macOS 15 loader repair (0.6.3)
+
+The [first cross-version run](https://github.com/naivee2000/capture-shield-lab/actions/runs/43489492935), at `bb8688a`, exposed a real pre-main failure on macOS **15.8.2 (24H232)**. Both apps built and signed, but loading the native test bundle failed with `Symbol not found: _OBJC_CLASS_$_SCScreenshotConfiguration`. Inspection of the application executable also showed strong references to both `SCScreenshotConfiguration` and `SCScreenshotOutput`, which are absent on macOS 15. The source's `@available`/`#available` guards alone did not fix that load-time requirement with SDK 26.2.
+
+Version **0.6.3/build 12** explicitly weak-links ScreenCaptureKit for the app target (also propagated to its test bundle), following [Apple's weak-linking guidance](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/WeakLinking.html). Modern screenshot calls remain inside the existing macOS 26 availability gate; macOS 15 still selects the compatible backend. No SDK files or user settings are patched. `scripts/check-linkage.sh` inspects the actual binary and stops packaging if these new classes are strongly required again; it rejected the original binary and accepted the repaired binary and test bundle.
+
 ## Run ledger
 
-Cross-version jobs are being established for version 0.6.2. Record the completed run and exact host versions here after inspecting the logs; do not infer a pass from the workflow's existence.
+The first run already passed on **macOS 27.0.1 (26A434), Xcode 27.2, Swift 6.4.2, SDK 27.2**, including synthetic WebKit background alpha. Final repaired cross-version results are pending below; build success alone is not a runtime pass.
 
 Official references: [Apple Xcode host requirements](https://developer.apple.com/xcode/system-requirements), [Apple macOS version list](https://support.apple.com/en-us/109033), [GitHub runner images](https://github.com/actions/runner-images).

@@ -51,7 +51,7 @@ jobs:
       CAPTURESHIELD_BUNDLE_PREFIX: dev.naivee2000.captureshield.ci
       EXPECTED_OS: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
       - name: Verify and record the actual host
@@ -79,13 +79,16 @@ jobs:
         run: bash scripts/build.sh
       - name: Run behavioral and native WebKit tests
         id: tests
+        timeout-minutes: 5
         run: bash scripts/test.sh
       - name: Check installation and deployment floor
         id: package
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
           bash scripts/doctor.sh
+          bash scripts/test-support.sh
           for name in CaptureShieldLab CaptureProbe; do
             app="$CAPTURESHIELD_APP_ROOT/$name.app"
             test "$(/usr/libexec/PlistBuddy -c 'Print LSMinimumSystemVersion' "$app/Contents/Info.plist")" = 15.6
