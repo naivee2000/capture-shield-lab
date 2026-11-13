@@ -8,13 +8,18 @@ enum PreviewTestConfiguration {
         let compact: Bool
         let speechFailure: Bool
     }
-    static func apply(bundleID: String? = Bundle.main.bundleIdentifier, payload: String? = nil,
-                      seedFile: String? = ProcessInfo.processInfo.environment["CAPTURESHIELD_UI_SEED_FILE"]) {
+    static func normalizedArguments(_ arguments: [String], bundleID: String? = Bundle.main.bundleIdentifier) -> [String] {
+        guard arguments.count == 3, arguments[0] == "--chat-preview", arguments[1] == "--ui-test-setup",
+              arguments[2].utf8.count <= 8192, let bytes = Data(base64Encoded: arguments[2]), bytes.count <= 4096,
+              let payload = String(data: bytes, encoding: .utf8), apply(bundleID: bundleID, payload: payload) else { return arguments }
+        return ["--chat-preview"]
+    }
+    @discardableResult static func apply(bundleID: String? = Bundle.main.bundleIdentifier, payload: String?) -> Bool {
         guard let bundleID, bundleID.hasPrefix("dev.naivee2000.captureshield.uitest."),
-              let payload = payload ?? launchPayload(at: seedFile),
+              let payload,
               let seed = try? JSONDecoder().decode(Seed.self, from: Data(payload.utf8)),
-              let defaults = UserDefaults(suiteName: bundleID + ".preview") else { return }
-        guard defaults.string(forKey: "UITestSeedToken") != seed.token.uuidString else { return }
+              let defaults = UserDefaults(suiteName: bundleID + ".preview") else { return false }
+        guard defaults.string(forKey: "UITestSeedToken") != seed.token.uuidString else { return true }
         defaults.removePersistentDomain(forName: bundleID + ".preview")
         defaults.set("normal", forKey: "ChatSharingMode")
         defaults.set(90, forKey: "ChatZoomPercent")
@@ -22,13 +27,6 @@ enum PreviewTestConfiguration {
         defaults.set("synthetic.offline.audio", forKey: "SpeechSourceBundleID")
         defaults.set(seed.speechFailure, forKey: "PreviewSpeechFailure")
         defaults.set(seed.token.uuidString, forKey: "UITestSeedToken")
-    }
-    private static func launchPayload(at path: String?) -> String? {
-        guard let path, path.hasPrefix("/") else { return nil }
-        let url = URL(fileURLWithPath: path)
-        guard let info = try? url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey]),
-              info.isRegularFile == true, info.isSymbolicLink != true, (info.fileSize ?? 4097) <= 4096,
-              let data = try? Data(contentsOf: url) else { return nil }
-        return String(data: data, encoding: .utf8)
+        return true
     }
 }

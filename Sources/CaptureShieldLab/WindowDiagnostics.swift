@@ -47,7 +47,7 @@ import AppKit
             let defaults = UserDefaults(suiteName: Bundle.main.bundleIdentifier! + ".preview")!
             testRecord["previewFrame"] = defaults.string(forKey: "ChatWindowFrame") ?? "missing"
             testRecord["previewSourceSet"] = defaults.string(forKey: "SpeechSourceBundleID") == "synthetic.offline.audio"
-            testRecord["seedReceived"] = ProcessInfo.processInfo.environment["CAPTURESHIELD_UI_SEED_FILE"] != nil
+            testRecord["testToken"] = defaults.string(forKey: "UITestSeedToken") ?? "missing"
             testRecord["screens"] = NSScreen.screens.map { NSStringFromRect($0.visibleFrame) }
         }
         let record: Any = metadataURL == nil ? windows : testRecord

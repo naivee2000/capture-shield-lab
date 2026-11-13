@@ -4,6 +4,7 @@ import XCTest
 /// Separate process UI tests: never import CaptureShieldLab or use its account store.
 @MainActor final class AppUITests: XCTestCase {
     private var app: XCUIApplication!
+    private var testToken = ""
     override func setUpWithError() throws {
         continueAfterFailure = false
         let path = try XCTUnwrap(ProcessInfo.processInfo.environment["CAPTURESHIELD_UI_APP"])
@@ -13,15 +14,12 @@ import XCTest
         guard identifier.hasPrefix("dev.naivee2000.captureshield.uitest.") else {
             throw NSError(domain: "Unsafe UI target", code: 1)
         }
-        try? FileManager.default.removeItem(at: metadataURL)
         app = XCUIApplication(url: url)
-        app.launchArguments = ["--chat-preview"]
         app.launchEnvironment["CAPTURESHIELD_UI_METADATA"] = metadataURL.path
-        let seed: [String: Any] = ["token": UUID().uuidString, "compact": name.contains("Compact"),
+        testToken = UUID().uuidString
+        let seed: [String: Any] = ["token": testToken, "compact": name.contains("Compact"),
                                   "speechFailure": name.contains("RetainedError")]
-        let seedFile = metadataURL.deletingLastPathComponent().appendingPathComponent("seed.json")
-        try JSONSerialization.data(withJSONObject: seed).write(to: seedFile, options: .atomic)
-        app.launchEnvironment["CAPTURESHIELD_UI_SEED_FILE"] = seedFile.path
+        app.launchArguments = ["--chat-preview", "--ui-test-setup", try JSONSerialization.data(withJSONObject: seed).base64EncodedString()]
         app.launch()
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 20))
         XCTAssertTrue(editor.waitForExistence(timeout: 15))
@@ -62,9 +60,11 @@ import XCTest
     private func verifyFixtureSetup() {
         let expectedWidth: Double = name.contains("Compact") ? 640 : 980
         wait("Isolated fixture preferences are applied") {
-            let sourceReady = self.record()["previewSourceSet"] as? Bool == true
+            let snapshot = self.record()
+            let sourceReady = snapshot["previewSourceSet"] as? Bool == true
+            let currentToken = snapshot["testToken"] as? String
             let width = self.mainWindow()["width"] as? Double ?? 0
-            return sourceReady && abs(width - expectedWidth) < 1
+            return sourceReady && currentToken == self.testToken && abs(width - expectedWidth) < 1
         }
     }
     private func wait(_ message: String, _ predicate: @MainActor () -> Bool, file: StaticString = #filePath, line: UInt = #line) {

@@ -4,15 +4,17 @@ import Testing
 @testable import CaptureShieldLab
 
 @MainActor struct PreviewIsolationTests {
-    @Test func eachFreshSeedFileResetsOnlyTheDisposablePreferences() throws {
+    @Test func eachFreshLaunchTokenResetsOnlyTheDisposablePreferences() throws {
         let id = "dev.naivee2000.captureshield.uitest.seedfile-\(UUID())"
         let defaults = UserDefaults(suiteName: id + ".preview")!
-        let file = FileManager.default.temporaryDirectory.appendingPathComponent("CaptureShield-seed-\(UUID()).json")
-        defer { defaults.removePersistentDomain(forName: id + ".preview"); try? FileManager.default.removeItem(at: file) }
+        defer { defaults.removePersistentDomain(forName: id + ".preview") }
         for compact in [true, false] {
             let data = try JSONSerialization.data(withJSONObject: ["token": UUID().uuidString, "compact": compact, "speechFailure": false])
-            try data.write(to: file, options: .atomic)
-            PreviewTestConfiguration.apply(bundleID: id, seedFile: file.path)
+            let args = ["--chat-preview", "--ui-test-setup", data.base64EncodedString()]
+            #expect(PreviewTestConfiguration.normalizedArguments(args, bundleID: id) == ["--chat-preview"])
+            #expect(PreviewTestConfiguration.normalizedArguments(args, bundleID: "personal.app") == args)
+            let normalArgs = ["--lab", "--ui-test-setup", data.base64EncodedString()]
+            #expect(PreviewTestConfiguration.normalizedArguments(normalArgs, bundleID: id) == normalArgs)
             #expect(defaults.string(forKey: "SpeechSourceBundleID") == "synthetic.offline.audio")
             #expect(defaults.string(forKey: "ChatWindowFrame")?.contains(compact ? "640" : "980") == true)
         }
