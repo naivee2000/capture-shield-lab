@@ -180,7 +180,9 @@ import XCTest
         let right = window.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5)).withOffset(CGVector(dx: -1, dy: 0))
         drag(right, dx: -340, dy: 0)
         let bottom = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 1)).withOffset(CGVector(dx: 0, dy: -1))
-        drag(bottom, dx: 0, dy: -220)
+        // Cross the minimum boundary rather than relying on the native resize
+        // gesture's initial tracking offset to be exactly zero.
+        drag(bottom, dx: 0, dy: -300)
         wait("Native resize to minimum") {
             abs((self.mainWindow()["width"] as? Double ?? 0) - 640) < 3 &&
             abs((self.mainWindow()["height"] as? Double ?? 0) - 480) < 3
@@ -287,6 +289,7 @@ import XCTest
         wait("Recording again") { self.mainWindow()["speechPhase"] as? String == "recording" && self.mainWindow()["speechRecordTitle"] as? String == "Stop" && self.app.buttons["speech-record"].isHittable }
         click("speech-record")
         draftContains("Synthetic transcript")
+        draftContains("中文")
         waitText("Images: 1 · Sends: 0")
         draftContains("Existing speech draft")
         let draft = editor.value as? String ?? ""

@@ -501,6 +501,9 @@ import CaptureCore
         guard let window, window.isVisible, window.attachedSheet == nil else { completionHandler(); return }
         dialog(message).beginSheetModal(for: window) { _ in completionHandler() }
     }
+    // SDK releases differ in their Swift isolation annotation for this optional
+    // callback. Export its Objective-C delegate selector explicitly on all of them.
+    @objc(webView:runJavaScriptConfirmPanelWithMessage:initiatedByFrame:completionHandler:)
     func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String,
                  initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping @MainActor @Sendable (Bool) -> Void) {
         guard let window, window.isVisible, window.attachedSheet == nil else { completionHandler(false); return }

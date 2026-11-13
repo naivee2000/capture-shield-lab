@@ -35,6 +35,7 @@ import ObjectiveC
 extension NSWindow {
     @objc dynamic fileprivate func captureShieldOrder(_ place: NSWindow.OrderingMode, relativeTo otherWindow: Int) {
         if place != .out {
+            WindowProtection.prepareOwnedWindowForDisplay(self)
             PanelSharingProtection.prepare(self)
             if self is NSPanel, ProcessInfo.processInfo.environment["CAPTURESHIELD_WINDOW_DIAGNOSTICS"] == "1" {
                 let entry: [String: Any] = ["event": "before-panel-order", "windowID": windowNumber,
@@ -46,5 +47,8 @@ extension NSWindow {
         }
         // After exchange, this selector invokes AppKit's original implementation.
         captureShieldOrder(place, relativeTo: otherWindow)
+        // Reconcile the public property after AppKit restores an existing window.
+        // The pre-order write above still configures Legacy before it is displayed.
+        if place != .out { WindowProtection.prepareOwnedWindowForDisplay(self) }
     }
 }

@@ -5,6 +5,25 @@ import CaptureCore
 @testable import CaptureShieldLab
 
 @MainActor struct WindowTests {
+    @Test func orderingOwnedWindowsReconcilesSharingWithTheirCurrentMode() {
+        _ = NSApplication.shared
+        PanelSharingProtection.configure(legacy: false)
+        defer { PanelSharingProtection.configure(legacy: false) }
+        for main in [true, false] {
+            let config = WKWebViewConfiguration(); config.websiteDataStore = .nonPersistent()
+            let controller = ChatWindow(configuration: config, isMain: main, preview: true)
+            let window = controller.window!
+            defer { window.orderOut(nil) }
+            for mode in [ChatSharingMode.normal, .legacy, .normal] {
+                controller.applyPreferences(ChatPreferences(mode: mode))
+                window.orderOut(nil)
+                window.sharingType = mode == .normal ? .none : .readOnly
+                window.orderFront(nil)
+                #expect(window.sharingType == (mode == .normal ? .readOnly : .none))
+            }
+            #expect(controller.responds(to: #selector(WKUIDelegate.webView(_:runJavaScriptConfirmPanelWithMessage:initiatedByFrame:completionHandler:))))
+        }
+    }
     @Test func savedOuterFrameDoesNotGrowWhenTheNativeTitlebarIsRecreated() {
         _ = NSApplication.shared
         let name = "CaptureShield-frame-test-\(UUID())"

@@ -1,6 +1,5 @@
 import Foundation
 import CaptureCore
-import CaptureCore
 
 /// Only constructed by the offline preview. Never reads applications/audio or downloads models.
 @MainActor final class PreviewAudioCapture: AudioCaptureProviding {
