@@ -88,6 +88,8 @@ jobs:
         # 7-GB hosted runner with dozens of concurrent file-picker fixtures.
         # Keep all assertions and production timeouts unchanged.
         run: bash scripts/test.sh --no-parallel
+      - name: Test the UI harness and cleanup safety
+        run: python3 -m unittest discover -s Tests/ScriptTests -v
       - name: Check installation and deployment floor
         id: package
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
@@ -133,6 +135,21 @@ jobs:
             done
           fi
           exit "$result"
+      - name: Verify a wrong UI expectation fails
+        if: ${{ steps.app_ui.outcome == 'success' }}
+        run: |
+          set +e
+          run_id="ui-ci-${{ github.run_id }}-${{ matrix.os }}-negative"
+          bash scripts/test-ui.sh --run-id "$run_id" --negative --repeat 1
+          result=$?
+          set -e
+          test "$result" -eq 1
+          python3 - "$run_id" <<'PY'
+          import json, pathlib, sys
+          report = json.loads((pathlib.Path('artifacts/ui-runs') / sys.argv[1] / 'summary.json').read_text())
+          assert report.get('negative_control_expected_failure') is True, report
+          print('Deliberate wrong-expectation control failed exactly as required.')
+          PY
       - name: Preserve UI verdict and clean generated test files
         if: always()
         run: |
@@ -143,4 +160,8 @@ jobs:
             cat "artifacts/ui-runs/$run_id/summary.json" >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
             bash scripts/cleanup-tests.sh --run-id "$run_id"
+          fi
+          if [ -f "artifacts/ui-runs/$run_id-negative/summary.json" ]; then
+            cat "artifacts/ui-runs/$run_id-negative/summary.json" >> "$GITHUB_STEP_SUMMARY"
+            bash scripts/cleanup-tests.sh --run-id "$run_id-negative"
           fi

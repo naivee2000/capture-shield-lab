@@ -31,6 +31,7 @@ import AppKit
                 if let owner = view.navigationDelegate as? ChatWindow {
                     row["compositionKnown"] = owner.composition.composing != nil
                     row["composing"] = owner.composition.composing ?? false
+                    row["attachmentPhase"] = String(describing: owner.images.phase)
                 }
             }
             return row

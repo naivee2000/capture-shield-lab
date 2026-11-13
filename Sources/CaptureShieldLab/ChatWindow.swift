@@ -229,17 +229,35 @@ import CaptureCore
             item.view = NSButton(image: NSImage(systemSymbolName: "checkmark.shield", accessibilityDescription: "Compatibility")!, target: self, action: #selector(showCompatibility))
         case "transcript":
             item.label = "Transcription"
-            item.view = NSButton(image: NSImage(systemSymbolName: "waveform", accessibilityDescription: "Transcription settings and pending text")!, target: self, action: #selector(reviewTranscript))
+            let button = NSButton(image: NSImage(systemSymbolName: "waveform", accessibilityDescription: "Transcription settings and pending text")!, target: self, action: #selector(reviewTranscript))
+            button.setAccessibilityIdentifier("toolbar-transcript")
+            item.view = button
         case "cursor":
             item.label = "Private Cursor"; cursorButton.target = self; cursorButton.action = #selector(toggleCursor)
             cursorButton.image = NSImage(systemSymbolName: "cursorarrow", accessibilityDescription: "Private Cursor")
             cursorButton.imagePosition = .imageOnly; cursorButton.setAccessibilityLabel("Private Cursor")
             cursorButton.setButtonType(.pushOnPushOff); item.view = cursorButton
-        case "zoom": item.label = "Page size"; item.view = group([smaller, zoomLabel, larger])
+        case "zoom":
+            item.label = "Page size"; item.view = group([smaller, zoomLabel, larger])
+            let entry = NSMenuItem(title: "Page size", action: nil, keyEquivalent: "")
+            let menu = NSMenu(title: "Page size")
+            for (title, action, id) in [("Decrease page size", #selector(zoomOut), "zoom-out-menu"),
+                ("Reset page size to 90 percent", #selector(resetZoom), "zoom-reset-menu"),
+                ("Increase page size", #selector(zoomIn), "zoom-in-menu")] {
+                let child = NSMenuItem(title: title, action: action, keyEquivalent: "")
+                child.target = self; child.setAccessibilityIdentifier(id); menu.addItem(child)
+            }
+            entry.submenu = menu; item.menuFormRepresentation = entry
         case "hide":
             item.label = "Hide"
             item.view = NSButton(image: NSImage(systemSymbolName: "eye.slash", accessibilityDescription: "Hide chat windows")!, target: self, action: #selector(hideOrClose))
         default: return nil
+        }
+        if let button = item.view as? NSButton {
+            let entry = NSMenuItem(title: item.label, action: button.action, keyEquivalent: "")
+            entry.target = button.target
+            entry.setAccessibilityIdentifier("toolbar-menu-" + identifier.rawValue)
+            item.menuFormRepresentation = entry
         }
         return item
     }

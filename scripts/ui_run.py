@@ -103,13 +103,20 @@ def prepare(run_id):
             "state": "prepared", "summary_saved": False}
     write_json(base / "manifest.json", data)
     work = work_path(base, data)
-    if image:
-        subprocess.run(["hdiutil", "create", "-size", "80g", "-type", "SPARSEBUNDLE",
-                        "-fs", "APFS", "-volname", work.name, str(base / "work.sparsebundle")], check=True)
-        subprocess.run(["hdiutil", "attach", "-nobrowse", "-owners", "on",
-                        "-mountpoint", str(work), str(base / "work.sparsebundle")], check=True)
-    else:
-        work.mkdir()
+    try:
+        if image:
+            subprocess.run(["hdiutil", "create", "-size", "80g", "-type", "SPARSEBUNDLE",
+                            "-fs", "APFS", "-volname", work.name, str(base / "work.sparsebundle")], check=True)
+            subprocess.run(["hdiutil", "attach", "-nobrowse", "-owners", "on",
+                            "-mountpoint", str(work), str(base / "work.sparsebundle")], check=True)
+        else:
+            work.mkdir()
+    except (OSError, subprocess.SubprocessError) as error:
+        write_json(base / "summary.json", {"schema": 1, "run_id": run_id, "status": "fail",
+                   "stage": "prepare-storage", "error_type": type(error).__name__})
+        data.update(state="finished", summary_saved=True)
+        write_json(base / "manifest.json", data)
+        raise
     return base, data, work
 
 def targets(document):
@@ -130,7 +137,7 @@ def result_counts(result):
         raise ValueError("Unrecognized xcresult counts.")
     return {"passed": passed, "failed": failed, "skipped": skipped}
 
-def result_passed(code, counts, expected=6):
+def result_passed(code, counts, expected=7):
     return code == 0 and counts == {"passed": expected, "failed": 0, "skipped": 0}
 
 def validate_application(app, prefix):
@@ -202,7 +209,9 @@ def execute(args):
                 counts = result_counts(json.loads(raw))
             except (subprocess.CalledProcessError, ValueError):
                 counts = {"passed": 0, "failed": 0, "skipped": 0}
-            report["rounds"].append({"round": index, "exit_code": rc, **counts})
+            log_text = log.read_text(errors="replace")
+            failures = re.findall(r"AppUITests\.swift:\d+: error: [^\n]+", log_text)
+            report["rounds"].append({"round": index, "exit_code": rc, **counts, "failures": failures[:20]})
             if not result_passed(rc, counts):
                 text = log.read_text(errors="replace").lower()
                 report["negative_control_expected_failure"] = bool(args.negative and counts["failed"] == 1
@@ -285,7 +294,8 @@ def clean(args):
         if attachment.parent.is_symlink(): raise ValueError("Refusing redirected attachment root.")
         paths.append(attachment)
         # Inspect complete trees before any mutation, including all siblings.
-        if any(p.is_symlink() for p in candidates): raise ValueError("Refusing redirected run artifact.")
+        if any(p.is_symlink() or os.path.ismount(p) for p in candidates):
+            raise ValueError("Refusing redirected run artifact or nested mount.")
         estimated = sum(inspect_tree(p) if p.is_dir() else p.lstat().st_blocks * 512 for p in candidates)
         inspect_tree(attachment)
         busy = any(open_files(p) for p in paths if p.exists())
@@ -297,25 +307,28 @@ def clean(args):
             continue
         if not args.run_id:
             raise ValueError("Execute cleanup with one explicit --run-id.")
-        # Unregister only these now-unused test bundles, before detaching their volume.
-        register = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
-        for name in ("CaptureShieldLab.app", "CaptureProbe.app"):
-            app = work / "Apps" / name
-            if app.exists(): subprocess.run([register, "-u", str(app)], check=True)
         if data["image"] and work.exists():
             info = plistlib.loads(subprocess.check_output(["hdiutil", "info", "-plist"]))
             expected = str(base / "work.sparsebundle")
             matches = [i for i in info.get("images", []) if i.get("image-path") == expected]
             if len(matches) != 1 or not any(e.get("mount-point") == str(work) for e in matches[0].get("system-entities", [])):
                 raise ValueError("Mounted image identity does not match this run.")
+        # Unregister only these now-unused test bundles after verifying ownership.
+        register = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+        test_apps = [work / "Apps" / name for name in ("CaptureShieldLab.app", "CaptureProbe.app")]
+        test_apps.append(work / "DerivedData/Build/Products/Debug/CaptureShieldUITests-Runner.app")
+        for app in test_apps:
+            if app.exists(): subprocess.run([register, "-u", str(app)], check=True)
+        if data["image"] and work.exists():
             subprocess.run(["hdiutil", "detach", str(work)], check=True)
         for child in candidates:
             if child.is_dir(): shutil.rmtree(child)
             else: child.unlink()
         if attachment.exists(): shutil.rmtree(attachment)
-        # Only the per-run preview defaults; never the real application domain.
-        domain = data["bundle_prefix"] + ".lab.preview"
-        subprocess.run(["defaults", "delete", domain], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # Only per-run domains, including AppKit's own toolbar/frame preferences.
+        for suffix in (".lab.preview", ".lab", ".probe"):
+            subprocess.run(["defaults", "delete", data["bundle_prefix"] + suffix],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         data["state"] = "cleaned"
         data["reclaimed_allocated_bytes"] = estimated
         write_json(base / "manifest.json", data)

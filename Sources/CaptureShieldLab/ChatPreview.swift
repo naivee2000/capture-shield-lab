@@ -43,7 +43,7 @@ enum ChatPreview {
       image.onload=()=>document.querySelector('#image-dimensions').textContent='Last image: '+image.naturalWidth+' x '+image.naturalHeight;
       image.src=blob;image.alt=file.name;image.width=80;image.height=80;
       const remove=document.createElement('button');remove.type='button';
-      remove.textContent='Remove image '+number;remove.setAttribute('aria-label','Remove file '+number);
+      remove.textContent='Remove image '+number;remove.setAttribute('aria-label','Remove file');
       remove.onclick=()=>{URL.revokeObjectURL(blob);card.remove();status()};
       card.append(image,remove);document.querySelector('#attachments').append(card);
       document.querySelector('#image-file').value='';status();

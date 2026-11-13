@@ -69,6 +69,14 @@ import XCTest
     }
     private func click(_ id: String) {
         let control = app.descendants(matching: .any).matching(identifier: id).firstMatch
+        if !control.isHittable && id.hasPrefix("zoom-") {
+            let overflow = app.toolbars.popUpButtons.firstMatch
+            XCTAssertTrue(overflow.exists, "Toolbar overflow must remain accessible")
+            overflow.click()
+            menuClick("Page size")
+            menuClick(id + "-menu")
+            return
+        }
         XCTAssertTrue(control.waitForExistence(timeout: 10), "Missing control: " + id)
         control.click()
     }
@@ -81,8 +89,17 @@ import XCTest
     }
     private func loadImage() {
         app.menuButtons["Images"].firstMatch.click()
-        app.menuItems["Load sample image (offline)"].firstMatch.click()
+        // The app menu contains another sample command. Match the toolbar action.
+        menuClick("loadPreviewImage")
         XCTAssertTrue(app.buttons["image-add"].waitForExistence(timeout: 10))
+    }
+    private func menuClick(_ id: String) {
+        let item = app.menuItems[id].firstMatch
+        XCTAssertTrue(item.waitForExistence(timeout: 10))
+        XCTAssertGreaterThan(item.frame.width, 0)
+        // XCTest's MenuItem.click traverses a menu-bar ancestor even for toolbar
+        // menus on macOS 15. Click the resolved visible element, not screen pixels.
+        item.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
     }
     func testModesZoomPopupAndDraftPreservation() throws {
         editor.click(); editor.typeText("Preserve draft 1357")
@@ -119,6 +136,37 @@ import XCTest
         click("zoom-reset")
         wait("Zoom reset") { abs((self.mainWindow()["webZoom"] as? Double ?? 0) - 0.9) < 0.01 }
     }
+    func testWindowGeometryAndMultilineEditing() throws {
+        let window = app.windows.matching(identifier: "chat-window").firstMatch
+        let x = try XCTUnwrap(mainWindow()["x"] as? Double)
+        let y = try XCTUnwrap(mainWindow()["y"] as? Double)
+        // Relative native title-bar coordinates, never absolute screen positions.
+        let title = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.015))
+        title.press(forDuration: 0.1, thenDragTo: title.withOffset(CGVector(dx: 40, dy: 40)))
+        wait("Native title-bar drag") {
+            abs((self.mainWindow()["x"] as? Double ?? x) - x - 40) < 3 &&
+            abs((self.mainWindow()["y"] as? Double ?? y) - y + 40) < 3
+        }
+        let corner = window.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 1)).withOffset(CGVector(dx: -2, dy: -2))
+        corner.press(forDuration: 0.1, thenDragTo: corner.withOffset(CGVector(dx: -340, dy: -220)))
+        wait("Native resize to minimum") {
+            abs((self.mainWindow()["width"] as? Double ?? 0) - 640) < 3 &&
+            abs((self.mainWindow()["height"] as? Double ?? 0) - 480) < 3
+        }
+        editor.click()
+        editor.typeText("Line one\nLine two\nLine three\nLine four\nLine five\nLine six\nLine seven\nLine eight")
+        draftContains("Line eight")
+        editor.typeKey("a", modifierFlags: .command)
+        editor.typeText("Replacement draft")
+        draftContains("Replacement draft")
+        app.typeKey("z", modifierFlags: .command)
+        draftContains("Line eight")
+        app.webViews.firstMatch.swipeUp()
+        XCTAssertTrue(app.webViews.buttons["Open test popup"].isHittable)
+        app.terminate(); app.launch()
+        XCTAssertTrue(editor.waitForExistence(timeout: 15))
+        wait("Frame survives restart") { abs((self.mainWindow()["width"] as? Double ?? 0) - 640) < 3 }
+    }
     func testCropThreeImagesDeleteReaddAndCancel() throws {
         editor.click(); editor.typeText("Keep image draft 8642")
         loadImage()
@@ -131,11 +179,14 @@ import XCTest
         start.press(forDuration: 0.1, thenDragTo: end)
         click("image-add")
         waitText("Images: 1 · Sends: 0")
+        wait("Native coordinator confirms the visible webpage attachment") {
+            self.mainWindow()["attachmentPhase"] as? String == "visible"
+        }
         let dimensions = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Last image: '")).firstMatch
         XCTAssertTrue(dimensions.waitForExistence(timeout: 10))
         XCTAssertNotEqual(dimensions.label, "Last image: 1000 x 600", "The visible crop must reach the webpage.")
         for count in 2...3 { loadImage(); click("image-add"); waitText("Images: \(count) · Sends: 0") }
-        app.webViews.buttons["Remove file 1"].click()
+        app.webViews.buttons["Remove file"].firstMatch.click()
         waitText("Images: 2 · Sends: 0")
         loadImage(); click("image-add"); waitText("Images: 3 · Sends: 0")
         loadImage(); click("image-cancel"); waitText("Images: 3 · Sends: 0")
@@ -178,7 +229,7 @@ import XCTest
     func testSpeechUIAppendCancelAndPreserveImage() throws {
         editor.click(); editor.typeText("Existing speech draft")
         loadImage(); click("image-add"); waitText("Images: 1 · Sends: 0")
-        app.buttons["Transcription"].firstMatch.click()
+        click("toolbar-transcript")
         wait("Synthetic source ready") { self.app.buttons["speech-record"].isEnabled }
         click("speech-record")
         wait("Recording state") { self.app.buttons["speech-record"].label == "Stop" }
@@ -196,7 +247,7 @@ import XCTest
     }
     func testSpeechRetainedErrorEditDiscard() throws {
         editor.click(); editor.typeText("Retained draft")
-        app.buttons["Transcription"].firstMatch.click()
+        click("toolbar-transcript")
         wait("Fixture source ready") { self.app.buttons["speech-record"].isEnabled }
         click("speech-record")
         wait("Recording") { self.app.buttons["speech-record"].label == "Stop" }

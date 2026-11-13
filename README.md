@@ -146,6 +146,8 @@ Do not use a hard reset to resolve divergence. New source builds and OS/meeting-
 
 ## Offline UI preview and icon
 
+For repeatable testing of the **packaged app** on macOS 15.8.2–27.x, see [UI automation and cleanup](docs/ui-validation.md). Run `bash scripts/test-ui.sh --preflight` with full Xcode, then `bash scripts/test-ui.sh` for three sequential offline rounds. This is separate from the ordinary CLT build and from real meeting/ChatGPT acceptance. The project [compatibility Skill](.agents/skills/capture-shield-compatibility/SKILL.md) is included in every clone.
+
 Run `bash scripts/dev.sh --chat-preview` for the normal chat window with a disposable offline page, synthetic popup/dialog controls and separate preview preferences. It does not load your account. The original capture lab remains available separately.
 
 The original shield/window icon is bundled into both apps. `Assets/` contains the editable SVG, a PNG preview and the `.icns` used by the build. `scripts/render-icon.swift` is the editable vector generator; regenerate all formats with:
