@@ -249,7 +249,7 @@ import CaptureCore
     }
     func setShortcutWarning(_ text: String) { shortcutWarning = text.isEmpty ? "" : text + " "; setStatus(lastStatus) }
     func noteOSUpgrade() { osUpgradeNotice = true; setStatus(lastStatus) }
-    func showSpeechPane(_ show: Bool) { speechPane.isHidden = !show; speechHeight.constant = show ? 180 : 0 }
+    func showSpeechPane(_ show: Bool) { speechPane.isHidden = !show; speechHeight.constant = show ? SpeechPane.preferredHeight : 0 }
     func updateRecordButton(recording: Bool, enabled: Bool) { recordButton.title = recording ? "Stop" : "Record"; recordButton.isEnabled = enabled }
     @objc private func recordAudio() { toggleRecording?() }
     @objc private func reviewTranscript() { showTranscription?() }

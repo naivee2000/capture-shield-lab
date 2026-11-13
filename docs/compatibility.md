@@ -1,5 +1,10 @@
 # Observed compatibility
 
+## Version 0.6.1 compact transcription panel (2026-11-13)
+
+The bottom panel is reduced from 180 to 112 logical points. Smaller native controls and a combined action/status row leave more space for the chat. The transcript scrolls within 40 points, content is aligned near the footer, and the full status is available as a tooltip. Recording and draft-insertion evidence remains in the [0.6 ledger](speech-06.md); receiver verification is still separate. Local verification: 55 existing window/speech tests passed; the running app was visually checked at 980- and 640-point window widths, then restored to its prior frame. All controls fit and closing/reopening the panel worked. No new audio or receiver-hiding claim is made.
+
+
 ## Version 0.6 speech and Dock behavior (2026-11-12)
 
 See the [speech/Dock implementation and evidence ledger](speech-06.md). Recognition uses selected-app audio and on-device English/Mandarin engines; this is independent of Legacy receiver compatibility. The current host is macOS 26.6.2. No new Teams, physical-keyboard, headphone, macOS 15.6 or 27 verdict is implied by synthetic tests or Dock activation policy.

@@ -2,6 +2,7 @@ import AppKit
 import CaptureCore
 
 @MainActor final class SpeechPane: NSView {
+    static let preferredHeight: CGFloat = 112
     let source = NSPopUpButton()
     let language = NSPopUpButton()
     let status = NSTextField(wrappingLabelWithString: "Choose an audio source. Browser audio may include other tabs. Microphone is off.")
@@ -25,8 +26,15 @@ import CaptureCore
         source.widthAnchor.constraint(lessThanOrEqualToConstant: 180).isActive = true
         for picker in [source, language] { picker.target = self; picker.action = #selector(selectionChanged) }
         let close = NSButton(image: NSImage(systemSymbolName: "xmark", accessibilityDescription: "Close transcription panel")!, target: self, action: #selector(closePanel))
-        let row = NSStackView(views: [source, language, refresh, prepare, close]); row.spacing = 6
-        let buttons = NSStackView(views: [record, add, discard]); buttons.spacing = 8
+        refresh.title = ""; refresh.image = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "Refresh sources")
+        refresh.setAccessibilityLabel("Refresh sources"); refresh.toolTip = "Refresh audio applications"
+        for control in [source, language, refresh, prepare, close, record, add, discard] as [NSControl] {
+            control.controlSize = .small; control.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        }
+        let row = NSStackView(views: [source, language, refresh, prepare, NSView(), close]); row.spacing = 6
+        let buttons = NSStackView(views: [record, add, discard, status]); buttons.spacing = 6
+        status.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        status.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         record.target = self; record.action = #selector(recordClicked)
         prepare.target = self; prepare.action = #selector(prepareClicked)
         refresh.target = self; refresh.action = #selector(refreshClicked)
@@ -39,11 +47,17 @@ import CaptureCore
         result.isAutomaticSpellingCorrectionEnabled = false; result.isAutomaticTextReplacementEnabled = false
         let scroll = NSScrollView(); scroll.documentView = result; scroll.hasVerticalScroller = true
         result.isVerticallyResizable = true; result.autoresizingMask = [.width]; result.textContainer?.widthTracksTextView = true
-        let stack = NSStackView(views: [row, status, scroll, buttons]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 5
+        let stack = NSStackView(views: [row, scroll, buttons]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 4
         stack.translatesAutoresizingMaskIntoConstraints = false; addSubview(stack)
+        // Keep the compact controls next to the footer. This soft top inset may
+        // collapse while the entire pane is hidden with a zero-height constraint.
+        let topInset = stack.topAnchor.constraint(greaterThanOrEqualTo: topAnchor, constant: 4)
+        topInset.priority = .defaultHigh
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
-            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),stack.topAnchor.constraint(equalTo: topAnchor, constant: 4),
-            scroll.widthAnchor.constraint(equalTo: stack.widthAnchor), scroll.heightAnchor.constraint(equalToConstant: 60)])
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4), topInset,
+            row.widthAnchor.constraint(equalTo: stack.widthAnchor), buttons.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            scroll.widthAnchor.constraint(equalTo: stack.widthAnchor), scroll.heightAnchor.constraint(equalToConstant: 40)])
         add.isEnabled = false
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }

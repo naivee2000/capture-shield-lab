@@ -247,7 +247,7 @@ import CaptureCore
         pane?.discard.isEnabled = !inserting
         owner?.updateRecordButton(recording: recording, enabled: idle || recording)
     }
-    private func message(_ text: String) { pane?.status.stringValue = text; owner?.setStatus(text) }
+    private func message(_ text: String) { pane?.status.stringValue = text; pane?.status.toolTip = text; owner?.setStatus(text) }
     private func report(_ error: any Error, stage: SpeechFailure.Stage) {
         let failure = error as? SpeechFailure ?? SpeechFailure(stage: stage, code: (error as NSError).code, message: "\(stage.rawValue.capitalized) failed (code \((error as NSError).code)). Nothing was sent. Review settings and try again manually.")
         lastFailure = failure; message(failure.message)

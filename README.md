@@ -3,7 +3,7 @@
 A native ChatGPT web window and a separate macOS capture-protection lab. Can the window remain visible locally while disappearing from a full-display capture?
 
 **Experimental. No universal invisibility claim.**
-Version 0.6.0 adds selected-application, on-device speech transcription and mode-dependent Dock visibility. It embeds the official ChatGPT website in a persistent WKWebView with Normal/Legacy modes, screenshot cropping, confirmed image attachments and keyboard window movement. Account login and sharing compatibility must be verified on your own Mac. The lab compares four configurations and provides a separate, unfiltered ScreenCaptureKit recorder; a local screenshot does not prove Zoom, Meet or Teams behavior.
+Version 0.6.1 includes selected-application, on-device speech transcription, a compact bottom transcription panel and mode-dependent Dock visibility. It embeds the official ChatGPT website in a persistent WKWebView with Normal/Legacy modes, screenshot cropping, confirmed image attachments and keyboard window movement. Account login and sharing compatibility must be verified on your own Mac. The lab compares four configurations and provides a separate, unfiltered ScreenCaptureKit recorder; a local screenshot does not prove Zoom, Meet or Teams behavior.
 
 **Operator feedback:** Teams desktop entire-screen sharing from macOS 26.6.2 (25G83), viewed in Chrome: Normal visible, Legacy hidden, but Pinyin candidates visible. Receiver retesting of the candidate-panel repair is pending; this is not a blanket privacy guarantee.
 
@@ -89,6 +89,8 @@ See [maintenance and repair instructions](docs/maintenance.md), including compat
 ### Meeting audio to draft
 
 Use **Record / Stop** or global **Cmd-Shift-R**. Open the waveform **Transcription** panel to choose the meeting application and **English / 中文（普通话）**. Select **Prepare language** to install missing Apple language assets or authorize the older recognizer. Model preparation never records audio. Source selection and language are remembered locally; recording is always off at launch.
+
+The panel uses 112 logical points (previously 180), with smaller native controls aligned near the footer. The transcript remains scrollable, and status shares the action row; hover over status to read its full message. The circular-arrow button refreshes audio sources. Close the panel with its X to recover all of its space; closing the panel does not stop an active recording.
 
 - Only the selected application's playback is captured, not the microphone. A browser source includes audio from its other tabs; application notifications and media can also be included. This does not identify or separate individual meeting participants. Use with participants' permission.
 - A second press stops; the maximum is **120 seconds**. The panel shows the source, elapsed time and stop/cancel controls. App switching, closing/hiding the main window and closing the panel do not stop recording; use **Cmd-Shift-R**, reopen the panel, or Quit. Session-lock/sleep/source-exit signals stop capture without automatic restart.
