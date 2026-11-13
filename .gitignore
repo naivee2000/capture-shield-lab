@@ -6,3 +6,4 @@ artifacts/
 ._*
 .superpowers/
 *.xcuserstate
+__pycache__/

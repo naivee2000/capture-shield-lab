@@ -3,12 +3,14 @@ name: macOS compatibility
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, codex/app-ui-compatibility]
     paths:
       - '.github/workflows/macos-compatibility.yml'
       - 'Package.swift'
       - 'Sources/**'
       - 'Tests/**'
+      - 'UITests/**'
+      - '.agents/skills/capture-shield-compatibility/**'
       - 'scripts/**'
       - 'Assets/**'
   pull_request:
@@ -17,6 +19,8 @@ on:
       - 'Package.swift'
       - 'Sources/**'
       - 'Tests/**'
+      - 'UITests/**'
+      - '.agents/skills/capture-shield-compatibility/**'
       - 'scripts/**'
       - 'Assets/**'
 
@@ -32,7 +36,7 @@ jobs:
     name: macOS ${{ matrix.os }} / Xcode ${{ matrix.xcode }} / arm64
     # Standard Apple Silicon runners; do not replace with paid -xlarge runners.
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 20
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
@@ -115,3 +119,28 @@ jobs:
             echo ''
             echo 'This result applies only to the OS/build and toolchain recorded above. It does not verify ChatGPT login/uploads, screen/audio permission, on-device speech accuracy, physical IME behavior or Teams/Zoom/Meet hiding. Those require separate device/receiver tests.'
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Test the packaged application through XCTest UI automation
+        id: app_ui
+        timeout-minutes: 20
+        run: |
+          set +e
+          bash scripts/test-ui.sh --run-id "ui-ci-${{ github.run_id }}-${{ matrix.os }}"
+          result=$?
+          if [ "$result" -ne 0 ]; then
+            for log in artifacts/ui-runs/ui-ci-*/*.log; do
+              echo "Synthetic test log: $(basename "$log")"
+              tail -80 "$log"
+            done
+          fi
+          exit "$result"
+      - name: Preserve UI verdict and clean generated test files
+        if: always()
+        run: |
+          run_id="ui-ci-${{ github.run_id }}-${{ matrix.os }}"
+          if [ -f "artifacts/ui-runs/$run_id/summary.json" ]; then
+            echo '### Packaged application UI verdict' >> "$GITHUB_STEP_SUMMARY"
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat "artifacts/ui-runs/$run_id/summary.json" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            bash scripts/cleanup-tests.sh --run-id "$run_id"
+          fi
