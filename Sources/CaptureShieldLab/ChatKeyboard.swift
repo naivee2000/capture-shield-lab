@@ -7,12 +7,14 @@ enum ChatKeyboard {
     static let carbonModifiers = UInt32(cmdKey | shiftKey)
     static let visibilityKey = UInt32(kVK_ANSI_M)
     static let screenshotKey = UInt32(kVK_ANSI_2)
+    static let recordKey = UInt32(kVK_ANSI_R)
     static let cursorKey: UInt16 = UInt16(kVK_ANSI_C)
     static let visibilityLabel = "⌘⇧M"
     static let screenshotLabel = "⌘⇧2"
+    static let recordLabel = "⌘⇧R"
     static let cursorLabel = "⌘⇧C"
     static let movementLabel = "⌘⇧arrows"
-    static var summary: String { "\(screenshotLabel) screenshot · \(movementLabel) move · \(visibilityLabel) hide/show · Verify Legacy on your receiver" }
+    static var summary: String { "\(recordLabel) record · \(screenshotLabel) screenshot · \(movementLabel) move · \(visibilityLabel) hide/show · Verify Legacy on your receiver" }
     static func blocksMovement(nativeMarked: Bool?, webFocused: Bool, webComposing: Bool?) -> Bool {
         if nativeMarked == true { return true }
         if webFocused { return nativeMarked != false || webComposing != false }

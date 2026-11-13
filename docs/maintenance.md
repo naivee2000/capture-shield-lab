@@ -1,6 +1,8 @@
 # Compatibility maintenance
 
-CaptureShield 0.5 targets Apple Silicon macOS **15.6+**. A deployment target and an available API are not runtime or receiver test results. Keep exact OS/build/client evidence in `compatibility.md`.
+CaptureShield 0.6 targets Apple Silicon macOS **15.6+**. A deployment target and an available API are not runtime or receiver test results. Keep exact OS/build/client evidence in `compatibility.md`.
+
+Audio compatibility lives in `AudioCaptureService`, `SpeechTranscriptionBackend` and the shared `ScreenCaptureAuthorization`. Draft insertion is isolated in `DraftInsertionBridge`; Dock policy is in `ApplicationPresentation`. Keep new Speech APIs under macOS 26 availability guards. Do not add a cloud fallback or persist recorded speech. `SpeechSessionTests` and `SpeechTests` use synthetic data; real source filtering/recognition still need a signed-app trial.
 
 ## Which module to repair
 

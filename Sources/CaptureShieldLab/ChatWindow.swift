@@ -72,6 +72,13 @@ import CaptureCore
     private var compatibilityPanel: CompatibilityPanel?
     private var osUpgradeNotice = false
     private var lastStatus = "Loading…"
+    private var shortcutWarning = ""
+    let speechPane = SpeechPane()
+    lazy var speech = SpeechCoordinator(owner: self, defaults: defaults)
+    var toggleRecording: (() -> Void)?
+    var showTranscription: (() -> Void)?
+    private let recordButton = NSButton(title: "Record", target: nil, action: nil)
+    private var speechHeight: NSLayoutConstraint!
 
 
     init(configuration: WKWebViewConfiguration, isMain: Bool, preferences: ChatPreferences = ChatPreferences(),
@@ -122,10 +129,15 @@ import CaptureCore
         status.font = .systemFont(ofSize: 11); status.maximumNumberOfLines = 2
         status.setAccessibilityLabel("Page status")
         let compatibility = NSButton(title: "Compatibility…", target: self, action: #selector(showCompatibility))
-        for view in [webView, status, compatibility] { view.translatesAutoresizingMaskIntoConstraints = false; root.addSubview(view) }
+        speechPane.isHidden = true
+        speechHeight = speechPane.heightAnchor.constraint(equalToConstant: 0)
+        speechHeight.isActive = true
+        for view in [webView, speechPane, status, compatibility] { view.translatesAutoresizingMaskIntoConstraints = false; root.addSubview(view) }
         NSLayoutConstraint.activate([
             webView.topAnchor.constraint(equalTo: root.topAnchor), webView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            webView.trailingAnchor.constraint(equalTo: root.trailingAnchor), webView.bottomAnchor.constraint(equalTo: status.topAnchor, constant: -4),
+            webView.trailingAnchor.constraint(equalTo: root.trailingAnchor), webView.bottomAnchor.constraint(equalTo: speechPane.topAnchor),
+            speechPane.leadingAnchor.constraint(equalTo: root.leadingAnchor), speechPane.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            speechPane.bottomAnchor.constraint(equalTo: status.topAnchor, constant: -4),
             status.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12), status.trailingAnchor.constraint(equalTo: compatibility.leadingAnchor, constant: -8),
             compatibility.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -12),
             compatibility.centerYAnchor.constraint(equalTo: status.centerYAnchor),
@@ -144,7 +156,7 @@ import CaptureCore
     }
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { toolbarDefaultItemIdentifiers(toolbar) }
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.init("navigation"), .init("sidebar"), .init("screenshot"), .init("pasteImage"), .init("imagePreview"), .flexibleSpace, .init("sharingMode"), .init("cursor"), .init("zoom"), .init("hide")]
+        [.init("navigation"), .init("sidebar"), .init("screenshot"), .init("pasteImage"), .init("imagePreview"), .init("record"), .init("transcript"), .flexibleSpace, .init("sharingMode"), .init("cursor"), .init("zoom"), .init("hide")]
     }
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier,
                  willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
@@ -168,6 +180,12 @@ import CaptureCore
             item.label = "Image Preview"
             item.view = NSButton(image: NSImage(systemSymbolName: "crop", accessibilityDescription: "Review or cancel prepared image")!, target: self, action: #selector(reviewImage))
         case "sharingMode": item.label = "Sharing mode"; item.view = modeControl
+        case "record":
+            item.label = "Record / Stop"; item.toolTip = "Record selected app audio (\(ChatKeyboard.recordLabel))"
+            recordButton.target = self; recordButton.action = #selector(recordAudio); item.view = recordButton
+        case "transcript":
+            item.label = "Transcription"
+            item.view = NSButton(image: NSImage(systemSymbolName: "waveform", accessibilityDescription: "Transcription settings and pending text")!, target: self, action: #selector(reviewTranscript))
         case "cursor":
             item.label = "Private Cursor"; cursorButton.target = self; cursorButton.action = #selector(toggleCursor)
             cursorButton.image = NSImage(systemSymbolName: "cursorarrow", accessibilityDescription: "Private Cursor")
@@ -227,13 +245,18 @@ import CaptureCore
     }
     func setStatus(_ text: String) {
         lastStatus = text
-        status.stringValue = (osUpgradeNotice ? "macOS changed: retest sharing. " : "") + text
+        status.stringValue = shortcutWarning + (osUpgradeNotice ? "macOS changed: retest sharing. " : "") + text
     }
+    func setShortcutWarning(_ text: String) { shortcutWarning = text.isEmpty ? "" : text + " "; setStatus(lastStatus) }
     func noteOSUpgrade() { osUpgradeNotice = true; setStatus(lastStatus) }
+    func showSpeechPane(_ show: Bool) { speechPane.isHidden = !show; speechHeight.constant = show ? 180 : 0 }
+    func updateRecordButton(recording: Bool, enabled: Bool) { recordButton.title = recording ? "Stop" : "Record"; recordButton.isEnabled = enabled }
+    @objc private func recordAudio() { toggleRecording?() }
+    @objc private func reviewTranscript() { showTranscription?() }
     func compatibilitySummary() -> CompatibilitySummary {
         CompatibilitySummary(os: ProcessInfo.processInfo.operatingSystemVersion, build: SystemCompatibility.osBuild,
                              mode: preferences.screenshotMode, permissionGranted: screenshots.permissionGranted,
-                             failure: screenshots.lastFailure)
+                             failure: screenshots.lastFailure, speechDiagnostic: isMain ? speech.diagnostic : nil)
     }
     func selectScreenshotMode(_ mode: ScreenshotMode) {
         cancelScreenshot()
@@ -300,9 +323,12 @@ import CaptureCore
     @objc func reloadPage() { webView.reload() }
     @objc private func goBack() { webView.goBack() }
     @objc private func goForward() { webView.goForward() }
-    @objc private func hideOrClose() { if isMain { hideAll?() } else { closePopup?() } }
+    @objc private func hideOrClose() {
+        if isMain { if let hideAll { hideAll() } else { window?.orderOut(nil) } }
+        else { closePopup?() }
+    }
     @objc private func clearLogin() { askToClear?() }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { hideOrClose(); return true }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { hideOrClose(); return !isMain }
     func windowDidMove(_ notification: Notification) { saveFrame() }
     func windowDidResize(_ notification: Notification) { saveFrame() }
     private func saveFrame() {

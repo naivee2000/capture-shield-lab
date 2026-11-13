@@ -12,7 +12,7 @@ import CaptureCore
     init(snapshot: @escaping () -> CompatibilitySummary, selectMode: @escaping (ScreenshotMode) -> Void,
          didClose: @escaping () -> Void) {
         self.snapshot = snapshot; self.selectMode = selectMode; self.didClose = didClose
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 580, height: 390), styleMask: [.titled], backing: .buffered, defer: false)
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 580, height: 450), styleMask: [.titled], backing: .buffered, defer: false)
         window.title = "Compatibility"; window.isReleasedWhenClosed = false
         window.appearance = NSAppearance(named: .darkAqua)
         super.init()

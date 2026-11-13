@@ -66,11 +66,13 @@ public struct CompatibilitySummary: Sendable {
     public var engine: ScreenshotEngine
     public var permissionGranted: Bool
     public var failure: CaptureFailure?
+    public var speechDiagnostic: String?
     public init(os: OperatingSystemVersion, build: String, app: BuildIdentity = BuildIdentity(), mode: ScreenshotMode,
-                permissionGranted: Bool, failure: CaptureFailure? = nil) {
+                permissionGranted: Bool, failure: CaptureFailure? = nil, speechDiagnostic: String? = nil) {
         osVersion = SystemCompatibility.versionString(os); osBuild = build; self.app = app; self.mode = mode
         engine = SystemCompatibility.screenshotEngine(os: os, mode: mode)
         self.permissionGranted = permissionGranted; self.failure = failure
+        self.speechDiagnostic = speechDiagnostic
     }
     public var text: String {
         """
@@ -82,6 +84,7 @@ public struct CompatibilitySummary: Sendable {
         Screenshot implementation: \(engine.title)
         Screen Recording preflight: \(permissionGranted ? "allowed" : "not granted or stale; check System Settings")
         Last screenshot error: \(failure.map { "\($0.stage.rawValue), code \($0.code)" } ?? "none")
+        \(speechDiagnostic ?? "Speech: not initialized")
         OS-specific runtime tests: see the repository compatibility record.
         Receiver hiding: NOT VERIFIED by this diagnostic. Retest after OS/client updates.
         """

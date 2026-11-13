@@ -19,7 +19,7 @@ for NAME in CaptureShieldLab CaptureProbe; do
   cp "$ROOT/Assets/CaptureShield.icns" "$APP/Contents/Resources/CaptureShield.icns"
   cp "$BIN/$NAME" "$APP/Contents/MacOS/$NAME"
   chmod +x "$APP/Contents/MacOS/$NAME"
-  if [[ "$NAME" == CaptureShieldLab ]]; then SUFFIX=lab; else SUFFIX=probe; fi
+  if [[ "$NAME" == CaptureShieldLab ]]; then SUFFIX=lab; AGENT=true; else SUFFIX=probe; AGENT=false; fi
   cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -28,14 +28,16 @@ for NAME in CaptureShieldLab CaptureProbe; do
 <key>CFBundleIdentifier</key><string>$BUNDLE_PREFIX.$SUFFIX</string>
 <key>CFBundleName</key><string>$NAME</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.5.0</string>
-<key>CFBundleVersion</key><string>8</string>
+<key>CFBundleShortVersionString</key><string>0.6.0</string>
+<key>CFBundleVersion</key><string>9</string>
 <key>CaptureShieldBuildCommit</key><string>$BUILD_COMMIT</string>
 <key>CFBundleIconFile</key><string>CaptureShield</string>
 <key>LSMinimumSystemVersion</key><string>$MINIMUM_MACOS</string>
 <key>NSPrincipalClass</key><string>NSApplication</string>
 <key>NSHighResolutionCapable</key><true/>
-<key>NSScreenCaptureUsageDescription</key><string>Capture a screen for local review or protection testing. Images are handed to ChatGPT only after you confirm Add to Chat.</string>
+<key>LSUIElement</key><$AGENT/>
+<key>NSSpeechRecognitionUsageDescription</key><string>Transcribe selected application audio on this Mac into an editable draft. Audio is not sent to a cloud speech service.</string>
+<key>NSScreenCaptureUsageDescription</key><string>Capture screens for local review or selected application audio for on-device transcription. Images are handed to ChatGPT only after you confirm Add to Chat.</string>
 </dict></plist>
 PLIST
   codesign --force --sign - --identifier "$BUNDLE_PREFIX.$SUFFIX" "$APP"

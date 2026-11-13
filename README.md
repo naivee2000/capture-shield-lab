@@ -3,7 +3,7 @@
 A native ChatGPT web window and a separate macOS capture-protection lab. Can the window remain visible locally while disappearing from a full-display capture?
 
 **Experimental. No universal invisibility claim.**
-Version 0.5.0 embeds the official ChatGPT website in a persistent WKWebView with Normal/Legacy modes, screenshot cropping, confirmed image attachments and keyboard window movement. Account login and sharing compatibility must be verified on your own Mac. The lab compares four configurations and provides a separate, unfiltered ScreenCaptureKit recorder; a local screenshot does not prove Zoom, Meet or Teams behavior.
+Version 0.6.0 adds selected-application, on-device speech transcription and mode-dependent Dock visibility. It embeds the official ChatGPT website in a persistent WKWebView with Normal/Legacy modes, screenshot cropping, confirmed image attachments and keyboard window movement. Account login and sharing compatibility must be verified on your own Mac. The lab compares four configurations and provides a separate, unfiltered ScreenCaptureKit recorder; a local screenshot does not prove Zoom, Meet or Teams behavior.
 
 **Operator feedback:** Teams desktop entire-screen sharing from macOS 26.6.2 (25G83), viewed in Chrome: Normal visible, Legacy hidden, but Pinyin candidates visible. Receiver retesting of the candidate-panel repair is pending; this is not a blanket privacy guarantee.
 
@@ -14,7 +14,7 @@ Version 0.5.0 embeds the official ChatGPT website in a persistent WKWebView with
 - Apple Silicon Mac, **macOS 15.6 or later**. Older-system compatibility is implemented but real 15.6/15.x and 27 runtime/receiver verification remains pending. A newer OS is not automatically verified.
 - Build tools: **Swift 6.2+ and macOS SDK 26+**. On macOS 15.6–15.x use Xcode / Command Line Tools **26.0–26.3**; newer tool releases may require a newer OS. Full Xcode is optional.
 - Access to the private GitHub repository, naivee2000/capture-shield-lab.
-- Screen Recording permission for **CaptureShieldLab** when you explicitly take a screenshot, and separately for **CaptureProbe** when running capture tests. The original lab does not request recording. No microphone, camera, Accessibility or Input Monitoring permission is requested.
+- Screen Recording permission for **CaptureShieldLab** when you explicitly take a screenshot or record selected-application audio, and separately for **CaptureProbe** when running capture tests. The original lab does not request recording. The compatible speech engine additionally requests Speech Recognition permission when you choose Prepare language. No microphone, camera, Accessibility or Input Monitoring permission is requested.
 
 ## First setup
 
@@ -64,8 +64,8 @@ Bundles are built on the Mac's local filesystem because exFAT/SMB AppleDouble me
 - **Normal** is an opaque dark window with regular screen sharing enabled. **Legacy** uses the existing exclusion flag and **80% whole-window opacity** (20% transparency). Opacity is a local visual effect, not the hiding mechanism. First use defaults to Legacy; subsequent launches remember your mode. Owned popups and sheets follow the same choice.
 - **A− / A+** changes page zoom from **70% to 140%**, in 10% steps. Clicking the percentage resets to **90%**. Zoom is saved and affects website text/buttons together; native window controls keep their size.
 - The sidebar initially collapses; use the sidebar toolbar button or the website control to reopen it. Your explicit choice is respected during that page session. The composer has reduced spacing and a 160 CSS-pixel scrolling limit. Unknown page structures stay unmodified.
-- Use Back, Forward, ChatGPT (home), Reload and Hide. **Cmd-Shift-M** toggles the chat windows globally. If the shortcut is already taken, use the app menu's Show/Hide commands. Closing the main window closes its surface and hides owned popups; Show ChatGPT reopens the retained page. Cmd-Q exits.
-- Text entry, selection, history and streaming replies use the website's own interface. Text paste remains plain text. Images and copied PNG/JPEG files enter a native preview before attachment; PDF, other documents and file drops remain unsupported. Downloads and camera/microphone requests are rejected. The upload callback only supplies an explicitly confirmed image to the current ChatGPT main document; it does not open a general-purpose file picker. Native web context menus and file drops are disabled; use the Edit menu or keyboard shortcuts for copying. The website may still display features outside this build's supported scope.
+- Use Back, Forward, ChatGPT (home), Reload and Hide. **Cmd-Shift-M** toggles the chat windows globally. If the shortcut is already taken, the app reports it; Legacy keeps the window visible when asked to hide. Reopening the app from Finder also restores its window. Closing the main window closes its surface and hides owned popups; Show ChatGPT reopens the retained page. Cmd-Q exits.
+- Text entry, selection, history and streaming replies use the website's own interface. Text paste remains plain text. Images and copied PNG/JPEG files enter a native preview before attachment; PDF, other documents and file drops remain unsupported. Downloads and camera/microphone requests are rejected. The upload callback only supplies an explicitly confirmed image to the current ChatGPT main document; it does not open a general-purpose file picker. Native web context menus and file drops are disabled; use standard keyboard shortcuts for copying (the Edit menu is also available in Normal). The website may still display features outside this build's supported scope.
 - HTTPS links stay inside app-managed windows. Popups and JavaScript dialogs inherit the selected sharing mode and opacity before presentation. There is no automatic opening of an unprotected system browser. System UI, including IME candidates and the Dock, is outside this claim.
 - **Clear login…** asks before clearing this app's local website data and closing web popups. It loses unsaved input and signs this app out; it does not delete cloud conversations or clear Chrome/Safari data.
 
@@ -85,6 +85,23 @@ bash scripts/launch.sh   # open the existing build
 ```
 
 See [maintenance and repair instructions](docs/maintenance.md), including compatible toolchains and the separate old-OS/receiver test checklist.
+
+### Meeting audio to draft
+
+Use **Record / Stop** or global **Cmd-Shift-R**. Open the waveform **Transcription** panel to choose the meeting application and **English / 中文（普通话）**. Select **Prepare language** to install missing Apple language assets or authorize the older recognizer. Model preparation never records audio. Source selection and language are remembered locally; recording is always off at launch.
+
+- Only the selected application's playback is captured, not the microphone. A browser source includes audio from its other tabs; application notifications and media can also be included. This does not identify or separate individual meeting participants. Use with participants' permission.
+- A second press stops; the maximum is **120 seconds**. The panel shows the source, elapsed time and stop/cancel controls. App switching, closing/hiding the main window and closing the panel do not stop recording; use **Cmd-Shift-R**, reopen the panel, or Quit. Session-lock/sleep/source-exit signals stop capture without automatic restart.
+- Audio is held in a bounded memory buffer and released after processing/cancellation; it is not written to audio files or sent to a speech API. macOS 26+ uses **SpeechAnalyzer / SpeechTranscriber**. macOS 15.6 uses **SFSpeechRecognizer** only if local recognition is supported, with at most 50-second requests and overlapping timestamp-based boundaries. Unsupported local languages remain unavailable: no cloud fallback. Language-model downloads require network access; prepared models should work offline.
+- The final transcript is appended to the current draft, with a separating space when needed, only in the same trusted main chat. Existing text/images remain and no message is sent. Hidden/minimized windows, active Chinese composition, navigation or uncertain editor state retain a local transcript instead. Review it and choose **Add to Chat** to explicitly target the currently open chat, or **Cancel / Discard**. Uncertain insertion disables retry to avoid duplication; inspect the draft and copy only missing text if needed.
+- Interrupted/failed recordings keep completed text for manual review, not automatic insertion. No automatic recording retries or persistent transcript history. Compatibility diagnostics contain engine, selected locale, capability and error stage/code only.
+- Screen/system-audio recording permission is shared with this app's Screenshot feature, but not with CaptureProbe. New signatures can invalidate an existing macOS grant. System capture indicators and permission prompts are not hidden by Legacy.
+
+### Legacy Dock visibility
+
+**Normal** shows the Dock icon and app menu. **Legacy** uses accessory activation: its window stays locally visible at 80% opacity, while the running app is removed from the Dock/app switcher and has no app menu bar. **Cmd-Shift-M** hides/shows the window; **Cmd-Q** still quits. No menu-bar icon is added. Mode changes keep the same WebView/session/draft. A user-pinned Dock tile may need to be unpinned manually; the app never edits Dock preferences.
+
+Global hotkeys use exclusive registration and report individual conflicts. Do not run several CaptureShield builds simultaneously when checking shortcuts. If the visibility hotkey fails, Legacy refuses a Hide/close request instead of stranding the window; Finder reopen is a recovery route. The lab stays a regular app. Dock behavior does not certify receiver hiding.
 
 ### Screenshots, images and movement
 

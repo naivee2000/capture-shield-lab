@@ -14,6 +14,12 @@ case .chat: delegate = ChatDelegate()
 case .chatPreview: delegate = ChatDelegate(preview: true)
 case .lab: delegate = LabDelegate()
 }
-app.setActivationPolicy(.regular)
+switch mode {
+case .lab: app.setActivationPolicy(.regular)
+case .chat: ApplicationPresentation.apply(ChatPreferences.load(from: .standard).mode)
+case .chatPreview:
+    let defaults = UserDefaults(suiteName: "\(Bundle.main.bundleIdentifier ?? "CaptureShield").preview")!
+    ApplicationPresentation.apply(ChatPreferences.load(from: defaults).mode)
+}
 app.delegate = delegate
 app.run()

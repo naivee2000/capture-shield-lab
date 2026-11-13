@@ -102,15 +102,8 @@ struct ScreenshotError: LocalizedError {
         do {
             try Task.checkCancellation()
             guard let displayID else { throw ScreenshotError(failure: CaptureFailure(stage: .display, code: 0), message: "No display is available.") }
-            if !permission.preflight() {
-                if !defaults.bool(forKey: "ScreenshotPermissionRequested") {
-                    defaults.set(true, forKey: "ScreenshotPermissionRequested")
-                    _ = permission.request()
-                }
-                guard permission.preflight() else {
-                    throw ScreenshotError(failure: CaptureFailure(stage: .permission, code: 1), message: "Allow CaptureShieldLab in System Settings → Privacy & Security → Screen & System Audio Recording, then relaunch. CaptureProbe has a separate permission.")
-                }
-            }
+            do { try ScreenCaptureAuthorization.ensure(defaults: defaults, permission: permission) }
+            catch { throw ScreenshotError(failure: CaptureFailure(stage: .permission, code: 1), message: error.localizedDescription) }
             let backend = backendFactory(SystemCompatibility.screenshotEngine(os: os, mode: mode))
             let image = try await backend.capture(displayID: displayID)
             try Task.checkCancellation()

@@ -1,5 +1,10 @@
 # Observed compatibility
 
+## Version 0.6 speech and Dock behavior (2026-11-12)
+
+See the [speech/Dock implementation and evidence ledger](speech-06.md). Recognition uses selected-app audio and on-device English/Mandarin engines; this is independent of Legacy receiver compatibility. The current host is macOS 26.6.2. No new Teams, physical-keyboard, headphone, macOS 15.6 or 27 verdict is implied by synthetic tests or Dock activation policy.
+
+
 Date: 2026-11-10. Development host: Apple Silicon, macOS 26.6.2 (25G83), 1920 × 1080 display.
 
 ## Version 0.5 compatibility layer (2026-11-12)
