@@ -140,6 +140,7 @@ import XCTest
         item.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
     }
     func testModesZoomPopupAndDraftPreservation() throws {
+        wait("Initial Normal window has read-only sharing") { self.mainWindow()["sharing"] as? Int == 1 }
         editor.click(); editor.typeText("Preserve draft 1357")
         for _ in 0..<2 { click("zoom-out") }
         wait("70 percent page zoom") { abs((self.mainWindow()["webZoom"] as? Double ?? 0) - 0.7) < 0.01 }
@@ -155,6 +156,14 @@ import XCTest
         XCTAssertEqual(mainWindow()["alpha"] as? Double, 1)
         XCTAssertEqual(mainWindow()["backgroundAlpha"] as? Double ?? 0, 0.8, accuracy: 0.01)
         XCTAssertEqual(mainWindow()["webAlpha"] as? Double, 1)
+        mainUI.radioButtons["Normal"].click()
+        wait("Normal sharing restored before cursor or popup interaction") {
+            self.mainWindow()["sharing"] as? Int == 1 && self.record()["policy"] as? Int == 0
+        }
+        mainUI.radioButtons["Legacy"].click()
+        wait("Second Legacy transition") {
+            self.mainWindow()["sharing"] as? Int == 0 && self.record()["policy"] as? Int == 1
+        }
         let cursor = mainUI.descendants(matching: .any).matching(identifier: "private-cursor-toggle").firstMatch
         app.typeKey("c", modifierFlags: [.command, .shift])
         wait("Offline private-cursor shortcut enables its control") { (cursor.value as? Int) == 1 || (cursor.value as? String) == "1" }
@@ -278,7 +287,8 @@ import XCTest
         begin.hover()
         wait("Composition fixture control is visible") { begin.isHittable }
         begin.click()
-        XCTAssertTrue(app.webViews.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Composition active")).firstMatch.waitForExistence(timeout: 10))
+        let compositionStatus = app.webViews.textFields["Synthetic composition status"].firstMatch
+        wait("Fixture dispatches composition start") { compositionStatus.value as? String == "Composition active" }
         wait("Synthetic composition active") { self.mainWindow()["composing"] as? Bool == true }
         let composingY = mainWindow()["y"] as? Double
         app.typeKey(.upArrow, modifierFlags: [.command, .shift])
