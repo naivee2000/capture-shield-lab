@@ -305,7 +305,9 @@ import CaptureCore
     func replaceNormalWindowShell() -> Bool {
         guard preferences.mode == .normal, let old = window,
               old.attachedSheet == nil, old.childWindows?.isEmpty != false,
-              !old.isMiniaturized, let content = old.contentView else { return false }
+              !old.isMiniaturized, composition.composing != true,
+              (old.firstResponder as? any NSTextInputClient)?.hasMarkedText() != true,
+              let content = old.contentView else { return false }
         let replacement = NSWindow(contentRect: old.contentRect(forFrameRect: old.frame),
                                    styleMask: old.styleMask, backing: .buffered, defer: false)
         replacement.delegate = self
@@ -336,9 +338,9 @@ import CaptureCore
             return false
         }
         self.window = replacement; replacement.delegate = self
-        old.close()
         if visible { replacement.orderFront(nil) }; if key { replacement.makeKey() }
         if let responder { replacement.makeFirstResponder(responder) }
+        old.close()
         return replacement.sharingType == .readOnly
     }
     private func request(_ value: ChatPreferences) {

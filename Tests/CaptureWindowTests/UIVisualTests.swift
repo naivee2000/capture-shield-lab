@@ -36,7 +36,7 @@ import CaptureCore
         _ = NSApplication.shared
         let config = WKWebViewConfiguration(); config.websiteDataStore = .nonPersistent()
         let owner = ChatWindow(configuration: config, isMain: false, preferences: .init(mode: .normal), preview: true)
-        defer { owner.webView.stopLoading(); owner.window?.close() }
+        defer { owner.webView.stopLoading(); owner.closeTestFixture() }
         owner.window?.title = "CaptureShield synthetic comparison"; owner.window?.orderFront(nil)
         owner.showSpeechPane(true)
         owner.speechPane.setSources([.init(bundleID: "synthetic.audio", name: "Synthetic Audio", pid: 1)], savedBundle: "synthetic.audio")

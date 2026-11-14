@@ -69,7 +69,7 @@ import CaptureCore
         controller.present(); controller.showCompatibility()
         defer {
             if let sheet = controller.window?.attachedSheet { controller.window?.endSheet(sheet); sheet.orderOut(nil) }
-            controller.window?.close()
+            controller.closeTestFixture()
         }
         #expect(controller.window?.attachedSheet?.sharingType == NSWindow.SharingType.none)
         #expect(controller.window?.attachedSheet?.alphaValue == 1)

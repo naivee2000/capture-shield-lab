@@ -15,7 +15,7 @@ import CaptureCore
         controller.window?.orderFront(nil)
     }
     func load(_ html: String) { controller.webView.loadHTMLString(html, baseURL: nil) }
-    func close() { controller.webView.stopLoading(); controller.window?.close() }
+    func close() { controller.webView.stopLoading(); controller.closeTestFixture() }
     func wait(_ expression: String) async throws {
         for _ in 0..<100 {
             if (try? await controller.webView.evaluateJavaScript(expression)) as? Bool == true { return }

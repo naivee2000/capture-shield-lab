@@ -176,14 +176,25 @@ import XCTest
                 $0["identifier"] as? String == "chat-popup" && $0["sharing"] as? Int == 0
             }
         }
-        app.windows.matching(identifier: "chat-popup").firstMatch.buttons["window-close"].click()
         mainUI.radioButtons["Normal"].click()
         wait("Normal mode and Dock policy restored") {
-            self.mainWindow()["sharing"] as? Int == 1 && self.record()["policy"] as? Int == 0
+            self.mainWindow()["sharing"] as? Int == 1 && self.record()["policy"] as? Int == 0 &&
+            (self.record()["windows"] as? [[String: Any]] ?? []).contains {
+                $0["identifier"] as? String == "chat-popup" && $0["visible"] as? Bool == true && $0["sharing"] as? Int == 1
+            }
         }
+        app.windows.matching(identifier: "chat-popup").firstMatch.buttons["window-close"].click()
         app.webViews.buttons["Open test dialog"].click()
         XCTAssertTrue(app.sheets.firstMatch.waitForExistence(timeout: 10))
-        app.sheets.buttons["Cancel"].click()
+        wait("Confirmation sheet inherits Normal sharing") {
+            (self.record()["windows"] as? [[String: Any]] ?? []).contains {
+                $0["sheet"] as? Bool == true && $0["sharing"] as? Int == 1
+            }
+        }
+        // The webpage is waiting for confirm(). Cancel through the native key
+        // rather than recursively querying button descendants of a blocked page.
+        app.typeKey(.escape, modifierFlags: [])
+        wait("Native confirmation is cancelled") { !self.app.sheets.firstMatch.exists }
         draftContains("1357")
         relaunch()
         wait("Persisted page zoom") { abs((self.mainWindow()["webZoom"] as? Double ?? 0) - 1.4) < 0.01 }

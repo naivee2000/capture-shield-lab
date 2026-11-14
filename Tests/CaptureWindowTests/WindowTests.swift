@@ -10,7 +10,7 @@ import CaptureCore
         let config = WKWebViewConfiguration(); config.websiteDataStore = .nonPersistent()
         let controller = ChatWindow(configuration: config, isMain: false,
                                     preferences: ChatPreferences(mode: .normal), preview: true)
-        defer { controller.window?.close() }
+        defer { controller.closeTestFixture() }
         let old = controller.window!, content = old.contentView!, web = controller.webView
         let store = web.configuration.websiteDataStore
         controller.present(); controller.goHome()
@@ -28,6 +28,11 @@ import CaptureCore
         _ = try await web.evaluateJavaScript("document.execCommand('redo')")
         let frame = old.frame
         old.sharingType = .none
+        _ = try await web.evaluateJavaScript("editor.dispatchEvent(new CompositionEvent('compositionstart',{bubbles:true}))")
+        await controller.composition.synchronize(in: web)
+        #expect(!controller.replaceNormalWindowShell() && controller.window === old)
+        _ = try await web.evaluateJavaScript("editor.dispatchEvent(new CompositionEvent('compositionend',{bubbles:true}))")
+        await controller.composition.synchronize(in: web)
         #expect(controller.replaceNormalWindowShell())
         #expect(controller.window !== old && controller.window?.contentView === content)
         #expect(controller.webView === web && web.configuration.websiteDataStore === store)
@@ -46,7 +51,7 @@ import CaptureCore
         let controller = ChatWindow(configuration: config, isMain: false,
                                     preferences: ChatPreferences(mode: .normal), preview: true)
         let priorPolicy = NSApp.activationPolicy()
-        defer { controller.window?.close(); PanelSharingProtection.configure(legacy: false); NSApp.setActivationPolicy(priorPolicy) }
+        defer { controller.closeTestFixture(); PanelSharingProtection.configure(legacy: false); NSApp.setActivationPolicy(priorPolicy) }
         controller.present(); controller.goHome()
         var loaded = false
         for _ in 0..<100 {
@@ -75,7 +80,7 @@ import CaptureCore
         _ = NSApplication.shared
         let config = WKWebViewConfiguration(); config.websiteDataStore = .nonPersistent()
         let controller = ChatWindow(configuration: config, isMain: false, preview: true)
-        defer { controller.window?.orderOut(nil) }
+        defer { controller.closeTestFixture() }
         #expect(controller.responds(to: #selector(WKUIDelegate.webView(_:runJavaScriptConfirmPanelWithMessage:initiatedByFrame:completionHandler:))))
     }
     @Test func savedOuterFrameDoesNotGrowWhenTheNativeTitlebarIsRecreated() {
@@ -90,7 +95,7 @@ import CaptureCore
             let controller = ChatWindow(configuration: config, isMain: true, defaults: defaults)
             #expect(controller.window?.frame == expected)
             defaults.set(NSStringFromRect(controller.window!.frame), forKey: "ChatWindowFrame")
-            controller.window?.close()
+            controller.closeTestFixture()
         }
     }
     @Test func chatWindowBehavesLikeARegularWindow() {
@@ -98,7 +103,7 @@ import CaptureCore
         let config = WKWebViewConfiguration(); config.websiteDataStore = .nonPersistent()
         let controller = ChatWindow(configuration: config, isMain: false)
         let window = controller.window!
-        defer { window.orderOut(nil) }
+        defer { controller.closeTestFixture() }
         #expect(!(window is NSPanel))
         #expect(window.level == .normal)
         #expect(window.styleMask.contains([.titled, .closable, .miniaturizable, .resizable]))
@@ -109,7 +114,7 @@ import CaptureCore
         _ = NSApplication.shared
         let config = WKWebViewConfiguration(); config.websiteDataStore = .nonPersistent()
         let controller = ChatWindow(configuration: config, isMain: false)
-        defer { controller.window?.close() }
+        defer { controller.closeTestFixture() }
         controller.applyPreferences(ChatPreferences(mode: .normal, zoomPercent: 140))
         controller.present()
         #expect(controller.window?.minSize == NSSize(width: 640, height: 480))

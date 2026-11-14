@@ -288,6 +288,20 @@ def cleanup_candidates(base, data):
         raise ValueError("Summary identity or verdict is invalid.")
     return [p for p in base.iterdir() if p.name not in ("manifest.json", "summary.json")], ""
 
+def verified_image_mount(base, work):
+    # Inspect the image even when the expected mountpoint is absent: the same
+    # sparsebundle may still be mounted elsewhere and must not be deleted.
+    info = plistlib.loads(subprocess.check_output(["hdiutil", "info", "-plist"]))
+    expected = str(base / "work.sparsebundle")
+    matches = [i for i in info.get("images", []) if i.get("image-path") == expected]
+    if not matches:
+        if work.exists(): raise ValueError("Unexpected workspace at the image mountpoint; retain it.")
+        return False
+    mounts = [e["mount-point"] for i in matches for e in i.get("system-entities", []) if "mount-point" in e]
+    if len(matches) != 1 or mounts != [str(work)] or not os.path.ismount(work):
+        raise ValueError("Mounted image identity or location does not match this run; retain it.")
+    return True
+
 def clean(args):
     ids = [args.run_id] if args.run_id else sorted(p.name for p in RUNS.glob("ui*") if p.is_dir())
     for run_id in ids:
@@ -306,6 +320,8 @@ def clean(args):
         # Inspect complete trees before any mutation, including all siblings.
         if any(p.is_symlink() or os.path.ismount(p) for p in candidates):
             raise ValueError("Refusing redirected run artifact or nested mount.")
+        mounted = verified_image_mount(base, work) if data["image"] else False
+        if mounted: inspect_tree(work)
         estimated = sum(inspect_tree(p) if p.is_dir() else p.lstat().st_blocks * 512 for p in candidates)
         inspect_tree(attachment)
         busy = any(open_files(p) for p in paths if p.exists())
@@ -317,12 +333,6 @@ def clean(args):
             continue
         if not args.run_id:
             raise ValueError("Execute cleanup with one explicit --run-id.")
-        if data["image"] and work.exists():
-            info = plistlib.loads(subprocess.check_output(["hdiutil", "info", "-plist"]))
-            expected = str(base / "work.sparsebundle")
-            matches = [i for i in info.get("images", []) if i.get("image-path") == expected]
-            if len(matches) != 1 or not any(e.get("mount-point") == str(work) for e in matches[0].get("system-entities", [])):
-                raise ValueError("Mounted image identity does not match this run.")
         # Unregister only these now-unused test bundles after verifying ownership.
         register = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
         test_apps = [work / "Apps" / name for name in ("CaptureShieldLab.app", "CaptureProbe.app")]
@@ -334,7 +344,7 @@ def clean(args):
             # failed. LaunchServices explicitly reports ApplicationNotFound.
             if result.returncode and not re.search(r": -10814(?:\r?\n|$)", result.stdout):
                 raise ValueError("Test application unregister failed; retain workspace for inspection.")
-        if data["image"] and work.exists():
+        if mounted:
             subprocess.run(["hdiutil", "detach", str(work)], check=True)
         for child in candidates:
             if child.is_dir(): shutil.rmtree(child)

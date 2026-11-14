@@ -12,9 +12,21 @@ from types import SimpleNamespace
 spec = importlib.util.spec_from_file_location("ui_run", Path(__file__).resolve().parents[2] / "scripts/ui_run.py")
 runner = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(runner)
+completion_spec = importlib.util.spec_from_file_location("verify_output", Path(__file__).resolve().parents[2] / "scripts/verify-test-output.py")
+completion = importlib.util.module_from_spec(completion_spec)
+completion_spec.loader.exec_module(completion)
 
 
 class VerdictTests(unittest.TestCase):
+    def test_native_zero_or_incomplete_execution_is_not_a_pass(self):
+        for text in ("", "Build complete!", "◇ Test run started.\n", "◇ Test run started.\n✔ Test run with 0 tests passed after 0.1 seconds.\n"):
+            self.assertFalse(completion.completed(text))
+
+    def test_each_native_test_process_needs_its_own_completion(self):
+        good = "◇ Test run started.\n✔ Test run with 69 tests in 12 suites passed after 2.0 seconds.\n"
+        self.assertTrue(completion.completed(good))
+        self.assertTrue(completion.completed(good + good))
+        self.assertFalse(completion.completed(good + "◇ Test run started.\n"))
     def test_zero_skipped_partial_and_failed_are_not_success(self):
         for code, counts in [(0, {}), (0, {"passedTests": 0}), (0, {"passedTests": 5}),
                              (0, {"passedTests": 7, "skippedTests": 1}),
@@ -105,6 +117,29 @@ class CleanupTests(unittest.TestCase):
     def test_nested_mount_stops_cleanup(self):
         with patch.object(runner.os.path, "ismount", side_effect=lambda p: Path(p).name == "file"):
             with self.assertRaises(ValueError): runner.inspect_tree(self.base / "work")
+
+    def test_image_mounted_elsewhere_blocks_even_dry_run(self):
+        self.data["image"] = True
+        runner.write_json(self.base / "manifest.json", self.data)
+        image = self.base / "work.sparsebundle"
+        image.mkdir()
+        info = {"images": [{"image-path": str(image), "system-entities": [{"mount-point": "/Volumes/Elsewhere"}]}]}
+        with patch.object(runner.subprocess, "check_output", return_value=plistlib.dumps(info)), patch.object(runner.subprocess, "run") as run:
+            for dry in (True, False):
+                with self.assertRaises(ValueError): runner.clean(SimpleNamespace(run_id="ui-unit", dry_run=dry))
+            run.assert_not_called()
+        self.assertTrue(image.is_dir())
+
+    def test_image_mount_identity_and_absence_are_distinct(self):
+        work = self.root / "expected-mount"
+        image = self.base / "work.sparsebundle"
+        info = {"images": [{"image-path": str(image), "system-entities": [{"mount-point": str(work)}]}]}
+        with patch.object(runner.subprocess, "check_output", return_value=plistlib.dumps(info)), patch.object(runner.os.path, "ismount", return_value=True):
+            self.assertTrue(runner.verified_image_mount(self.base, work))
+        with patch.object(runner.subprocess, "check_output", return_value=plistlib.dumps({"images": []})):
+            self.assertFalse(runner.verified_image_mount(self.base, work))
+            work.mkdir()
+            with self.assertRaises(ValueError): runner.verified_image_mount(self.base, work)
 
     def test_unregistered_incomplete_bundle_can_be_removed(self):
         app = self.base / "work/Apps/CaptureShieldLab.app"

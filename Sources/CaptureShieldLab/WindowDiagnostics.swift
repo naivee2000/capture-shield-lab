@@ -34,6 +34,7 @@ import AppKit
              "visible": window.isVisible, "sharing": window.sharingType.rawValue,
              "level": window.level.rawValue, "frame": NSStringFromRect(window.frame),
              "identifier": chat.map { $0.isMain ? "chat-window" : "chat-popup" } ?? "system-panel",
+             "sheet": window.sheetParent != nil,
              "alpha": window.alphaValue, "backgroundAlpha": window.backgroundColor.alphaComponent,
              "x": window.frame.minX, "y": window.frame.minY,
              "width": window.frame.width, "height": window.frame.height,

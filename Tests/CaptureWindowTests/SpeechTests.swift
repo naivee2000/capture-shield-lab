@@ -54,7 +54,11 @@ import CaptureCore
     private func text(_ owner: ChatWindow) async throws -> String {
         try await owner.webView.evaluateJavaScript("document.querySelector('#prompt-textarea').value ?? document.querySelector('#prompt-textarea').innerText") as! String
     }
-    private func cleanup(_ owner: ChatWindow) { owner.speech.shutdown(); owner.window?.orderOut(nil) }
+    private func cleanup(_ owner: ChatWindow) {
+        owner.speech.shutdown(); owner.webView.stopLoading()
+        owner.webView.navigationDelegate = nil; owner.webView.uiDelegate = nil
+        owner.closeTestFixture()
+    }
     @Test(arguments: [false, true]) func appendPreservesDraftAndAttachmentsAndIsExactlyOnce(textarea: Bool) async throws {
         let owner = try await fixture(textarea: textarea); defer { cleanup(owner) }
         let context = try #require(await AttachmentPageBridge.context(in: owner.webView, preview: true))

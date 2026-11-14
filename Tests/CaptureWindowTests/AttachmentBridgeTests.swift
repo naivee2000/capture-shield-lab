@@ -27,7 +27,7 @@ import CaptureCore
         throw ImageInputError.message("Attachment phase not reached: \(phase)")
     }
     @Test func newlyCreatedUnrelatedInputOutsideComposerIsNotAnAttachment() async throws {
-        let controller = fixture(); defer { controller.images.close(); controller.window?.close() }
+        let controller = fixture(); defer { controller.images.close(); controller.closeTestFixture() }
         controller.webView.loadHTMLString("""
         <form><div id="prompt-textarea" contenteditable="true">Draft</div><button id="composer-plus-btn" type="button">+</button></form>
         <script>window.wrong=0;document.querySelector('button').onclick=()=>{const file=document.createElement('input');file.type='file';file.onchange=()=>window.wrong++;document.body.append(file)};</script>
@@ -40,7 +40,7 @@ import CaptureCore
         #expect(controller.images.phase == .ready)
     }
     @Test func decorativeImageDoesNotConfirmAttachment() async throws {
-        let controller = fixture(); defer { controller.images.close(); controller.window?.close() }
+        let controller = fixture(); defer { controller.images.close(); controller.closeTestFixture() }
         controller.webView.loadHTMLString(Self.html, baseURL: nil)
         try await wait(controller.webView, "typeof window.changes === 'number'")
         controller.images.prepare(try ImagePreparation.decode(ImagePipelineTests.fixture()))
@@ -52,7 +52,7 @@ import CaptureCore
         #expect(controller.images.image != nil)
     }
     @Test(arguments: [false, true]) func filenamePopupThumbnailConfirmsWithoutAlwaysVisibleRemove(background: Bool) async throws {
-        let controller = fixture(); defer { controller.images.close(); controller.window?.close() }
+        let controller = fixture(); defer { controller.images.close(); controller.closeTestFixture() }
         controller.webView.loadHTMLString(Self.html, baseURL: nil)
         try await wait(controller.webView, "typeof window.changes === 'number'")
         controller.images.prepare(try ImagePreparation.decode(ImagePipelineTests.fixture()))
@@ -71,7 +71,7 @@ import CaptureCore
         #expect(try await controller.webView.evaluateJavaScript("document.querySelector('[contenteditable]').textContent") as? String == "Existing synthetic draft")
     }
     @Test func filenamePopupWithoutThumbnailDoesNotConfirm() async throws {
-        let controller = fixture(); defer { controller.images.close(); controller.window?.close() }
+        let controller = fixture(); defer { controller.images.close(); controller.closeTestFixture() }
         controller.webView.loadHTMLString(Self.html, baseURL: nil)
         try await wait(controller.webView, "typeof window.changes === 'number'")
         controller.images.prepare(try ImagePreparation.decode(ImagePipelineTests.fixture()))
@@ -82,7 +82,7 @@ import CaptureCore
         #expect(controller.images.phase == .handedToPage)
     }
     @Test func temporaryComposerInvisibilityPreservesCrop() async throws {
-        let controller = fixture(); defer { controller.images.close(); controller.window?.close() }
+        let controller = fixture(); defer { controller.images.close(); controller.closeTestFixture() }
         controller.webView.loadHTMLString(Self.html, baseURL: nil)
         try await wait(controller.webView, "typeof window.changes === 'number'")
         controller.images.prepare(try ImagePreparation.decode(ImagePipelineTests.fixture()))
@@ -94,7 +94,7 @@ import CaptureCore
         #expect(controller.images.phase != .idle)
     }
     @Test func navigationResetRejectsDelayedOldCompositionSnapshot() async throws {
-        let controller = fixture(); defer { controller.window?.close() }
+        let controller = fixture(); defer { controller.closeTestFixture() }
         controller.webView.loadHTMLString(Self.html, baseURL: nil)
         try await wait(controller.webView, "typeof window.changes === 'number'")
         await controller.composition.synchronize(in: controller.webView)
@@ -112,7 +112,7 @@ import CaptureCore
     <script>window.changes=0;window.sent=0;document.querySelector('#file').onchange=async e=>{window.changes++;window.bytes=(await e.target.files[0].arrayBuffer()).byteLength;};document.querySelector('#send').onclick=()=>window.sent++;</script></body></html>
     """
     @Test(arguments: [false, true]) func repeatedAttachmentsInSameDocument(removePrevious: Bool) async throws {
-        let controller = fixture(); defer { controller.images.close(); controller.window?.close() }
+        let controller = fixture(); defer { controller.images.close(); controller.closeTestFixture() }
         controller.webView.loadHTMLString("""
         <form><div id="prompt-textarea" contenteditable="true">Keep this multi-image draft</div>
         <button type="button" id="composer-plus-btn">Add files</button>
@@ -156,7 +156,7 @@ import CaptureCore
         }
     }
     @Test(arguments: [false, true]) func currentChineseAttachmentButtonsAndSubtitlesUseNativeChooser(pointerOnly: Bool) async throws {
-        let controller = fixture(); defer { controller.images.close(); controller.window?.close() }
+        let controller = fixture(); defer { controller.images.close(); controller.closeTestFixture() }
         controller.webView.loadHTMLString("""
         <form><div id="prompt-textarea" contenteditable="true">Preserve this draft</div>
         <button type="button" id="plus" aria-label="添加文件等内容" aria-expanded="false" aria-controls="attachment-popover">+</button></form>
@@ -176,7 +176,7 @@ import CaptureCore
         #expect(try await controller.webView.evaluateJavaScript("document.querySelector('#prompt-textarea').textContent") as? String == "Preserve this draft")
     }
     @Test(arguments: [false, true]) func composerBodyDoesNotHideItsSiblingAttachmentControls(withoutControls: Bool) async throws {
-        let controller = fixture(); defer { controller.images.close(); controller.window?.close() }
+        let controller = fixture(); defer { controller.images.close(); controller.closeTestFixture() }
         controller.webView.loadHTMLString("""
         <form id="composer"><div data-composer-body><div id="prompt-textarea" contenteditable="true">Preserve draft</div></div>
         <button type="button" id="plus" aria-label="添加文件等内容" aria-expanded="false" \(withoutControls ? "" : "aria-controls=\"attachment-menu\"")>+</button></form>
@@ -198,7 +198,7 @@ import CaptureCore
         #expect(try await controller.webView.evaluateJavaScript("document.querySelector('#prompt-textarea').textContent") as? String == "Preserve draft")
     }
     @Test func unassociatedUploadButtonIsNeverActivated() async throws {
-        let controller = fixture(); defer { controller.images.close(); controller.window?.close() }
+        let controller = fixture(); defer { controller.images.close(); controller.closeTestFixture() }
         controller.webView.loadHTMLString("""
         <form><div id="prompt-textarea" contenteditable="true">Draft</div><button type="button" id="composer-plus-btn">+</button></form>
         <button id="unrelated">Upload files</button><script>window.wrong=0;
@@ -212,7 +212,7 @@ import CaptureCore
         #expect(controller.images.phase == .ready)
     }
     @Test func associatedMenuInsideComposerIsNotMistakenForTrigger() async throws {
-        let controller = fixture(); defer { controller.images.close(); controller.window?.close() }
+        let controller = fixture(); defer { controller.images.close(); controller.closeTestFixture() }
         controller.webView.loadHTMLString("""
         <form><div id="prompt-textarea" contenteditable="true">Draft</div><button type="button" id="composer-plus-btn" aria-controls="menu">+</button>
         <div id="menu" hidden><button type="button" role="menuitem" aria-label="Add photos & files" id="upload">Add photos &amp; files</button></div></form>
@@ -225,7 +225,7 @@ import CaptureCore
         try await wait(controller.webView, "window.changes === 1")
     }
     @Test func attachmentButtonCanCreateAGenericInputLazily() async throws {
-        let controller = fixture(); defer { controller.images.close(); controller.webView.stopLoading(); controller.window?.close() }
+        let controller = fixture(); defer { controller.images.close(); controller.webView.stopLoading(); controller.closeTestFixture() }
         controller.webView.loadHTMLString("""
         <form><div id="prompt-textarea" contenteditable="true">Synthetic draft</div>
         <button type="button" id="composer-plus-btn" aria-label="Add photos & files">+</button></form>
@@ -249,7 +249,7 @@ import CaptureCore
         #expect(controller.images.image == nil)
     }
     @Test func fileCallbackWithoutVisibleAttachmentKeepsCropForRecovery() async throws {
-        let controller = fixture(); defer { controller.images.close(); controller.webView.stopLoading(); controller.window?.close() }
+        let controller = fixture(); defer { controller.images.close(); controller.webView.stopLoading(); controller.closeTestFixture() }
         controller.webView.loadHTMLString(Self.html, baseURL: nil)
         try await wait(controller.webView, "typeof window.changes === 'number'")
         controller.images.prepare(try ImagePreparation.decode(ImagePipelineTests.fixture()))
@@ -262,7 +262,7 @@ import CaptureCore
         #expect(controller.window?.contentView?.subviews.compactMap { $0 as? ImagePreview }.first?.isHidden == false)
     }
     @Test func missingCallbackTimesOutWithoutLosingCropOrSending() async throws {
-        let controller = fixture(); defer { controller.images.close(); controller.webView.stopLoading(); controller.window?.close() }
+        let controller = fixture(); defer { controller.images.close(); controller.webView.stopLoading(); controller.closeTestFixture() }
         controller.webView.loadHTMLString(Self.html.replacingOccurrences(of: "image/png,image/jpeg", with: "application/pdf"), baseURL: nil)
         try await wait(controller.webView, "typeof window.changes === 'number'")
         controller.images.prepare(try ImagePreparation.decode(ImagePipelineTests.fixture()))
@@ -273,7 +273,7 @@ import CaptureCore
         #expect(try await controller.webView.evaluateJavaScript("[window.changes,window.sent]") as? [Int] == [0,0])
     }
     @Test func unrelatedFileChooserCannotConsumePreparedImage() async throws {
-        let controller = fixture(); defer { controller.images.close(); controller.webView.stopLoading(); controller.window?.close() }
+        let controller = fixture(); defer { controller.images.close(); controller.webView.stopLoading(); controller.closeTestFixture() }
         controller.webView.loadHTMLString(Self.html.replacingOccurrences(of: "image/png,image/jpeg", with: "application/pdf"), baseURL: nil)
         try await wait(controller.webView, "typeof window.changes === 'number'")
         controller.images.prepare(try ImagePreparation.decode(ImagePipelineTests.fixture()))
@@ -284,7 +284,7 @@ import CaptureCore
         #expect(controller.images.phase == .ready)
     }
     @Test func recognizedMenuCanOpenAnExistingGenericComposerInput() async throws {
-        let controller = fixture(); defer { controller.images.close(); controller.window?.close() }
+        let controller = fixture(); defer { controller.images.close(); controller.closeTestFixture() }
         controller.webView.loadHTMLString("""
         <form><div id="prompt-textarea" contenteditable="true">Synthetic draft</div>
         <input type="file" id="file" hidden><button type="button" id="composer-plus-btn">+</button></form>
@@ -300,7 +300,7 @@ import CaptureCore
         #expect(controller.images.phase == .handedToPage)
     }
     @Test func uploadErrorPreservesCropAndDoesNotRepeatDelivery() async throws {
-        let controller = fixture(); defer { controller.images.close(); controller.webView.stopLoading(); controller.window?.close() }
+        let controller = fixture(); defer { controller.images.close(); controller.webView.stopLoading(); controller.closeTestFixture() }
         controller.webView.loadHTMLString(Self.html, baseURL: nil)
         try await wait(controller.webView, "typeof window.changes === 'number'")
         controller.images.prepare(try ImagePreparation.decode(ImagePipelineTests.fixture()))
@@ -312,7 +312,7 @@ import CaptureCore
         #expect(try await controller.webView.evaluateJavaScript("[window.changes,window.sent]") as? [Int] == [1,0])
     }
     @Test func webCompositionAndPopupTrackersAreIndependent() async throws {
-        let first = fixture(); defer { first.images.close(); first.window?.close() }
+        let first = fixture(); defer { first.images.close(); first.closeTestFixture() }
         first.webView.loadHTMLString(Self.html, baseURL: nil)
         try await wait(first.webView, "typeof window.changes === 'number'")
         await first.composition.synchronize(in: first.webView)
@@ -321,7 +321,7 @@ import CaptureCore
         for _ in 0..<50 where first.composition.composing != true { try await Task.sleep(for: .milliseconds(20)) }
         #expect(first.composition.composing == true)
         let second = ChatWindow(configuration: first.webView.configuration, isMain: false, preview: true)
-        defer { second.window?.close() }
+        defer { second.closeTestFixture() }
         second.webView.loadHTMLString(Self.html, baseURL: nil)
         try await wait(second.webView, "typeof window.changes === 'number'")
         await second.composition.synchronize(in: second.webView)
@@ -339,7 +339,7 @@ import CaptureCore
         #expect(first.composition.composing == nil)
     }
     @Test func confirmedImageUsesNativeUploadWithoutSendingOrChangingDraft() async throws {
-        let controller = fixture(); defer { controller.webView.stopLoading(); controller.window?.close() }
+        let controller = fixture(); defer { controller.webView.stopLoading(); controller.closeTestFixture() }
         controller.webView.loadHTMLString(Self.html, baseURL: nil)
         try await wait(controller.webView, "typeof window.changes === 'number'")
         controller.images.prepare(try ImagePreparation.decode(ImagePipelineTests.fixture()))
@@ -354,7 +354,7 @@ import CaptureCore
         #expect(draft == "Existing synthetic draft")
     }
     @Test func navigationDiscardsPendingImageAndUnknownInputsDoNotReceiveIt() async throws {
-        let controller = fixture(); defer { controller.webView.stopLoading(); controller.window?.close() }
+        let controller = fixture(); defer { controller.webView.stopLoading(); controller.closeTestFixture() }
         controller.webView.loadHTMLString(Self.html.replacingOccurrences(of: "image/png,image/jpeg", with: "application/pdf"), baseURL: nil)
         try await wait(controller.webView, "typeof window.changes === 'number'")
         controller.images.prepare(try ImagePreparation.decode(ImagePipelineTests.fixture()))
@@ -366,7 +366,7 @@ import CaptureCore
         #expect(controller.images.image == nil)
     }
     @Test func preparationFailureIsVisibleInsideThePreview() async throws {
-        let controller = fixture(); defer { controller.webView.stopLoading(); controller.window?.close() }
+        let controller = fixture(); defer { controller.webView.stopLoading(); controller.closeTestFixture() }
         controller.webView.loadHTMLString("<html><body>Unknown page</body></html>", baseURL: nil)
         try await wait(controller.webView, "document.body?.textContent === 'Unknown page'")
         controller.images.prepare(try ImagePreparation.decode(ImagePipelineTests.fixture()))
@@ -376,7 +376,7 @@ import CaptureCore
         #expect(visibleText.contains("Open a ChatGPT chat"))
     }
     @Test func reopeningFallbackPreviewAllowsARevisedCropToBeConfirmed() async throws {
-        let controller = fixture(); defer { controller.webView.stopLoading(); controller.window?.close() }
+        let controller = fixture(); defer { controller.webView.stopLoading(); controller.closeTestFixture() }
         controller.webView.loadHTMLString(Self.html.replacingOccurrences(of: "image/png,image/jpeg", with: "application/pdf"), baseURL: nil)
         try await wait(controller.webView, "typeof window.changes === 'number'")
         controller.images.prepare(try ImagePreparation.decode(ImagePipelineTests.fixture()))

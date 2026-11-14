@@ -20,7 +20,7 @@ import CaptureCore
         throw SpeechFailure(stage: .insertion, code: 408, message: "Synthetic layout did not settle")
     }
     @Test func compactStateTransitionsKeepTextAndVisibleStop() {
-        let owner = owner(); defer { owner.window?.close() }
+        let owner = owner(); defer { owner.closeTestFixture() }
         owner.window?.setFrame(NSRect(x: 100, y: 100, width: 640, height: 480), display: true)
         #expect(owner.window?.frame.size == NSSize(width: 640, height: 480))
         owner.showSpeechPane(true)
@@ -49,7 +49,7 @@ import CaptureCore
         #expect(pane.preferredHeight == 36 && !pane.transcriptExpanded)
     }
     @Test func backgroundOnlyAlphaKeepsChildrenAndSheetsOpaque() {
-        let owner = owner(); defer { owner.window?.close() }
+        let owner = owner(); defer { owner.closeTestFixture() }
         for mode in [ChatSharingMode.normal, .legacy, .normal, .legacy] {
             owner.applyPreferences(.init(mode: mode))
             #expect(owner.window?.alphaValue == 1)
@@ -61,7 +61,7 @@ import CaptureCore
         }
     }
     @Test func composerShrinksWithoutTouchingDraftImageOrCode() async throws {
-        let owner = owner(); defer { owner.webView.stopLoading(); owner.window?.close() }
+        let owner = owner(); defer { owner.webView.stopLoading(); owner.closeTestFixture() }
         owner.webView.loadHTMLString("""
         <html><style>body{background:#101010;color:white;margin:0}main{background:#101010;height:100vh}
         textarea{width:90%;height:200px}pre{background:rgb(30,40,50)}</style><body><main>
@@ -85,7 +85,7 @@ import CaptureCore
         #expect(try await owner.webView.evaluateJavaScript("document.querySelector('textarea').style.height") as? String == "")
     }
     @Test func transparentWebBackgroundProbe() async throws {
-        let owner = owner(); defer { owner.webView.stopLoading(); owner.window?.close() }
+        let owner = owner(); defer { owner.webView.stopLoading(); owner.closeTestFixture() }
         owner.applyPreferences(.init(mode: .legacy))
         owner.webView.loadHTMLString("""
         <html><body style='margin:0;color:white'><main style='height:100vh'>
@@ -114,7 +114,7 @@ import CaptureCore
         #expect(solidTextPixels > 50)
     }
     @Test func attachmentThumbnailShrinksButItsActionsAndOutsideImagesSurvive() async throws {
-        let owner = owner(); defer { owner.webView.stopLoading(); owner.window?.close() }
+        let owner = owner(); defer { owner.webView.stopLoading(); owner.closeTestFixture() }
         owner.window?.setFrame(NSRect(x: 100, y: 100, width: 640, height: 480), display: true)
         owner.webView.loadHTMLString("""
         <html><body><img id="reply-image" width="200" height="200"><form>

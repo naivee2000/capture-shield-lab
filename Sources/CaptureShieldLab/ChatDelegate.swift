@@ -101,21 +101,23 @@ import CaptureCore
             visible.reversed().forEach { $0.orderFront(nil) }
             if wasActive, let key, visible.contains(key) { NSApp.activate(); key.makeKey() }
             windowDiagnostics.noteTransition("ordered", mode: next.mode.rawValue, windows: owned)
-            if next.mode == .normal {
-                RunLoop.main.perform(inModes: [.default]) { [weak self] in
-                    MainActor.assumeIsolated {
-                        guard let self, !self.clearing, self.preferences.mode == .normal else { return }
-                        let controllers = [self.main!] + self.popups
-                        let restored = controllers.map { controller in
-                            guard let window = controller.window else { return false }
-                            return WindowProtection.reconcileAfterDisplay(window, mode: .normal)
-                                || controller.replaceNormalWindowShell()
-                        }
-                        let windows = controllers.flatMap(\.ownedWindows)
-                        self.windowDiagnostics.noteTransition("normal-after-event", mode: "normal", windows: windows)
-                        if restored.contains(false) {
-                            self.main.setStatus("Normal sharing could not be restored on this system. The window may remain excluded; check Compatibility and retest before sharing.")
-                        }
+        }
+        // Selecting Normal again can retry after finishing composition/closing a
+        // sheet. A failed attempt never forces submission or replaces marked text.
+        if next.mode == .normal {
+            RunLoop.main.perform(inModes: [.default]) { [weak self] in
+                MainActor.assumeIsolated {
+                    guard let self, !self.clearing, self.preferences.mode == .normal else { return }
+                    let controllers = [self.main!] + self.popups
+                    let restored = controllers.map { controller in
+                        guard let window = controller.window else { return false }
+                        return WindowProtection.reconcileAfterDisplay(window, mode: .normal)
+                            || controller.replaceNormalWindowShell()
+                    }
+                    let windows = controllers.flatMap(\.ownedWindows)
+                    self.windowDiagnostics.noteTransition("normal-after-event", mode: "normal", windows: windows)
+                    if restored.contains(false) {
+                        self.main.setStatus("Normal sharing could not be restored. Finish composition or close dialogs, then choose Normal again and retest before sharing.")
                     }
                 }
             }
