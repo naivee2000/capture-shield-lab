@@ -1,0 +1,298 @@
+{
+  "schema": 1,
+  "application_version": "0.6.4",
+  "application_build": "13",
+  "deployment_minimum": "15.6",
+  "review_range": "Apple Silicon macOS 15.8.2 through 27.x; only recorded hosts are tested",
+  "workflow_url": "https://github.com/naivee2000/capture-shield-lab/actions/runs/43544658107",
+  "ci": [
+    {
+      "job_url": "https://github.com/naivee2000/capture-shield-lab/actions/runs/43544658107/job/132293028789",
+      "environment": {
+        "architecture": "arm64",
+        "system": "15.8.2",
+        "source_commit": "cbc620d530cbad0803c888a9894c4394c9bc42d5",
+        "source_dirty": false,
+        "system_build": "24H232",
+        "swift": "swift-driver version: 1.127.15 Apple Swift version 6.2.4 (swiftlang-6.2.4.1.4 clang-1700.6.4.2)",
+        "sdk": "26.2",
+        "xcode": "Xcode 26.3",
+        "display": {
+          "ready": true,
+          "scale": 1,
+          "visible_height": 910,
+          "visible_width": 1344
+        }
+      },
+      "application": {
+        "version": "0.6.4",
+        "build": "13",
+        "build_commit": "cbc620d530cb",
+        "minimum_system": "15.6"
+      },
+      "application_sha256": "cb474bab28e58c5e0e3c3098e9f009783a6662908c3a91ef3c5c97fe5427d392",
+      "build_sign_register": "pass",
+      "native_reported": 105,
+      "native_optional_skipped": 2,
+      "script_tests": 16,
+      "packaged_UI": "pass",
+      "rounds": [
+        {
+          "round": 1,
+          "exit_code": 0,
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "failures": []
+        },
+        {
+          "round": 2,
+          "exit_code": 0,
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "failures": []
+        },
+        {
+          "round": 3,
+          "exit_code": 0,
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "failures": []
+        }
+      ],
+      "negative_control": {
+        "status": "pass",
+        "expected_assertion_failures": 1,
+        "actual": {
+          "round": 1,
+          "exit_code": 65,
+          "passed": 0,
+          "failed": 1,
+          "skipped": 0,
+          "failures": [
+            "AppUITests.swift:44: error: -[CaptureShieldUITests.AppUITests testLaunchTypeAndRestart] : XCTAssertTrue failed - Negative control must fail"
+          ]
+        }
+      },
+      "cleanup": "positive and negative runs cleaned"
+    },
+    {
+      "job_url": "https://github.com/naivee2000/capture-shield-lab/actions/runs/43544658107/job/132293028662",
+      "environment": {
+        "architecture": "arm64",
+        "system": "26.7.2",
+        "source_commit": "cbc620d530cbad0803c888a9894c4394c9bc42d5",
+        "source_dirty": false,
+        "system_build": "25G332",
+        "swift": "swift-driver version: 1.148.6 Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)",
+        "sdk": "26.5",
+        "xcode": "Xcode 26.6",
+        "display": {
+          "ready": true,
+          "scale": 1,
+          "visible_height": 900,
+          "visible_width": 1344
+        }
+      },
+      "application": {
+        "version": "0.6.4",
+        "build": "13",
+        "build_commit": "cbc620d530cb",
+        "minimum_system": "15.6"
+      },
+      "application_sha256": "ee321bc8cb1c54d8910cd705571caab2316f8e4e8f2539d2e7c90d60a7c343e7",
+      "build_sign_register": "pass",
+      "native_reported": 105,
+      "native_optional_skipped": 2,
+      "script_tests": 16,
+      "packaged_UI": "pass",
+      "rounds": [
+        {
+          "round": 1,
+          "exit_code": 0,
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "failures": []
+        },
+        {
+          "round": 2,
+          "exit_code": 0,
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "failures": []
+        },
+        {
+          "round": 3,
+          "exit_code": 0,
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "failures": []
+        }
+      ],
+      "negative_control": {
+        "status": "pass",
+        "expected_assertion_failures": 1,
+        "actual": {
+          "round": 1,
+          "exit_code": 65,
+          "passed": 0,
+          "failed": 1,
+          "skipped": 0,
+          "failures": [
+            "AppUITests.swift:44: error: -[CaptureShieldUITests.AppUITests testLaunchTypeAndRestart] : XCTAssertTrue failed - Negative control must fail"
+          ]
+        }
+      },
+      "cleanup": "positive and negative runs cleaned"
+    },
+    {
+      "job_url": "https://github.com/naivee2000/capture-shield-lab/actions/runs/43544658107/job/132293028762",
+      "environment": {
+        "architecture": "arm64",
+        "system": "27.0.1",
+        "source_commit": "cbc620d530cbad0803c888a9894c4394c9bc42d5",
+        "source_dirty": false,
+        "system_build": "26A434",
+        "swift": "swift-driver version: 1.168.6 Apple Swift version 6.4.2 (swiftlang-6.4.2.1.9 clang-2100.4.1.1)",
+        "sdk": "27.2",
+        "xcode": "Xcode 27.2",
+        "display": {
+          "ready": true,
+          "scale": 1,
+          "visible_height": 900,
+          "visible_width": 1344
+        }
+      },
+      "application": {
+        "version": "0.6.4",
+        "build": "13",
+        "build_commit": "cbc620d530cb",
+        "minimum_system": "15.6"
+      },
+      "application_sha256": "6f28447bb2566d14cf00b124f252bd170139c9b59a035f2cfb6c145a94b48033",
+      "build_sign_register": "pass",
+      "native_reported": 105,
+      "native_optional_skipped": 2,
+      "script_tests": 16,
+      "packaged_UI": "pass",
+      "rounds": [
+        {
+          "round": 1,
+          "exit_code": 0,
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "failures": []
+        },
+        {
+          "round": 2,
+          "exit_code": 0,
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "failures": []
+        },
+        {
+          "round": 3,
+          "exit_code": 0,
+          "passed": 7,
+          "failed": 0,
+          "skipped": 0,
+          "failures": []
+        }
+      ],
+      "negative_control": {
+        "status": "pass",
+        "expected_assertion_failures": 1,
+        "actual": {
+          "round": 1,
+          "exit_code": 65,
+          "passed": 0,
+          "failed": 1,
+          "skipped": 0,
+          "failures": [
+            "AppUITests.swift:44: error: -[CaptureShieldUITests.AppUITests testLaunchTypeAndRestart] : XCTAssertTrue failed - Negative control must fail"
+          ]
+        }
+      },
+      "cleanup": "positive run cleaned; negative workspace retained while busy, ephemeral runner discarded"
+    }
+  ],
+  "local": {
+    "environment": {
+      "system": "26.6.2",
+      "system_build": "25G83",
+      "toolchain": "CLT Swift 6.2.4 / SDK 26.2",
+      "architecture": "arm64"
+    },
+    "source_commit": "18c9b87b44fe870b3790aa363ff76a6376fa4140",
+    "clean_clone": true,
+    "cold_build": true,
+    "path_with_spaces": true,
+    "applications": [
+      {
+        "name": "CaptureShieldLab",
+        "version": "0.6.4",
+        "build": "13",
+        "source": "18c9b87b44fe",
+        "architecture": "arm64",
+        "minimum": "15.6",
+        "sha256": "a83ffbb7a21c9a156b0a5d1cc0fdbaac9b1c86ad99ad06a805242f3fe4399e6d",
+        "signature": "pass",
+        "registration": "pass"
+      },
+      {
+        "name": "CaptureProbe",
+        "version": "0.6.4",
+        "build": "13",
+        "source": "18c9b87b44fe",
+        "architecture": "arm64",
+        "minimum": "15.6",
+        "sha256": "5f4b5c32a6346fdbe259da6c931d7809159a64ed03c62ef1408f4529be3527e9",
+        "signature": "pass",
+        "registration": "pass"
+      }
+    ],
+    "native_reported": 105,
+    "native_optional_skipped": 2,
+    "native_completed_groups": [
+      99,
+      6
+    ],
+    "script_tests_at_cold_build": 19,
+    "final_script_clean_clone": {
+      "source_commit": "ebeb02dde2cba5b98902875ee5509e5e73796ce3",
+      "script_tests": 20,
+      "app_and_UI_sources_unchanged_since_cold_build": true
+    },
+    "full_XCTest_UI": "not-tested: full Xcode unavailable; preserve running QA042",
+    "manual_synthetic_UI": "pass: mode recovery, draft/image preservation, popup Normal sync, confirmation Escape"
+  },
+  "cleanup": {
+    "removed_allocated_bytes": 23263346688,
+    "scope": "old unused project builds plus this task's generated APFS image, native builds, logs, module caches and test preferences",
+    "verification": {
+      "test_mounts_remaining": 0,
+      "task_app_processes_remaining": 0,
+      "task_windows_remaining": 0,
+      "QA042_preserved": true,
+      "formal_Apps_preserved": true,
+      "test_registered_app_paths_remaining": 0,
+      "stale_unmounted_volume_container_records_retained": 1
+    }
+  },
+  "device_checks": {
+    "real_chatgpt": "not-tested",
+    "real_capture": "not-tested",
+    "real_speech": "not-tested",
+    "physical_pinyin_candidates": "not-tested",
+    "meeting_receiver": "not-tested",
+    "physical_content_opacity": "not-tested"
+  },
+  "note": "A passing native count includes two explicitly skipped optional real-model/image-export cases. UI rounds have zero skipped cases. Later cleanup-only changes leave packaged application and UI scenario source unchanged; their dedicated clean-clone script result is recorded separately."
+}

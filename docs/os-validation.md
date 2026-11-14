@@ -28,6 +28,8 @@ bash scripts/doctor.sh
 
 ## Evidence boundary
 
+The **0.6.4 packaged-application review** adds three sequential XCTest UI rounds on each actual host, negative controls, scoped application repairs and safe cleanup. See [the UI results](ui-064.md) and [machine-readable evidence](validation-ui-064.json). The 0.6.3 ledger below remains historical evidence for its own source commit; it is not silently reused as a 0.6.4 result.
+
 CI can detect unavailable APIs, dynamic-linking failures, compiler changes and failures in synthetic native/WebKit behavior, including background alpha, attachment handoff, draft preservation and layout. A hosted macOS 15.x job does not test the exact 15.6 release unless its recorded host version says 15.6. A later patch release is likewise not evidence for every earlier or future patch.
 
 Real ChatGPT login and attachment upload, screen/audio permissions, screenshot pixels, language models/recognition and Chinese input must also be checked on the actual device. Normal/Legacy visibility requires a separately observed meeting receiver. In particular, the non-public WebKit background hook and app-hosted candidate-panel handling remain OS-dependent. A pass does not promise that every future macOS or meeting-app version will work.
