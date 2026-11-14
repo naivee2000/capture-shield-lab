@@ -178,6 +178,21 @@ class CleanupTests(unittest.TestCase):
             run.assert_not_called()
         self.assertTrue(app.is_dir())
 
+    def test_filesystem_removes_appledouble_with_its_original(self):
+        original = self.base / "raw.log"
+        companion = self.base / "._raw.log"
+        original.write_text("synthetic"); companion.write_bytes(b"metadata")
+        unlink = Path.unlink
+        def filesystem_unlink(path, *args, **kwargs):
+            unlink(path, *args, **kwargs)
+            if path == original: unlink(companion)
+        with patch.object(runner, "cleanup_candidates", return_value=([original, companion], "")), \
+             patch.object(runner, "open_files", return_value=False), \
+             patch.object(Path, "unlink", filesystem_unlink), patch.object(runner.subprocess, "run"):
+            runner.clean(SimpleNamespace(run_id="ui-unit", dry_run=False))
+        self.assertFalse(original.exists()); self.assertFalse(companion.exists())
+        self.assertEqual(json.loads((self.base / "manifest.json").read_text())["state"], "cleaned")
+
     def test_unknown_unregister_error_keeps_bundle(self):
         app = self.base / "work/Apps/CaptureShieldLab.app"
         app.mkdir(parents=True)

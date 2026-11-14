@@ -362,6 +362,10 @@ def clean(args):
         if mounted:
             subprocess.run(["hdiutil", "detach", str(work)], check=True)
         for child in candidates:
+            # exFAT may remove an AppleDouble companion automatically when its
+            # original is deleted. Accept only that already-absent pair.
+            if child.name.startswith("._") and not child.exists() and not child.with_name(child.name[2:]).exists():
+                continue
             if child.is_dir(): shutil.rmtree(child)
             else: child.unlink()
         if attachment.exists(): shutil.rmtree(attachment)
