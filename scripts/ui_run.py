@@ -399,4 +399,3 @@ if __name__ == "__main__":
     except (OSError, ValueError, subprocess.SubprocessError) as error:
         print("UI validation stopped:", error, file=sys.stderr)
         sys.exit(1)
-
