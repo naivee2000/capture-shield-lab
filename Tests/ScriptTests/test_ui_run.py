@@ -149,6 +149,35 @@ class CleanupTests(unittest.TestCase):
             runner.clean(SimpleNamespace(run_id="ui-unit", dry_run=False))
         self.assertFalse(app.exists())
 
+    def test_foreign_application_blocks_cleanup_before_unregister(self):
+        info = self.base / "work/Apps/CaptureShieldLab.app/Contents/Info.plist"
+        info.parent.mkdir(parents=True)
+        info.write_bytes(plistlib.dumps({"CFBundleIdentifier": "personal.app"}))
+        with patch.object(runner, "open_files", return_value=False), patch.object(runner.subprocess, "run") as run:
+            for dry in (True, False):
+                with self.assertRaises(ValueError): runner.clean(SimpleNamespace(run_id="ui-unit", dry_run=dry))
+            run.assert_not_called()
+        self.assertTrue(info.exists())
+
+    def test_redirected_application_identity_is_rejected(self):
+        info = self.base / "work/Apps/CaptureShieldLab.app/Contents/Info.plist"
+        info.parent.mkdir(parents=True)
+        outside = self.root / "identity.plist"
+        outside.write_bytes(plistlib.dumps({"CFBundleIdentifier": self.data["bundle_prefix"] + ".lab"}))
+        info.symlink_to(outside)
+        with self.assertRaises(ValueError): runner.cleanup_applications(self.base / "work", self.data["bundle_prefix"])
+
+    def test_redirected_app_directory_is_not_unregistered(self):
+        outside = self.root / "keep-apps"
+        app = outside / "CaptureShieldLab.app/Contents"
+        app.mkdir(parents=True)
+        (app / "Info.plist").write_bytes(plistlib.dumps({"CFBundleIdentifier": self.data["bundle_prefix"] + ".lab"}))
+        (self.base / "work/Apps").symlink_to(outside, target_is_directory=True)
+        with patch.object(runner.subprocess, "run") as run:
+            with self.assertRaises(ValueError): runner.clean(SimpleNamespace(run_id="ui-unit", dry_run=False))
+            run.assert_not_called()
+        self.assertTrue(app.is_dir())
+
     def test_unknown_unregister_error_keeps_bundle(self):
         app = self.base / "work/Apps/CaptureShieldLab.app"
         app.mkdir(parents=True)

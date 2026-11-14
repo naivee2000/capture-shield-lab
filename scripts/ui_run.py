@@ -302,6 +302,23 @@ def verified_image_mount(base, work):
         raise ValueError("Mounted image identity or location does not match this run; retain it.")
     return True
 
+def cleanup_applications(work, prefix):
+    apps = [(work / "Apps/CaptureShieldLab.app", prefix + ".lab"),
+            (work / "Apps/CaptureProbe.app", prefix + ".probe"),
+            (work / "DerivedData/Build/Products/Debug/CaptureShieldUITests-Runner.app",
+             "dev.naivee2000.captureshield.uitest.runner.xctrunner")]
+    for app, identifier in apps:
+        if not app.exists(): continue
+        info = app / "Contents/Info.plist"
+        parents = list(app.parents)[:list(app.parents).index(work)]
+        if any(p.is_symlink() for p in [app, *parents, app / "Contents", info]):
+            raise ValueError("Refusing redirected test application identity.")
+        # An interrupted build may have no plist and was never registered.
+        # If one exists, require the actual identity before any mutation.
+        if info.exists() and plistlib.loads(info.read_bytes()).get("CFBundleIdentifier") != identifier:
+            raise ValueError("Test application identity changed; retain workspace for inspection.")
+    return [app for app, _ in apps if app.exists()]
+
 def clean(args):
     ids = [args.run_id] if args.run_id else sorted(p.name for p in RUNS.glob("ui*") if p.is_dir())
     for run_id in ids:
@@ -322,6 +339,7 @@ def clean(args):
             raise ValueError("Refusing redirected run artifact or nested mount.")
         mounted = verified_image_mount(base, work) if data["image"] else False
         if mounted: inspect_tree(work)
+        test_apps = cleanup_applications(work, data["bundle_prefix"])
         estimated = sum(inspect_tree(p) if p.is_dir() else p.lstat().st_blocks * 512 for p in candidates)
         inspect_tree(attachment)
         busy = any(open_files(p) for p in paths if p.exists())
@@ -335,10 +353,7 @@ def clean(args):
             raise ValueError("Execute cleanup with one explicit --run-id.")
         # Unregister only these now-unused test bundles after verifying ownership.
         register = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
-        test_apps = [work / "Apps" / name for name in ("CaptureShieldLab.app", "CaptureProbe.app")]
-        test_apps.append(work / "DerivedData/Build/Products/Debug/CaptureShieldUITests-Runner.app")
         for app in test_apps:
-            if not app.exists(): continue
             result = subprocess.run([register, "-u", str(app)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             # An incomplete test runner was never registered when compilation
             # failed. LaunchServices explicitly reports ApplicationNotFound.
