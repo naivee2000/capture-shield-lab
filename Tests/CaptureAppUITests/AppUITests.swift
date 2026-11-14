@@ -141,6 +141,7 @@ import XCTest
     }
     func testModesZoomPopupAndDraftPreservation() throws {
         wait("Initial Normal window has read-only sharing") { self.mainWindow()["sharing"] as? Int == 1 }
+        let originalFrame = try XCTUnwrap(mainWindow()["frame"] as? String)
         editor.click(); editor.typeText("Preserve draft 1357")
         for _ in 0..<2 { click("zoom-out") }
         wait("70 percent page zoom") { abs((self.mainWindow()["webZoom"] as? Double ?? 0) - 0.7) < 0.01 }
@@ -176,7 +177,9 @@ import XCTest
                 $0["identifier"] as? String == "chat-popup" && $0["sharing"] as? Int == 0
             }
         }
-        mainUI.radioButtons["Normal"].click()
+        // Use the visible front popup's shared mode control. Its window can
+        // cover the main toolbar; clicking through it is not a valid user action.
+        app.windows.matching(identifier: "chat-popup").firstMatch.radioButtons["Normal"].click()
         wait("Normal mode and Dock policy restored") {
             self.mainWindow()["sharing"] as? Int == 1 && self.record()["policy"] as? Int == 0 &&
             (self.record()["windows"] as? [[String: Any]] ?? []).contains {
@@ -197,6 +200,9 @@ import XCTest
         wait("Native confirmation is cancelled") { !self.app.sheets.firstMatch.exists }
         draftContains("1357")
         relaunch()
+        wait("Mode recovery preserves the saved outer frame") {
+            self.mainWindow()["frame"] as? String == originalFrame && self.record()["previewFrame"] as? String == originalFrame
+        }
         wait("Persisted page zoom") { abs((self.mainWindow()["webZoom"] as? Double ?? 0) - 1.4) < 0.01 }
         click("zoom-reset")
         wait("Zoom reset") { abs((self.mainWindow()["webZoom"] as? Double ?? 0) - 0.9) < 0.01 }

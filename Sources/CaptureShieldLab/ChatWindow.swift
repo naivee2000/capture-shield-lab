@@ -341,6 +341,7 @@ import CaptureCore
         if visible { replacement.orderFront(nil) }; if key { replacement.makeKey() }
         if let responder { replacement.makeFirstResponder(responder) }
         old.close()
+        saveFrame()
         return replacement.sharingType == .readOnly
     }
     private func request(_ value: ChatPreferences) {
@@ -476,8 +477,12 @@ import CaptureCore
     @objc private func clearLogin() { askToClear?() }
     func windowShouldClose(_ sender: NSWindow) -> Bool { hideOrClose(); return !isMain }
     func windowWillReturnUndoManager(_ window: NSWindow) -> UndoManager? { editingUndoManager }
-    func windowDidMove(_ notification: Notification) { saveFrame() }
+    func windowDidMove(_ notification: Notification) {
+        guard notification.object as? NSWindow === window else { return }
+        saveFrame()
+    }
     func windowDidResize(_ notification: Notification) {
+        guard notification.object as? NSWindow === window else { return }
         saveFrame(); speechPane.resizeForContentHeight(window?.contentView?.bounds.height ?? 480)
     }
     private func saveFrame() {

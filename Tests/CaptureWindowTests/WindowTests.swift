@@ -7,9 +7,13 @@ import CaptureCore
 @MainActor struct WindowTests {
     @Test func replacementShellPreservesWebViewDraftImageAndUndo() async throws {
         _ = NSApplication.shared
+        let domain = "CaptureShield-shell-test-\(UUID())"
+        let defaults = UserDefaults(suiteName: domain)!
+        defer { defaults.removePersistentDomain(forName: domain) }
+        defaults.set("{{100, 100}, {980, 700}}", forKey: "ChatWindowFrame")
         let config = WKWebViewConfiguration(); config.websiteDataStore = .nonPersistent()
-        let controller = ChatWindow(configuration: config, isMain: false,
-                                    preferences: ChatPreferences(mode: .normal), preview: true)
+        let controller = ChatWindow(configuration: config, isMain: true,
+                                    preferences: ChatPreferences(mode: .normal), defaults: defaults, preview: true)
         defer { controller.closeTestFixture() }
         let old = controller.window!, content = old.contentView!, web = controller.webView
         let store = web.configuration.websiteDataStore
@@ -37,6 +41,7 @@ import CaptureCore
         #expect(controller.window !== old && controller.window?.contentView === content)
         #expect(controller.webView === web && web.configuration.websiteDataStore === store)
         #expect(controller.window?.frame == frame && controller.window?.minSize == NSSize(width: 640, height: 480))
+        #expect(defaults.string(forKey: "ChatWindowFrame") == NSStringFromRect(frame))
         #expect(controller.window?.sharingType == .readOnly)
         #expect(try await web.evaluateJavaScript("document.querySelector('[contenteditable]').textContent") as? String == "Preserved synthetic draft")
         #expect(try await web.evaluateJavaScript("document.querySelector('#attachments').children.length") as? Int == 1)
