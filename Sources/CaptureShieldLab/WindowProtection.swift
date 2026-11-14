@@ -5,12 +5,13 @@ import CaptureCore
 @MainActor enum WindowProtection {
     static func setSharing(of window: NSWindow, legacy: Bool) {
         window.sharingType = legacy ? .none : .readOnly
+        WindowDiagnostics.activeTest?.noteTransition("sharing-setter", mode: legacy ? "legacy" : "normal", windows: [window])
     }
     static func restoreSharing(of window: NSWindow, to value: NSWindow.SharingType) {
         window.sharingType = value
     }
     static func apply(to window: NSWindow, mode: ChatSharingMode) {
-        setSharing(of: window, legacy: mode == .legacy)
         window.alphaValue = 1; window.level = .normal; window.hasShadow = false
+        setSharing(of: window, legacy: mode == .legacy)
     }
 }

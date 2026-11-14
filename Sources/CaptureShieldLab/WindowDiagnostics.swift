@@ -2,6 +2,7 @@ import AppKit
 
 /// Opt-in, metadata-only output for candidate ownership investigations. No titles/text.
 @MainActor final class WindowDiagnostics {
+    private(set) static weak var activeTest: WindowDiagnostics?
     private var timer: Timer?
     private var previous = ""
     private var metadataURL: URL?
@@ -17,6 +18,7 @@ import AppKit
         if preview, Bundle.main.bundleIdentifier?.hasPrefix("dev.naivee2000.captureshield.uitest.") == true,
            let path = ProcessInfo.processInfo.environment["CAPTURESHIELD_UI_METADATA"], path.hasPrefix("/") {
             metadataURL = URL(fileURLWithPath: path)
+            Self.activeTest = self
         }
         guard metadataURL != nil || ProcessInfo.processInfo.environment["CAPTURESHIELD_WINDOW_DIAGNOSTICS"] == "1" else { return }
         let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
@@ -79,5 +81,8 @@ import AppKit
         if let web = view as? ChatWebView { return web }
         return view.subviews.lazy.compactMap(webView).first
     }
-    func stop() { timer?.invalidate(); timer = nil }
+    func stop() {
+        timer?.invalidate(); timer = nil
+        if Self.activeTest === self { Self.activeTest = nil }
+    }
 }

@@ -282,7 +282,6 @@ import CaptureCore
     }
     func applyPreferences(_ value: ChatPreferences) {
         preferences = value
-        for owned in ownedWindows { configureAppearance(of: owned) }
         webView.pageZoom = Double(value.zoomPercent) / 100
         ChatPageAdapter.install(in: webView.configuration, preview: preview, mode: value.mode)
         Task { [weak self] in
@@ -292,10 +291,13 @@ import CaptureCore
         modeControl.selectedSegment = value.mode == .normal ? 0 : 1
         zoomLabel.title = "\(value.zoomPercent)%"
         smaller.isEnabled = value.zoomPercent > 70; larger.isEnabled = value.zoomPercent < 140
+        // Apply the capture property last, after presentation changes that can
+        // update the native window. Mode switches keep these surfaces hidden.
+        for owned in ownedWindows { configureAppearance(of: owned) }
     }
     func configureAppearance(of window: NSWindow) {
-        WindowProtection.apply(to: window, mode: preferences.mode)
         ChatAppearance.apply(to: window, mode: preferences.mode)
+        WindowProtection.apply(to: window, mode: preferences.mode)
     }
     private func request(_ value: ChatPreferences) {
         if let changePreferences { changePreferences(value) } else { applyPreferences(value) }
