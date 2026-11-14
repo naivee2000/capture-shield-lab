@@ -97,8 +97,9 @@ import CaptureCore
     }
     @Test func recordingDeadlineStopsAndAppendsWithoutSending() async throws {
         let owner = try await fixture(); defer { cleanup(owner) }
+        let preferences = FixturePreferences(); defer { preferences.clear() }
         let audio = TestAudio(), backend = TestSpeech()
-        let coordinator = SpeechCoordinator(owner: owner, defaults: UserDefaults(suiteName: UUID().uuidString)!, capture: audio, backend: backend, limit: .milliseconds(250))
+        let coordinator = SpeechCoordinator(owner: owner, defaults: preferences.defaults, capture: audio, backend: backend, limit: .milliseconds(250))
         defer { coordinator.shutdown() }
         coordinator.refreshSources()
         try await wait { owner.speechPane.source.numberOfItems == 1 && owner.speechPane.source.isEnabled }
@@ -112,8 +113,9 @@ import CaptureCore
     }
     @Test func missingModelDoesNotStartAudioAndInterruptionDoesNotAutoInsert() async throws {
         let owner = try await fixture(); defer { cleanup(owner) }
+        let preferences = FixturePreferences(); defer { preferences.clear() }
         let audio = TestAudio(), backend = TestSpeech(); backend.modelMissing = true
-        let coordinator = SpeechCoordinator(owner: owner, defaults: UserDefaults(suiteName: UUID().uuidString)!, capture: audio, backend: backend)
+        let coordinator = SpeechCoordinator(owner: owner, defaults: preferences.defaults, capture: audio, backend: backend)
         defer { coordinator.shutdown() }
         coordinator.refreshSources(); try await wait { owner.speechPane.source.numberOfItems == 1 && owner.speechPane.source.isEnabled }
         owner.speechPane.source.selectItem(at: 0); coordinator.toggle()
@@ -128,7 +130,8 @@ import CaptureCore
         #expect(coordinator.lastFailure?.code == 99)
     }
     @Test func audioAndScreenshotDenialShareOnePermissionAttempt() async throws {
-        let defaults = UserDefaults(suiteName: UUID().uuidString)!, permission = DeniedAudioPermission()
+        let preferences = FixturePreferences(); defer { preferences.clear() }
+        let defaults = preferences.defaults, permission = DeniedAudioPermission()
         let audio = AudioCaptureService(defaults: defaults, permission: permission)
         do { _ = try await audio.sources(); Issue.record("Permission denial must fail") }
         catch { #expect((error as? SpeechFailure)?.stage == .permission) }
@@ -139,8 +142,9 @@ import CaptureCore
     }
     @Test func cancellingPreparationDoesNotStartOrAppendLater() async throws {
         let owner = try await fixture(); defer { cleanup(owner) }
+        let preferences = FixturePreferences(); defer { preferences.clear() }
         let audio = TestAudio(), backend = TestSpeech(); audio.delay = .seconds(1)
-        let coordinator = SpeechCoordinator(owner: owner, defaults: UserDefaults(suiteName: UUID().uuidString)!, capture: audio, backend: backend)
+        let coordinator = SpeechCoordinator(owner: owner, defaults: preferences.defaults, capture: audio, backend: backend)
         defer { coordinator.shutdown() }
         coordinator.refreshSources(); try await wait { owner.speechPane.source.numberOfItems == 1 && owner.speechPane.source.isEnabled }
         owner.speechPane.source.selectItem(at: 0); coordinator.toggle()
@@ -163,8 +167,9 @@ import CaptureCore
     }
     @Test func editedRetainedTranscriptAppendsOnceWithoutLosingDraftOrImage() async throws {
         let owner = try await fixture(); defer { cleanup(owner) }
+        let preferences = FixturePreferences(); defer { preferences.clear() }
         let audio = TestAudio(), backend = TestSpeech()
-        let coordinator = SpeechCoordinator(owner: owner, defaults: UserDefaults(suiteName: UUID().uuidString)!, capture: audio, backend: backend)
+        let coordinator = SpeechCoordinator(owner: owner, defaults: preferences.defaults, capture: audio, backend: backend)
         defer { coordinator.shutdown() }
         coordinator.refreshSources()
         try await wait { owner.speechPane.source.numberOfItems == 1 && owner.speechPane.source.isEnabled }

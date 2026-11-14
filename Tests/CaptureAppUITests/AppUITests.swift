@@ -188,7 +188,8 @@ import XCTest
         }
         app.windows.matching(identifier: "chat-popup").firstMatch.buttons["window-close"].click()
         app.webViews.buttons["Open test dialog"].click()
-        XCTAssertTrue(app.sheets.firstMatch.waitForExistence(timeout: 10))
+        let confirmation = app.sheets.firstMatch
+        XCTAssertTrue(confirmation.waitForExistence(timeout: 10))
         wait("Confirmation sheet inherits Normal sharing") {
             (self.record()["windows"] as? [[String: Any]] ?? []).contains {
                 $0["sheet"] as? Bool == true && $0["sharing"] as? Int == 1
@@ -196,8 +197,10 @@ import XCTest
         }
         // The webpage is waiting for confirm(). Cancel through the native key
         // rather than recursively querying button descendants of a blocked page.
-        app.typeKey(.escape, modifierFlags: [])
-        wait("Native confirmation is cancelled") { !self.app.sheets.firstMatch.exists }
+        confirmation.typeKey(.escape, modifierFlags: [])
+        wait("Native confirmation is cancelled") {
+            !(self.record()["windows"] as? [[String: Any]] ?? []).contains { $0["sheet"] as? Bool == true }
+        }
         draftContains("1357")
         relaunch()
         wait("Mode recovery preserves the saved outer frame") {
