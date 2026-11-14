@@ -25,7 +25,7 @@ enum ChatPreview {
     <p id="image-status" role="status">Images: 0 · Sends: 0</p><div id="attachments"></div><input id="image-dimensions" aria-label="Decoded image dimensions" readonly value="No image dimensions">
     <button id="send">Stream reply</button></div><p id="reply" aria-live="polite">Ready.</p>
     <div class="actions"><button id="popup">Open test popup</button><button id="dialog">Open test dialog</button></div>
-    <button id="compose-start">Begin synthetic composition</button><button id="compose-end">Commit synthetic composition</button><p id="compose-status">Composition idle</p>
+    <button id="compose-start">Begin synthetic composition</button><button id="compose-end">Commit synthetic composition</button><p id="compose-status" role="status">Composition idle</p>
     <p>English: teh recieve. Chinese: 输入与换行测试。</p>
     <p>Other applications should cover this window when focused.</p><p>End of synthetic content.</p>
     </main><script>

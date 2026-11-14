@@ -274,12 +274,19 @@ import XCTest
         let before = try XCTUnwrap(mainWindow()["y"] as? Double)
         app.typeKey(.upArrow, modifierFlags: [.command, .shift])
         wait("Window moved 40 points") { abs((self.mainWindow()["y"] as? Double ?? before) - before - 40) < 1 }
-        app.webViews.buttons["Begin synthetic composition"].click()
+        let begin = app.webViews.buttons["Begin synthetic composition"].firstMatch
+        begin.hover()
+        wait("Composition fixture control is visible") { begin.isHittable }
+        begin.click()
+        XCTAssertTrue(app.webViews.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Composition active")).firstMatch.waitForExistence(timeout: 10))
         wait("Synthetic composition active") { self.mainWindow()["composing"] as? Bool == true }
         let composingY = mainWindow()["y"] as? Double
         app.typeKey(.upArrow, modifierFlags: [.command, .shift])
         XCTAssertEqual(mainWindow()["y"] as? Double, composingY)
-        app.webViews.buttons["Commit synthetic composition"].click()
+        let commit = app.webViews.buttons["Commit synthetic composition"].firstMatch
+        commit.hover()
+        wait("Commit fixture control is visible") { commit.isHittable }
+        commit.click()
         wait("Synthetic composition ended") { self.mainWindow()["composing"] as? Bool == false }
         app.typeKey("m", modifierFlags: [.command, .shift])
         wait("Main window hidden") { self.mainWindow()["visible"] as? Bool == false }

@@ -14,4 +14,11 @@ import CaptureCore
         window.alphaValue = 1; window.level = .normal; window.hasShadow = false
         setSharing(of: window, legacy: mode == .legacy)
     }
+    @discardableResult static func reconcileAfterDisplay(_ window: NSWindow, mode: ChatSharingMode) -> Bool {
+        guard mode == .normal, window.isVisible else { return true }
+        // Some hosts retain .none when relaxing an ordered-out window. Check
+        // once after display; Legacy is still configured before any ordering.
+        if window.sharingType != .readOnly { setSharing(of: window, legacy: false) }
+        return window.sharingType == .readOnly
+    }
 }

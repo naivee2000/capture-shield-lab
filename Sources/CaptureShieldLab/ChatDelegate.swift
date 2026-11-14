@@ -100,6 +100,10 @@ import CaptureCore
         if changedMode {
             visible.reversed().forEach { $0.orderFront(nil) }
             if wasActive, let key, visible.contains(key) { NSApp.activate(); key.makeKey() }
+            let restored = controllers.flatMap(\.ownedWindows).map { WindowProtection.reconcileAfterDisplay($0, mode: next.mode) }
+            if restored.contains(false) {
+                main.setStatus("Normal sharing could not be restored on this system. The window may remain excluded; check Compatibility and retest before sharing.")
+            }
             windowDiagnostics.noteTransition("ordered", mode: next.mode.rawValue, windows: owned)
         }
     }

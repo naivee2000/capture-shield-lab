@@ -326,6 +326,9 @@ import CaptureCore
         if window.isMiniaturized { window.deminiaturize(nil) }
         window.makeKeyAndOrderFront(nil); window.makeFirstResponder(webView)
         NSApp.activate()
+        if !WindowProtection.reconcileAfterDisplay(window, mode: preferences.mode) {
+            setStatus("Normal sharing could not be restored on this system. The window may remain excluded; check Compatibility and retest before sharing.")
+        }
     }
     func setStatus(_ text: String) {
         lastStatus = text
