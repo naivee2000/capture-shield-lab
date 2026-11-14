@@ -100,11 +100,25 @@ import CaptureCore
         if changedMode {
             visible.reversed().forEach { $0.orderFront(nil) }
             if wasActive, let key, visible.contains(key) { NSApp.activate(); key.makeKey() }
-            let restored = controllers.flatMap(\.ownedWindows).map { WindowProtection.reconcileAfterDisplay($0, mode: next.mode) }
-            if restored.contains(false) {
-                main.setStatus("Normal sharing could not be restored on this system. The window may remain excluded; check Compatibility and retest before sharing.")
-            }
             windowDiagnostics.noteTransition("ordered", mode: next.mode.rawValue, windows: owned)
+            if next.mode == .normal {
+                RunLoop.main.perform(inModes: [.default]) { [weak self] in
+                    MainActor.assumeIsolated {
+                        guard let self, !self.clearing, self.preferences.mode == .normal else { return }
+                        let controllers = [self.main!] + self.popups
+                        let restored = controllers.map { controller in
+                            guard let window = controller.window else { return false }
+                            return WindowProtection.reconcileAfterDisplay(window, mode: .normal)
+                                || controller.replaceNormalWindowShell()
+                        }
+                        let windows = controllers.flatMap(\.ownedWindows)
+                        self.windowDiagnostics.noteTransition("normal-after-event", mode: "normal", windows: windows)
+                        if restored.contains(false) {
+                            self.main.setStatus("Normal sharing could not be restored on this system. The window may remain excluded; check Compatibility and retest before sharing.")
+                        }
+                    }
+                }
+            }
         }
     }
     @objc private func hideAll() {

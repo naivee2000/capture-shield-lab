@@ -263,6 +263,11 @@ import XCTest
         loadImage(); click("image-add"); waitText("Images: 3 · Sends: 0")
         loadImage(); click("image-cancel"); waitText("Images: 3 · Sends: 0")
         draftContains("8642")
+        mainUI.radioButtons["Legacy"].click()
+        wait("Attached images survive Legacy") { self.mainWindow()["sharing"] as? Int == 0 }
+        mainUI.radioButtons["Normal"].click()
+        wait("Attached images survive Normal recovery") { self.mainWindow()["sharing"] as? Int == 1 }
+        waitText("Images: 3 · Sends: 0"); draftContains("8642")
         // This button is on the offline fixture, never the ChatGPT website.
         app.webViews.buttons["Stream reply"].click()
         waitText("Synthetic reply complete. 中文输入保持正常。")

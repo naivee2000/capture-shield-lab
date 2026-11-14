@@ -49,6 +49,7 @@ import CaptureCore
     lazy var images = ImageAttachmentCoordinator(owner: self)
     private(set) var preferences: ChatPreferences
     private let defaults: UserDefaults
+    private let editingUndoManager = UndoManager()
     let preview: Bool
     private let status = NSTextField(labelWithString: "Loading…")
     private let back = NSButton(title: "‹", target: nil, action: nil)
@@ -299,6 +300,47 @@ import CaptureCore
         ChatAppearance.apply(to: window, mode: preferences.mode)
         WindowProtection.apply(to: window, mode: preferences.mode)
     }
+    /// Recover a native window whose sharing setting no longer accepts readOnly.
+    /// Reparent the existing view tree: never create/reload a WebView or its store.
+    func replaceNormalWindowShell() -> Bool {
+        guard preferences.mode == .normal, let old = window,
+              old.attachedSheet == nil, old.childWindows?.isEmpty != false,
+              !old.isMiniaturized, let content = old.contentView else { return false }
+        let replacement = NSWindow(contentRect: old.contentRect(forFrameRect: old.frame),
+                                   styleMask: old.styleMask, backing: .buffered, defer: false)
+        replacement.delegate = self
+        replacement.isReleasedWhenClosed = false
+        replacement.title = old.title; replacement.subtitle = old.subtitle
+        replacement.appearance = old.appearance; replacement.toolbarStyle = old.toolbarStyle
+        replacement.isMovableByWindowBackground = old.isMovableByWindowBackground
+        replacement.hidesOnDeactivate = old.hidesOnDeactivate
+        replacement.collectionBehavior = old.collectionBehavior
+        replacement.setAccessibilityIdentifier(isMain ? "chat-window" : "chat-popup")
+        replacement.standardWindowButton(.closeButton)?.setAccessibilityIdentifier("window-close")
+        replacement.standardWindowButton(.miniaturizeButton)?.setAccessibilityIdentifier("window-minimize")
+        replacement.standardWindowButton(.zoomButton)?.setAccessibilityIdentifier("window-zoom")
+        configureAppearance(of: replacement)
+        guard replacement.sharingType == .readOnly else { replacement.close(); return false }
+        let visible = old.isVisible, key = old.isKeyWindow, frame = old.frame
+        let responder = old.firstResponder, toolbar = old.toolbar, minimum = old.contentMinSize
+        old.orderOut(nil); old.delegate = nil; old.toolbar = nil; old.contentView = nil
+        replacement.toolbar = toolbar; replacement.contentView = content
+        replacement.contentMinSize = minimum; replacement.setFrame(frame, display: false)
+        configureAppearance(of: replacement)
+        guard replacement.sharingType == .readOnly else {
+            replacement.toolbar = nil; replacement.contentView = nil; replacement.close()
+            old.toolbar = toolbar; old.contentView = content; old.delegate = self
+            old.contentMinSize = minimum; old.setFrame(frame, display: false)
+            if visible { old.orderFront(nil) }; if key { old.makeKey() }
+            if let responder { old.makeFirstResponder(responder) }
+            return false
+        }
+        self.window = replacement; replacement.delegate = self
+        old.close()
+        if visible { replacement.orderFront(nil) }; if key { replacement.makeKey() }
+        if let responder { replacement.makeFirstResponder(responder) }
+        return replacement.sharingType == .readOnly
+    }
     private func request(_ value: ChatPreferences) {
         if let changePreferences { changePreferences(value) } else { applyPreferences(value) }
     }
@@ -431,6 +473,7 @@ import CaptureCore
     }
     @objc private func clearLogin() { askToClear?() }
     func windowShouldClose(_ sender: NSWindow) -> Bool { hideOrClose(); return !isMain }
+    func windowWillReturnUndoManager(_ window: NSWindow) -> UndoManager? { editingUndoManager }
     func windowDidMove(_ notification: Notification) { saveFrame() }
     func windowDidResize(_ notification: Notification) {
         saveFrame(); speechPane.resizeForContentHeight(window?.contentView?.bounds.height ?? 480)
