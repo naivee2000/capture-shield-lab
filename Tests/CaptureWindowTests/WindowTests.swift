@@ -109,11 +109,23 @@ import CaptureCore
         let controller = ChatWindow(configuration: config, isMain: false)
         let window = controller.window!
         defer { controller.closeTestFixture() }
-        #expect(!(window is NSPanel))
+        #expect(window is ChatPanel)
+        controller.applyPreferences(ChatPreferences(alwaysOnTop: false))
         #expect(window.level == .normal)
         #expect(window.styleMask.contains([.titled, .closable, .miniaturizable, .resizable]))
         #expect(window.alphaValue == 1)
         #expect(window.minSize == NSSize(width: 640, height: 480))
+    }
+    @Test func panelPinDoesNotChangeItsCreationStyle() {
+        let panel = ChatPanel.make(frame: NSRect(x: 100, y: 100, width: 640, height: 480))
+        defer { panel.close() }
+        for pin in [true, false, true] {
+            panel.applyPin(pin)
+            #expect(panel.level == (pin ? .floating : .normal))
+            #expect(panel.styleMask.contains(.nonactivatingPanel))
+            #expect(!panel.hidesOnDeactivate && panel.canBecomeKey && !panel.canBecomeMain)
+            #expect(panel.collectionBehavior.contains(.canJoinAllSpaces) == pin)
+        }
     }
     @Test func normalModeAndZoomSurvivePresentationAndSheetConfiguration() {
         _ = NSApplication.shared

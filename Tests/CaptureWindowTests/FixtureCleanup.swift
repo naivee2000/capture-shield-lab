@@ -5,6 +5,7 @@ import Testing
 /// Only windows created by this native test target use this teardown.
 @MainActor extension ChatWindow {
     func closeTestFixture() {
+        cancelPendingFocus()
         webView.stopLoading()
         webView.navigationDelegate = nil; webView.uiDelegate = nil
         webView.configuration.userContentController.removeAllScriptMessageHandlers()

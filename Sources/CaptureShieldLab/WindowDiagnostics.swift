@@ -31,7 +31,8 @@ import AppKit
         let windows: [[String: Any]] = NSApp.windows.map { window in
             let chat = window.delegate as? ChatWindow
             var row: [String: Any] = ["windowID": window.windowNumber, "class": NSStringFromClass(type(of: window)),
-             "visible": window.isVisible, "sharing": window.sharingType.rawValue,
+             "key": window.isKeyWindow, "nonactivating": window.styleMask.contains(.nonactivatingPanel),
+             "spaces": window.collectionBehavior.rawValue, "visible": window.isVisible, "sharing": window.sharingType.rawValue,
              "level": window.level.rawValue, "frame": NSStringFromRect(window.frame),
              "identifier": chat.map { $0.isMain ? "chat-window" : "chat-popup" } ?? "system-panel",
              "sheet": window.sheetParent != nil,
@@ -63,6 +64,8 @@ import AppKit
         var testRecord: [String: Any] = ["policy": NSApp.activationPolicy().rawValue, "windows": windows,
                                       "processID": ProcessInfo.processInfo.processIdentifier]
         if metadataURL != nil {
+            testRecord["active"] = NSApp.isActive
+            testRecord["frontmostPID"] = NSWorkspace.shared.frontmostApplication?.processIdentifier ?? -1
             testRecord["sampleUptime"] = ProcessInfo.processInfo.systemUptime
             testRecord["transitions"] = transitions
             let defaults = UserDefaults(suiteName: Bundle.main.bundleIdentifier! + ".preview")!

@@ -5,6 +5,7 @@ import CaptureCore
 /// No native context menu that can open an unprotected browser or download a file.
 /// Edit menu and standard keyboard shortcuts remain available.
 @MainActor final class ChatWebView: WKWebView {
+    override var needsPanelToBecomeKey: Bool { true }
     var pasteImage: (() -> Void)?
     override func rightMouseDown(with event: NSEvent) {}
     override func draggingEntered(_ sender: any NSDraggingInfo) -> NSDragOperation { [] }
@@ -65,6 +66,8 @@ import CaptureCore
     var didFinish: (() -> Void)?
     var changePreferences: ((ChatPreferences) -> Void)?
     var togglePrivateCursor: (() -> Void)?
+    private let pinButton = NSButton(title: "Always on Top", target: nil, action: nil)
+    private var focusGeneration = 0
     private let cursorButton = NSButton(title: "Private Cursor", target: nil, action: nil)
     private var observations: [NSKeyValueObservation] = []
     private lazy var screenshots = ScreenshotService(defaults: defaults)
@@ -103,7 +106,7 @@ import CaptureCore
         webView = ChatWebView(frame: .zero, configuration: configuration)
         let saved = isMain ? defaults.string(forKey: "ChatWindowFrame").map(NSRectFromString) : nil
         let frame = WindowPlacement.restore(saved, screens: NSScreen.screens.map(\.visibleFrame))
-        let window = NSWindow(contentRect: frame, styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+        let window = ChatPanel.make(frame: frame)
         window.title = preview ? "CaptureShield — UI Preview" : (isMain ? "CaptureShield — ChatGPT" : "CaptureShield — Web window")
         window.setAccessibilityIdentifier(isMain ? "chat-window" : "chat-popup")
         window.standardWindowButton(.closeButton)?.setAccessibilityIdentifier("window-close")
@@ -191,7 +194,7 @@ import CaptureCore
     }
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { toolbarDefaultItemIdentifiers(toolbar) }
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.init("navigation"), .init("sidebar"), .init("screenshot"), .init("imagePreview"), .init("record"), .init("transcript"), .flexibleSpace, .init("sharingMode"), .init("compatibility"), .init("cursor"), .init("zoom"), .init("hide")]
+        [.init("navigation"), .init("sidebar"), .init("screenshot"), .init("imagePreview"), .init("record"), .init("transcript"), .flexibleSpace, .init("sharingMode"), .init("pin"), .init("compatibility"), .init("cursor"), .init("zoom"), .init("hide")]
     }
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier,
                  willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
@@ -211,6 +214,14 @@ import CaptureCore
         }
         let item = NSToolbarItem(itemIdentifier: identifier)
         switch identifier.rawValue {
+        case "pin":
+            item.label = "Always on Top"; item.toolTip = "Keep visible while using other apps"
+            item.visibilityPriority = .high
+            pinButton.target = self; pinButton.action = #selector(togglePin)
+            pinButton.image = NSImage(systemSymbolName: "pin.fill", accessibilityDescription: "Always on Top")
+            pinButton.imagePosition = .imageOnly; pinButton.setButtonType(.pushOnPushOff)
+            pinButton.setAccessibilityIdentifier("always-on-top")
+            item.view = pinButton
         case "navigation":
             item.label = "Navigation"
             let home = NSButton(image: NSImage(systemSymbolName: "house", accessibilityDescription: "ChatGPT home")!, target: self, action: #selector(goHome))
@@ -283,6 +294,7 @@ import CaptureCore
     }
     func applyPreferences(_ value: ChatPreferences) {
         preferences = value
+        pinButton.state = value.alwaysOnTop ? .on : .off
         webView.pageZoom = Double(value.zoomPercent) / 100
         ChatPageAdapter.install(in: webView.configuration, preview: preview, mode: value.mode)
         Task { [weak self] in
@@ -299,6 +311,7 @@ import CaptureCore
     func configureAppearance(of window: NSWindow) {
         ChatAppearance.apply(to: window, mode: preferences.mode)
         WindowProtection.apply(to: window, mode: preferences.mode)
+        (window as? ChatPanel)?.applyPin(preferences.alwaysOnTop)
     }
     /// Recover a native window whose sharing setting no longer accepts readOnly.
     /// Reparent the existing view tree: never create/reload a WebView or its store.
@@ -308,8 +321,7 @@ import CaptureCore
               !old.isMiniaturized, composition.composing != true,
               (old.firstResponder as? any NSTextInputClient)?.hasMarkedText() != true,
               let content = old.contentView else { return false }
-        let replacement = NSWindow(contentRect: old.contentRect(forFrameRect: old.frame),
-                                   styleMask: old.styleMask, backing: .buffered, defer: false)
+        let replacement = ChatPanel.make(frame: old.contentRect(forFrameRect: old.frame), style: old.styleMask)
         replacement.delegate = self
         replacement.isReleasedWhenClosed = false
         replacement.title = old.title; replacement.subtitle = old.subtitle
@@ -347,6 +359,9 @@ import CaptureCore
     private func request(_ value: ChatPreferences) {
         if let changePreferences { changePreferences(value) } else { applyPreferences(value) }
     }
+    @objc private func togglePin() {
+        var next = preferences; next.alwaysOnTop.toggle(); request(next)
+    }
     @objc private func selectMode() {
         var next = preferences; next.mode = modeControl.selectedSegment == 0 ? .normal : .legacy; request(next)
     }
@@ -369,12 +384,36 @@ import CaptureCore
         configureAppearance(of: window)
         window.setFrame(WindowPlacement.restore(window.frame, screens: NSScreen.screens.map(\.visibleFrame)), display: false)
         if window.isMiniaturized { window.deminiaturize(nil) }
-        window.makeKeyAndOrderFront(nil); window.makeFirstResponder(webView)
-        NSApp.activate()
+        window.orderFrontRegardless(); window.makeKey(); window.makeFirstResponder(webView)
+        focusComposer()
         if !WindowProtection.reconcileAfterDisplay(window, mode: preferences.mode) {
             setStatus("Normal sharing could not be restored on this system. The window may remain excluded; check Compatibility and retest before sharing.")
         }
     }
+    func cancelPendingFocus() { focusGeneration += 1 }
+    private func focusComposer() {
+        focusGeneration += 1
+        let generation = focusGeneration
+        Task { [weak self] in
+            for _ in 0..<30 {
+                guard let self, self.focusGeneration == generation,
+                      self.window?.isVisible == true, self.window?.isKeyWindow == true,
+                      self.window?.attachedSheet == nil, !self.images.isPreviewPresented else { return }
+                let eligible = self.preview ? self.webView.url?.absoluteString == "about:blank" :
+                    self.webView.url?.scheme == "https" && self.webView.url?.host == "chatgpt.com"
+                if eligible, !self.webView.isLoading {
+                    _ = try? await self.webView.evaluateJavaScript(Self.focusScript)
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+        }
+    }
+    private static let focusScript = #"""
+    (()=>{const es=[...document.querySelectorAll('[data-composer-markdown][contenteditable="true"],#prompt-textarea,textarea#mobile-composer-prompt')].filter(e=>e.getClientRects().length&&!e.disabled&&!e.readOnly&&!e.closest('[hidden],[inert],[aria-hidden="true"]'));
+    if(es.length===1){es[0].focus({preventScroll:true});return document.activeElement===es[0];}return false;})()
+    """#
+    func windowDidResignKey(_ notification: Notification) { cancelPendingFocus() }
     func setStatus(_ text: String) {
         lastStatus = text
         status.stringValue = shortcutWarning + (osUpgradeNotice ? "macOS changed: retest sharing. " : "") + text

@@ -145,7 +145,7 @@ def result_counts(result):
         raise ValueError("Unrecognized xcresult counts.")
     return {"passed": passed, "failed": failed, "skipped": skipped}
 
-def result_passed(code, counts, expected=7):
+def result_passed(code, counts, expected=9):
     return code == 0 and counts == {"passed": expected, "failed": 0, "skipped": 0}
 
 def validate_application(app, prefix):
@@ -186,6 +186,17 @@ def execute(args):
         report["application"] = validate_application(app, manifest["bundle_prefix"])
         binary = app / "Contents/MacOS/CaptureShieldLab"
         report["application_sha256"] = hashlib.sha256(binary.read_bytes()).hexdigest()
+        focus = work / "Apps/FocusHost.app"
+        (focus / "Contents/MacOS").mkdir(parents=True)
+        (focus / "Contents/Info.plist").write_bytes(plistlib.dumps({
+            "CFBundleIdentifier": manifest["bundle_prefix"] + ".focus", "CFBundleExecutable": "FocusHost",
+            "CFBundleName": "CaptureShield Focus Fixture", "CFBundlePackageType": "APPL",
+            "LSMinimumSystemVersion": "15.6", "NSPrincipalClass": "NSApplication"}))
+        rc = run_command(["xcrun", "swiftc", "-swift-version", "6", "-target", "arm64-apple-macosx15.6", str(ROOT / "Tests/CaptureAppUITests/FocusHost.swift"),
+                          "-o", str(focus / "Contents/MacOS/FocusHost")], base / "focus-build.log", env)
+        if rc: return 1
+        subprocess.run(["codesign", "--force", "--sign", "-", str(focus)], check=True)
+        subprocess.run(["codesign", "--verify", "--strict", str(focus)], check=True)
         report["stage"] = "ui-build"
         project = ROOT / "UITests/CaptureShieldUITests.xcodeproj"
         common = ["xcodebuild", "-project", str(project), "-scheme", "CaptureShieldUITests",
@@ -203,6 +214,7 @@ def execute(args):
         for item in suites:
             item.setdefault("EnvironmentVariables", {}).update(
                 CAPTURESHIELD_UI_APP=str(app), CAPTURESHIELD_UI_RUN=str(work),
+                CAPTURESHIELD_UI_FOCUS_HOST=str(focus),
                 CAPTURESHIELD_UI_NEGATIVE="1" if args.negative else "0")
         specs[0].write_bytes(plistlib.dumps(spec))
         report["stage"] = "ui-execution"
@@ -213,7 +225,7 @@ def execute(args):
                               "-destination", "platform=macOS,arch=arm64", "-parallel-testing-enabled", "NO",
                               "-resultBundlePath", str(result)] +
                              (["-only-testing:CaptureShieldUITests/AppUITests/testLaunchTypeAndRestart"] if args.negative else []),
-                             log, env, timeout=480)
+                             log, env, timeout=600)
             try:
                 raw = output(["xcrun", "xcresulttool", "get", "test-results", "summary", "--path", str(result)])
                 counts = result_counts(json.loads(raw))
@@ -304,6 +316,7 @@ def verified_image_mount(base, work):
 
 def cleanup_applications(work, prefix):
     apps = [(work / "Apps/CaptureShieldLab.app", prefix + ".lab"),
+            (work / "Apps/FocusHost.app", prefix + ".focus"),
             (work / "Apps/CaptureProbe.app", prefix + ".probe"),
             (work / "DerivedData/Build/Products/Debug/CaptureShieldUITests-Runner.app",
              "dev.naivee2000.captureshield.uitest.runner.xctrunner")]
@@ -370,7 +383,7 @@ def clean(args):
             else: child.unlink()
         if attachment.exists(): shutil.rmtree(attachment)
         # Only per-run domains, including AppKit's own toolbar/frame preferences.
-        for suffix in (".lab.preview", ".lab", ".probe"):
+        for suffix in (".lab.preview", ".lab", ".probe", ".focus"):
             subprocess.run(["defaults", "delete", data["bundle_prefix"] + suffix],
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         data["state"] = "cleaned"

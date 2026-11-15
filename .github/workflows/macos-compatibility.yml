@@ -3,7 +3,7 @@ name: macOS compatibility
 on:
   workflow_dispatch:
   push:
-    branches: [main, codex/app-ui-compatibility]
+    branches: [main, codex/app-ui-compatibility, codex/floating-focus-065]
     paths:
       - '.github/workflows/macos-compatibility.yml'
       - 'Package.swift'
@@ -36,7 +36,7 @@ jobs:
     name: macOS ${{ matrix.os }} / Xcode ${{ matrix.xcode }} / arm64
     # Standard Apple Silicon runners; do not replace with paid -xlarge runners.
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 40
+    timeout-minutes: 50
     strategy:
       fail-fast: false
       matrix:
@@ -127,8 +127,9 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Test the packaged application through XCTest UI automation
         id: app_ui
-        # Three bounded eight-minute rounds plus packaging/runner compilation.
-        timeout-minutes: 27
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        # Three bounded ten-minute rounds plus packaging/runner compilation.
+        timeout-minutes: 35
         run: |
           set +e
           bash scripts/test-ui.sh --run-id "ui-ci-${{ github.run_id }}-${{ matrix.os }}"
@@ -141,7 +142,7 @@ jobs:
           fi
           exit "$result"
       - name: Verify a wrong UI expectation fails
-        if: ${{ steps.app_ui.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.app_ui.outcome == 'success' }}
         run: |
           set +e
           run_id="ui-ci-${{ github.run_id }}-${{ matrix.os }}-negative"

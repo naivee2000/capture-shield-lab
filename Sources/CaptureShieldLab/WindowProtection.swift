@@ -11,7 +11,7 @@ import CaptureCore
         window.sharingType = value
     }
     static func apply(to window: NSWindow, mode: ChatSharingMode) {
-        window.alphaValue = 1; window.level = .normal; window.hasShadow = false
+        window.alphaValue = 1; window.hasShadow = false
         setSharing(of: window, legacy: mode == .legacy)
     }
     @discardableResult static func reconcileAfterDisplay(_ window: NSWindow, mode: ChatSharingMode) -> Bool {

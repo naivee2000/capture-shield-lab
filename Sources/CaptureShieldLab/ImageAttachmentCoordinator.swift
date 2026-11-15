@@ -7,6 +7,7 @@ import CaptureCore
     private weak var owner: ChatWindow?
     private(set) var image: CGImage?
     private(set) var phase: Phase = .idle
+    var isPreviewPresented: Bool { view?.isHidden == false }
     private var view: ImagePreview?
     private var prepared: Data?
     private var consent = AttachmentConsent()

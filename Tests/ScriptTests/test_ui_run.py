@@ -29,10 +29,10 @@ class VerdictTests(unittest.TestCase):
         self.assertFalse(completion.completed(good + "◇ Test run started.\n"))
     def test_zero_skipped_partial_and_failed_are_not_success(self):
         for code, counts in [(0, {}), (0, {"passedTests": 0}), (0, {"passedTests": 5}),
-                             (0, {"passedTests": 7, "skippedTests": 1}),
-                             (0, {"passedTests": 7, "failedTests": 1}), (65, {"passedTests": 7})]:
+                             (0, {"passedTests": 9, "skippedTests": 1}),
+                             (0, {"passedTests": 9, "failedTests": 1}), (65, {"passedTests": 9})]:
             self.assertFalse(runner.result_passed(code, runner.result_counts(counts)))
-        self.assertTrue(runner.result_passed(0, runner.result_counts({"passedTests": 7})))
+        self.assertTrue(runner.result_passed(0, runner.result_counts({"passedTests": 9})))
         for bad in (-1, True, "6"):
             with self.assertRaises(ValueError): runner.result_counts({"passedTests": bad})
 

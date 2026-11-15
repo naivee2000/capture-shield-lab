@@ -11,7 +11,9 @@ struct ChatPreferencesTests {
         var chosen = ChatPreferences(mode: .normal, zoomPercent: 120)
         chosen.save(to: defaults)
         #expect(ChatPreferences.load(from: defaults) == chosen)
+        chosen.alwaysOnTop = false
         chosen.mode = .legacy; chosen.save(to: defaults)
+        #expect(!ChatPreferences.load(from: defaults).alwaysOnTop)
         #expect(ChatPreferences.load(from: defaults).zoomPercent == 120)
         #expect(ChatPreferences.load(from: defaults).mode.backgroundOpacity == 0.8)
         #expect(ChatSharingMode.normal.backgroundOpacity == 1)

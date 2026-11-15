@@ -22,6 +22,7 @@ import CaptureCore
     private var hotKeyHandler: EventHandlerRef?
     private var hiddenWindows: [ChatWindow] = []
     private var clearing = false
+    private let focusReturn = ChatFocusReturn()
     private var pasteMonitor: Any?
     private let preview: Bool
     private let defaults: UserDefaults
@@ -85,7 +86,6 @@ import CaptureCore
         let owned = controllers.flatMap(\.ownedWindows)
         let visible = NSApp.orderedWindows.filter { owned.contains($0) && $0.isVisible && !$0.isMiniaturized }
         let key = NSApp.keyWindow
-        let wasActive = NSApp.isActive
         let changedMode = next.mode != preferences.mode
         if changedMode { windowDiagnostics.noteTransition("before", mode: next.mode.rawValue, windows: owned) }
         // Hide all owned surfaces first; no popup remains in the old mode during the update.
@@ -99,7 +99,7 @@ import CaptureCore
         refreshCursorButtons()
         if changedMode {
             visible.reversed().forEach { $0.orderFront(nil) }
-            if wasActive, let key, visible.contains(key) { NSApp.activate(); key.makeKey() }
+            if let key, visible.contains(key) { key.makeKey() }
             windowDiagnostics.noteTransition("ordered", mode: next.mode.rawValue, windows: owned)
         }
         // Selecting Normal again can retry after finishing composition/closing a
@@ -133,13 +133,16 @@ import CaptureCore
         hiddenWindows = ChatInteraction.pendingRestore(previous: hiddenWindows,
             visible: ([main!] + popups).filter { $0.window?.isVisible == true })
         for controller in hiddenWindows {
+            controller.cancelPendingFocus()
             controller.cancelScreenshot()
             controller.window?.attachedSheet?.orderOut(nil)
             controller.window?.orderOut(nil)
         }
+        focusReturn.finish()
     }
     @objc private func showAll() {
         guard !clearing, main != nil else { return }
+        focusReturn.begin()
         main.present()
         for controller in hiddenWindows where controller !== main {
             controller.present(); controller.window?.attachedSheet?.orderFront(nil)
@@ -240,7 +243,7 @@ import CaptureCore
                 try? FileHandle.standardError.write(contentsOf: json + Data([10]))
             }
         }
-        guard NSApp.isActive, main != nil, !clearing,
+        guard main != nil, !clearing, event.window?.isKeyWindow == true,
               let controller = ([main!] + popups).first(where: { $0.window === event.window }) else { return event }
         if event.keyCode == 53 { cursor.disable(); return event }
         let responder = event.window?.firstResponder

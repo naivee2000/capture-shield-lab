@@ -31,8 +31,9 @@ run_native() {
 if $CUSTOM_SELECTION; then
   run_native "$@"
 else
-  # Native window replacement/activation exercises process-wide AppKit lifetime.
-  # Run that suite in a fresh process, once, rather than retrying shared-host exits.
-  run_native "$@" --skip '^CaptureWindowTests\.WindowTests/'
+  # AppKit lifecycle and system-configuration checks use explicit fresh hosts.
+  # Every case runs once; never retry incomplete shared-host runs as a pass.
+  run_native "$@" --skip '(^CaptureWindowTests\.WindowTests/|modePolicyDoesNotRequireWindowLevelChanges)'
   run_native "$@" --filter '^CaptureWindowTests\.WindowTests/'
+  run_native "$@" --filter 'modePolicyDoesNotRequireWindowLevelChanges'
 fi

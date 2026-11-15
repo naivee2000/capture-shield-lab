@@ -75,7 +75,7 @@ enum CursorEligibility {
     }
     private func refresh() {
         let point = NSEvent.mouseLocation
-        guard enabled, NSApp.isActive, !menuOpen, NSApp.modalWindow == nil else { suspend(); return }
+        guard enabled, !menuOpen, NSApp.modalWindow == nil else { suspend(); return }
         let owned = windows()
         guard let key = NSApp.keyWindow, owned.contains(key) else { suspend(); return }
         var number = NSWindow.windowNumber(at: point, belowWindowWithWindowNumber: 0)
@@ -84,7 +84,7 @@ enum CursorEligibility {
         }
         guard let parent = owned.first(where: { $0.windowNumber == number }),
               CursorEligibility.allows(enabled: enabled, legacy: parent.sharingType == .none,
-                 foreground: NSApp.isActive, insideOwnedWindow: parent.frame.contains(point),
+                 foreground: key.isKeyWindow, insideOwnedWindow: parent.frame.contains(point),
                  visible: parent.isVisible && !parent.isMiniaturized, obstructed: false) else { suspend(); return }
         if overlay?.parent !== parent {
             suspend()

@@ -21,7 +21,7 @@ import ObjectiveC
         NSApp.windows.forEach(prepare)
     }
     static func prepare(_ window: NSWindow) {
-        guard let panel = window as? NSPanel else { return }
+        guard !(window is ChatPanel), let panel = window as? NSPanel else { return }
         if legacy {
             if original.object(forKey: panel) == nil { original.setObject(NSNumber(value: panel.sharingType.rawValue), forKey: panel) }
             WindowProtection.setSharing(of: panel, legacy: true)

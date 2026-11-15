@@ -5,6 +5,7 @@ import XCTest
 @MainActor final class AppUITests: XCTestCase {
     private var app: XCUIApplication!
     private var testToken = ""
+    private var focusHost: XCUIApplication?
     @MainActor override func setUp() async throws {
         continueAfterFailure = false
         let path = try XCTUnwrap(ProcessInfo.processInfo.environment["CAPTURESHIELD_UI_APP"])
@@ -33,6 +34,11 @@ import XCTest
         // This instance was created by the test and has no personal login or draft.
         if let app, app.state != .notRunning { quit() }
         app = nil
+        if let focusHost, focusHost.state != .notRunning {
+            focusHost.activate(); focusHost.typeKey("q", modifierFlags: .command)
+            XCTAssertTrue(focusHost.wait(for: .notRunning, timeout: 10))
+        }
+        focusHost = nil
     }
     func testLaunchTypeAndRestart() throws {
         let editor = app.webViews.textViews["Synthetic chat input"].firstMatch
@@ -377,6 +383,68 @@ import XCTest
         draftContains("Edited retained transcript")
         draftContains("Retained draft")
         wait("Idle after adding") { !self.app.textViews["speech-text"].isHittable }
+    }
+
+    private func backgroundHost() throws -> XCUIApplication {
+        let url = URL(fileURLWithPath: try XCTUnwrap(ProcessInfo.processInfo.environment["CAPTURESHIELD_UI_FOCUS_HOST"]))
+        XCTAssertTrue(Bundle(url: url)?.bundleIdentifier?.hasPrefix("dev.naivee2000.captureshield.uitest.") == true)
+        let host = XCUIApplication(url: url); focusHost = host; host.launch()
+        XCTAssertTrue(host.textFields["background-input"].waitForExistence(timeout: 15))
+        return host
+    }
+    func testFocusReturnWithoutApplicationActivation() throws {
+        let host = try backgroundHost()
+        for mode in ["Normal", "Legacy"] {
+            mainUI.radioButtons[mode].click()
+            app.typeKey("m", modifierFlags: [.command, .shift])
+            wait("Chat hidden before background input") { self.mainWindow()["visible"] as? Bool == false }
+            host.activate(); host.textFields["background-input"].click()
+            host.typeText(" before" + mode)
+            wait("Fresh background activation") {
+                let r = self.record()
+                return r["frontmostPID"] as? Int != r["processID"] as? Int && host.state == .runningForeground
+            }
+            let backgroundPID = try XCTUnwrap(record()["frontmostPID"] as? Int)
+            host.typeKey("m", modifierFlags: [.command, .shift])
+            wait("Nonactivating panel receives keys") {
+                self.mainWindow()["key"] as? Bool == true && self.record()["active"] as? Bool == false &&
+                self.record()["frontmostPID"] as? Int == backgroundPID
+            }
+            app.typeText(" panel2468" + mode)
+            draftContains("panel2468" + mode)
+            XCTAssertFalse((host.textFields["background-input"].value as? String ?? "").contains("panel2468"))
+            wait("Typing did not activate the application") { self.record()["frontmostPID"] as? Int == backgroundPID }
+            app.typeKey("m", modifierFlags: [.command, .shift])
+            wait("Panel hidden and original application retained") {
+                self.mainWindow()["visible"] as? Bool == false && self.record()["frontmostPID"] as? Int == backgroundPID
+            }
+            host.typeText(" after" + mode)
+            XCTAssertTrue((host.textFields["background-input"].value as? String ?? "").contains("after" + mode))
+            host.typeKey("m", modifierFlags: [.command, .shift])
+            XCTAssertTrue(editor.waitForExistence(timeout: 10))
+        }
+    }
+    func testPinAndFullScreenBackground() throws {
+        wait("Pin defaults on") { self.mainWindow()["level"] as? Int == NSWindow.Level.floating.rawValue }
+        click("always-on-top")
+        wait("Pin can be disabled") { self.mainWindow()["level"] as? Int == NSWindow.Level.normal.rawValue }
+        click("always-on-top")
+        let host = try backgroundHost()
+        host.buttons["background-fullscreen"].click()
+        wait("Background enters native full screen") { (host.staticTexts["background-state"].value as? String) == "Full screen" }
+        let backgroundPID = try XCTUnwrap(record()["frontmostPID"] as? Int)
+        wait("Pinned window remains visible over other app") {
+            self.mainWindow()["visible"] as? Bool == true && self.mainWindow()["level"] as? Int == NSWindow.Level.floating.rawValue
+        }
+        XCTAssertTrue(app.buttons["always-on-top"].isHittable)
+        host.typeKey("m", modifierFlags: [.command, .shift])
+        wait("Hide while background stays active") { self.mainWindow()["visible"] as? Bool == false }
+        host.typeKey("m", modifierFlags: [.command, .shift])
+        wait("Show retains full-screen background activation") { self.record()["frontmostPID"] as? Int == backgroundPID && self.mainWindow()["key"] as? Bool == true }
+        app.typeKey("m", modifierFlags: [.command, .shift])
+        host.buttons["background-fullscreen"].click()
+        wait("Background leaves full screen") { (host.staticTexts["background-state"].value as? String) == "Windowed" }
+        host.typeKey("m", modifierFlags: [.command, .shift])
     }
 
 }
