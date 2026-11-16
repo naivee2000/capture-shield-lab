@@ -84,7 +84,9 @@ import CaptureCore
         if next.mode == .normal { cursor.disable() } else { cursor.suspend() }
         let controllers = [main!] + popups
         let owned = controllers.flatMap(\.ownedWindows)
-        let visible = NSApp.orderedWindows.filter { owned.contains($0) && $0.isVisible && !$0.isMiniaturized }
+        // AppKit's document-window ordering list can omit nonactivating panels.
+        // Include every owned visible surface, retaining known front-to-back order.
+        let visible = ChatPanel.visibleOwned(owned, ordered: NSApp.orderedWindows)
         let key = NSApp.keyWindow
         let changedMode = next.mode != preferences.mode
         if changedMode { windowDiagnostics.noteTransition("before", mode: next.mode.rawValue, windows: owned) }
@@ -151,7 +153,7 @@ import CaptureCore
         hiddenWindows.removeAll()
     }
     @objc func toggleVisibility() {
-        if ([main!] + popups).contains(where: { $0.window?.isVisible == true }) { hideAll() }
+        if ([main!] + popups).contains(where: { $0.window?.isVisible == true && $0.window?.isMiniaturized == false }) { hideAll() }
         else { showAll() }
     }
     @objc private func clearLogin() {

@@ -31,7 +31,7 @@ import AppKit
         let windows: [[String: Any]] = NSApp.windows.map { window in
             let chat = window.delegate as? ChatWindow
             var row: [String: Any] = ["windowID": window.windowNumber, "class": NSStringFromClass(type(of: window)),
-             "key": window.isKeyWindow, "nonactivating": window.styleMask.contains(.nonactivatingPanel),
+             "onActiveSpace": window.isOnActiveSpace, "key": window.isKeyWindow, "nonactivating": window.styleMask.contains(.nonactivatingPanel),
              "spaces": window.collectionBehavior.rawValue, "visible": window.isVisible, "sharing": window.sharingType.rawValue,
              "level": window.level.rawValue, "frame": NSStringFromRect(window.frame),
              "identifier": chat.map { $0.isMain ? "chat-window" : "chat-popup" } ?? "system-panel",

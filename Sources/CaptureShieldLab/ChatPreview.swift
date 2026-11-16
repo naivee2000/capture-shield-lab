@@ -27,7 +27,7 @@ enum ChatPreview {
     <div class="actions"><button id="popup">Open test popup</button><button id="dialog">Open test dialog</button></div>
     <button id="compose-start">Begin synthetic composition</button><button id="compose-end">Commit synthetic composition</button><input id="compose-status" aria-label="Synthetic composition status" readonly value="Composition idle">
     <p>English: teh recieve. Chinese: 输入与换行测试。</p>
-    <p>Other applications should cover this window when focused.</p><p>End of synthetic content.</p>
+    <p>Use Always on Top to choose whether other applications cover this window.</p><p>End of synthetic content.</p>
     </main><script>
     const toggle=document.querySelector('[aria-controls="app-shell-sidebar"]');
     toggle.onclick=()=>{const open=toggle.getAttribute('aria-expanded')==='true';toggle.setAttribute('aria-expanded',String(!open));document.body.classList.toggle('folded',open);};

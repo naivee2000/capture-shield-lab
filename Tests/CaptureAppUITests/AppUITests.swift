@@ -26,7 +26,7 @@ import XCTest
                                   "speechFailure": name.contains("RetainedError")]
         app.launchArguments = ["--chat-preview", "--ui-test-setup", try JSONSerialization.data(withJSONObject: seed).base64EncodedString()]
         app.launch()
-        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 20))
+        XCTAssertTrue(mainUI.waitForExistence(timeout: 20))
         XCTAssertTrue(editor.waitForExistence(timeout: 15))
         verifyFixtureSetup()
     }
@@ -56,9 +56,9 @@ import XCTest
         URL(fileURLWithPath: ProcessInfo.processInfo.environment["CAPTURESHIELD_UI_RUN"]!).appendingPathComponent("window.json")
     }
     private var editor: XCUIElement { app.webViews.textViews["Synthetic chat input"].firstMatch }
-    private var mainUI: XCUIElement { app.windows.matching(identifier: "chat-window").firstMatch }
+    private var mainUI: XCUIElement { app.descendants(matching: .any).matching(identifier: "chat-window").firstMatch }
     private func quit() {
-        app.typeKey("q", modifierFlags: .command)
+        mainUI.typeKey("q", modifierFlags: .command)
         XCTAssertTrue(app.wait(for: .notRunning, timeout: 10), "The isolated app must quit normally; no force termination is used.")
     }
     private func relaunch() {
@@ -117,7 +117,7 @@ import XCTest
             item.hover()
             // Activate the highlighted native item after pointer placement;
             // nested-menu animation can otherwise shift the click onto Reset.
-            app.typeKey("\r", modifierFlags: [])
+            mainUI.typeKey("\r", modifierFlags: [])
             return
         }
         XCTAssertTrue(control.waitForExistence(timeout: 10), "Missing control: " + id)
@@ -172,9 +172,9 @@ import XCTest
             self.mainWindow()["sharing"] as? Int == 0 && self.record()["policy"] as? Int == 1
         }
         let cursor = mainUI.descendants(matching: .any).matching(identifier: "private-cursor-toggle").firstMatch
-        app.typeKey("c", modifierFlags: [.command, .shift])
+        mainUI.typeKey("c", modifierFlags: [.command, .shift])
         wait("Offline private-cursor shortcut enables its control") { (cursor.value as? Int) == 1 || (cursor.value as? String) == "1" }
-        app.typeKey(.escape, modifierFlags: [])
+        mainUI.typeKey(.escape, modifierFlags: [])
         wait("Escape restores the private-cursor control") { (cursor.value as? Int) == 0 || (cursor.value as? String) == "0" }
         draftContains("1357")
         app.webViews.buttons["Open test popup"].click()
@@ -185,14 +185,14 @@ import XCTest
         }
         // Use the visible front popup's shared mode control. Its window can
         // cover the main toolbar; clicking through it is not a valid user action.
-        app.windows.matching(identifier: "chat-popup").firstMatch.radioButtons["Normal"].click()
+        app.descendants(matching: .any).matching(identifier: "chat-popup").firstMatch.radioButtons["Normal"].click()
         wait("Normal mode and Dock policy restored") {
             self.mainWindow()["sharing"] as? Int == 1 && self.record()["policy"] as? Int == 0 &&
             (self.record()["windows"] as? [[String: Any]] ?? []).contains {
                 $0["identifier"] as? String == "chat-popup" && $0["visible"] as? Bool == true && $0["sharing"] as? Int == 1
             }
         }
-        app.windows.matching(identifier: "chat-popup").firstMatch.buttons["window-close"].click()
+        app.descendants(matching: .any).matching(identifier: "chat-popup").firstMatch.buttons["window-close"].click()
         app.webViews.buttons["Open test dialog"].click()
         let confirmation = app.sheets.firstMatch
         XCTAssertTrue(confirmation.waitForExistence(timeout: 10))
@@ -217,7 +217,7 @@ import XCTest
         wait("Zoom reset") { abs((self.mainWindow()["webZoom"] as? Double ?? 0) - 0.9) < 0.01 }
     }
     func testWindowGeometryAndMultilineEditing() throws {
-        let window = app.windows.matching(identifier: "chat-window").firstMatch
+        let window = app.descendants(matching: .any).matching(identifier: "chat-window").firstMatch
         let x = try XCTUnwrap(mainWindow()["x"] as? Double)
         let y = try XCTUnwrap(mainWindow()["y"] as? Double)
         // Relative native title-bar coordinates, never absolute screen positions.
@@ -246,7 +246,7 @@ import XCTest
         editor.typeKey("a", modifierFlags: .command)
         editor.typeText("Replacement draft")
         draftContains("Replacement draft")
-        app.typeKey("z", modifierFlags: .command)
+        mainUI.typeKey("z", modifierFlags: .command)
         draftContains("Line eight")
         // A multiline editor may consume the first wheel event before scrolling
         // chains to the page. Bound navigation by the actual lower control.
@@ -312,7 +312,7 @@ import XCTest
         editor.click(); editor.typeText("Small window text")
         wait("Composition tracker ready") { self.mainWindow()["compositionKnown"] as? Bool == true }
         let before = try XCTUnwrap(mainWindow()["y"] as? Double)
-        app.typeKey(.upArrow, modifierFlags: [.command, .shift])
+        mainUI.typeKey(.upArrow, modifierFlags: [.command, .shift])
         wait("Window moved 40 points") { abs((self.mainWindow()["y"] as? Double ?? before) - before - 40) < 1 }
         let begin = app.webViews.buttons["Begin synthetic composition"].firstMatch
         begin.hover()
@@ -322,27 +322,25 @@ import XCTest
         wait("Fixture dispatches composition start") { compositionStatus.value as? String == "Composition active" }
         wait("Synthetic composition active") { self.mainWindow()["composing"] as? Bool == true }
         let composingY = mainWindow()["y"] as? Double
-        app.typeKey(.upArrow, modifierFlags: [.command, .shift])
+        mainUI.typeKey(.upArrow, modifierFlags: [.command, .shift])
         XCTAssertEqual(mainWindow()["y"] as? Double, composingY)
         let commit = app.webViews.buttons["Commit synthetic composition"].firstMatch
         commit.hover()
         wait("Commit fixture control is visible") { commit.isHittable }
         commit.click()
         wait("Synthetic composition ended") { self.mainWindow()["composing"] as? Bool == false }
-        app.typeKey("m", modifierFlags: [.command, .shift])
+        mainUI.typeKey("m", modifierFlags: [.command, .shift])
         wait("Main window hidden") { self.mainWindow()["visible"] as? Bool == false }
         // Send the global key while another app owns focus; do not restart Finder.
         let finder = XCUIApplication(bundleIdentifier: "com.apple.finder")
         finder.activate()
         finder.typeKey("m", modifierFlags: [.command, .shift])
         wait("Global shortcut restored the window") { self.mainWindow()["visible"] as? Bool == true }
-        app.activate()
         draftContains("Small window text")
-        app.windows.firstMatch.buttons["window-minimize"].click()
+        mainUI.buttons["window-minimize"].click()
         wait("Window minimized") { self.mainWindow()["miniaturized"] as? Bool == true }
-        app.activate()
-        app.typeKey("m", modifierFlags: [.command, .shift])
-        app.typeKey("m", modifierFlags: [.command, .shift])
+        finder.activate()
+        finder.typeKey("m", modifierFlags: [.command, .shift])
         wait("Window restored") { self.mainWindow()["miniaturized"] as? Bool == false }
     }
     func testSpeechUIAppendCancelAndPreserveImage() throws {
@@ -350,7 +348,7 @@ import XCTest
         loadImage(); click("image-add"); waitText("Images: 1 · Sends: 0")
         click("toolbar-transcript")
         wait("Synthetic source ready") { self.app.buttons["speech-record"].isEnabled }
-        app.typeKey("r", modifierFlags: [.command, .shift])
+        mainUI.typeKey("r", modifierFlags: [.command, .shift])
         wait("Recording state") { self.mainWindow()["speechPhase"] as? String == "recording" && self.mainWindow()["speechRecordTitle"] as? String == "Stop" && self.app.buttons["speech-record"].isHittable }
         click("speech-cancel")
         wait("Cancelled state") { self.mainWindow()["speechPhase"] as? String == "idle" && self.app.buttons["speech-record"].isEnabled }
@@ -396,7 +394,7 @@ import XCTest
         let host = try backgroundHost()
         for mode in ["Normal", "Legacy"] {
             mainUI.radioButtons[mode].click()
-            app.typeKey("m", modifierFlags: [.command, .shift])
+            mainUI.typeKey("m", modifierFlags: [.command, .shift])
             wait("Chat hidden before background input") { self.mainWindow()["visible"] as? Bool == false }
             host.activate(); host.textFields["background-input"].click()
             host.typeText(" before" + mode)
@@ -407,14 +405,14 @@ import XCTest
             let backgroundPID = try XCTUnwrap(record()["frontmostPID"] as? Int)
             host.typeKey("m", modifierFlags: [.command, .shift])
             wait("Nonactivating panel receives keys") {
-                self.mainWindow()["key"] as? Bool == true && self.record()["active"] as? Bool == false &&
+                self.mainWindow()["key"] as? Bool == true && host.state == .runningForeground &&
                 self.record()["frontmostPID"] as? Int == backgroundPID
             }
-            app.typeText(" panel2468" + mode)
+            for character in " panel2468" + mode { mainUI.typeKey(String(character), modifierFlags: []) }
             draftContains("panel2468" + mode)
             XCTAssertFalse((host.textFields["background-input"].value as? String ?? "").contains("panel2468"))
             wait("Typing did not activate the application") { self.record()["frontmostPID"] as? Int == backgroundPID }
-            app.typeKey("m", modifierFlags: [.command, .shift])
+            mainUI.typeKey("m", modifierFlags: [.command, .shift])
             wait("Panel hidden and original application retained") {
                 self.mainWindow()["visible"] as? Bool == false && self.record()["frontmostPID"] as? Int == backgroundPID
             }
@@ -434,14 +432,14 @@ import XCTest
         wait("Background enters native full screen") { (host.staticTexts["background-state"].value as? String) == "Full screen" }
         let backgroundPID = try XCTUnwrap(record()["frontmostPID"] as? Int)
         wait("Pinned window remains visible over other app") {
-            self.mainWindow()["visible"] as? Bool == true && self.mainWindow()["level"] as? Int == NSWindow.Level.floating.rawValue
+            self.mainWindow()["visible"] as? Bool == true && self.mainWindow()["onActiveSpace"] as? Bool == true && self.mainWindow()["level"] as? Int == NSWindow.Level.floating.rawValue
         }
-        XCTAssertTrue(app.buttons["always-on-top"].isHittable)
+        XCTAssertTrue(mainUI.descendants(matching: .any).matching(identifier: "always-on-top").firstMatch.isHittable)
         host.typeKey("m", modifierFlags: [.command, .shift])
         wait("Hide while background stays active") { self.mainWindow()["visible"] as? Bool == false }
         host.typeKey("m", modifierFlags: [.command, .shift])
         wait("Show retains full-screen background activation") { self.record()["frontmostPID"] as? Int == backgroundPID && self.mainWindow()["key"] as? Bool == true }
-        app.typeKey("m", modifierFlags: [.command, .shift])
+        mainUI.typeKey("m", modifierFlags: [.command, .shift])
         host.buttons["background-fullscreen"].click()
         wait("Background leaves full screen") { (host.staticTexts["background-state"].value as? String) == "Windowed" }
         host.typeKey("m", modifierFlags: [.command, .shift])

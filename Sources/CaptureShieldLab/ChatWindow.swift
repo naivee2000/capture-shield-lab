@@ -310,8 +310,8 @@ import CaptureCore
     }
     func configureAppearance(of window: NSWindow) {
         ChatAppearance.apply(to: window, mode: preferences.mode)
-        WindowProtection.apply(to: window, mode: preferences.mode)
         (window as? ChatPanel)?.applyPin(preferences.alwaysOnTop)
+        WindowProtection.apply(to: window, mode: preferences.mode)
     }
     /// Recover a native window whose sharing setting no longer accepts readOnly.
     /// Reparent the existing view tree: never create/reload a WebView or its store.

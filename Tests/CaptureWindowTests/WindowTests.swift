@@ -127,6 +127,16 @@ import CaptureCore
             #expect(panel.collectionBehavior.contains(.canJoinAllSpaces) == pin)
         }
     }
+    @Test func modeTransitionsIncludePanelsMissingFromDocumentOrdering() {
+        _ = NSApplication.shared
+        let panel = ChatPanel.make(frame: NSRect(x: 100, y: 100, width: 640, height: 480))
+        defer { panel.close() }
+        panel.orderFrontRegardless()
+        #expect(ChatPanel.visibleOwned([panel], ordered: []).contains(panel))
+        #expect(ChatPanel.visibleOwned([panel], ordered: [panel]).count == 1)
+        panel.orderOut(nil)
+        #expect(ChatPanel.visibleOwned([panel], ordered: []).isEmpty)
+    }
     @Test func normalModeAndZoomSurvivePresentationAndSheetConfiguration() {
         _ = NSApplication.shared
         let config = WKWebViewConfiguration(); config.websiteDataStore = .nonPersistent()

@@ -5,6 +5,11 @@ import AppKit
 @MainActor final class ChatPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+    static func visibleOwned(_ owned: [NSWindow], ordered: [NSWindow]) -> [NSWindow] {
+        let known = ordered.filter { owned.contains($0) }
+        return (known + owned.reversed().filter { !known.contains($0) })
+            .filter { $0.isVisible && !$0.isMiniaturized }
+    }
     static func make(frame: NSRect, style: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .resizable]) -> ChatPanel {
         let panel = ChatPanel(contentRect: frame, styleMask: style.union(.nonactivatingPanel), backing: .buffered, defer: false)
         panel.hidesOnDeactivate = false
