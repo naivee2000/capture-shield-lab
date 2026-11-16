@@ -11,6 +11,24 @@ import Testing
     func release() { continuation?.resume(); continuation = nil }
 }
 
+@MainActor final class SpeechTestDeadlines {
+    private var waits: [UUID: (Duration, CheckedContinuation<Void, any Error>)] = [:]
+    func sleep(_ duration: Duration) async throws {
+        let id = UUID()
+        try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            try await withCheckedThrowingContinuation { continuation in waits[id] = (duration, continuation) }
+        } onCancel: {
+            Task { @MainActor in self.waits.removeValue(forKey: id)?.1.resume(throwing: CancellationError()) }
+        }
+    }
+    func contains(_ duration: Duration) -> Bool { waits.values.contains { $0.0 == duration } }
+    func fire(_ duration: Duration) {
+        let ids = waits.filter { $0.value.0 == duration }.map(\.key)
+        for id in ids { waits.removeValue(forKey: id)?.1.resume() }
+    }
+}
+
 @MainActor private final class Transport: AudioStreamTransport {
     var starts = 0, stops = 0, takes = 0
     var startGate: SpeechTestGate?

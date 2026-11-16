@@ -47,11 +47,33 @@
     },
     "clean_clone": {
       "status": "pass",
-      "source_commit": "e0c9523088f681c267e0ad396eeff26a3718bd85",
+      "source_commit": "10b71ffe82de44ff409d69f7b553b74e3197913d",
       "space_containing_paths": true,
       "build_sign_register": "pass",
       "native_reported_tests": 124,
-      "optional_skipped": 2
+      "optional_skipped": 2,
+      "applications": [
+        {
+          "name": "CaptureShieldLab",
+          "version": "0.6.6",
+          "build": "15",
+          "source_commit": "10b71ffe82de",
+          "sha256": "b19c7b9b2658b83e627e7a1152c5622df6038f6102b61ee0d3454a0b84e8ad2c",
+          "architecture": "arm64",
+          "minimum": "15.6",
+          "signature": "pass"
+        },
+        {
+          "name": "CaptureProbe",
+          "version": "0.6.6",
+          "build": "15",
+          "source_commit": "10b71ffe82de",
+          "sha256": "67239e890a2e8353d4ae2a77bef2dea43c3a18daf7c01e9e4539551f22902b93",
+          "architecture": "arm64",
+          "minimum": "15.6",
+          "signature": "pass"
+        }
+      ]
     }
   },
   "ci": {
@@ -64,6 +86,14 @@
         "stage": "macOS 27 native test bundle load",
         "classification": "harness",
         "repair": "Select supported SwiftPM native layout for native tests; packaged UI keeps the existing build script."
+      },
+      {
+        "run_id": 43946477869,
+        "source_commit": "10b71ffe82de44ff409d69f7b553b74e3197913d",
+        "status": "fail",
+        "stage": "macOS 15 startup timeout fixture",
+        "classification": "harness",
+        "repair": "Replace shortened wall-clock deadlines with injected controllable deadlines fired only after the intended capture/recognition/insertion gate is reached. Production deadlines unchanged."
       }
     ]
   },
@@ -102,5 +132,6 @@
       "result": "fail",
       "detail": "Duplicate task app destinations shared one test Bundle ID. Removed the duplicate registration and rebuilt at the single registered task destination; subsequent registration and doctor passed."
     }
-  ]
+  ],
+  "tested_source_commit": "10b71ffe82de44ff409d69f7b553b74e3197913d"
 }

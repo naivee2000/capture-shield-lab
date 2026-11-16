@@ -326,13 +326,17 @@ import CaptureCore
     @Test func stopTimeoutDoesNotReopenUntilNativeCompletion() async throws {
         let owner = try await fixture(); defer { cleanup(owner) }
         let preferences = FixturePreferences(); defer { preferences.clear() }
-        let audio = TestAudio(), backend = TestSpeech(), gate = SpeechTestGate()
+        let audio = TestAudio(), backend = TestSpeech(), gate = SpeechTestGate(), clock = SpeechTestDeadlines()
         let coordinator = SpeechCoordinator(owner: owner, defaults: preferences.defaults, capture: audio, backend: backend,
-                                            deadlines: .init(cleanup: .milliseconds(30)))
+                                            waitForDeadline: clock.sleep)
         defer { coordinator.shutdown() }
         try await selectSource(coordinator, owner)
         coordinator.toggle(); try await wait { coordinator.phase == .recording }
         audio.stopGate = gate; coordinator.toggle()
+        try await wait { gate.entered && clock.contains(.seconds(10)) }
+        clock.fire(.seconds(10))
+        try await wait { coordinator.phase == .recovering && clock.contains(.seconds(10)) }
+        clock.fire(.seconds(10))
         try await wait { coordinator.phase == .blocked }
         coordinator.toggle(); #expect(audio.starts == 1 && !coordinator.canRecord)
         gate.release(); audio.stopGate = nil
@@ -361,20 +365,27 @@ import CaptureCore
     @Test func startupAndRecognitionTimeoutsWaitForRetiringWork() async throws {
         let owner = try await fixture(); defer { cleanup(owner) }
         let preferences = FixturePreferences(); defer { preferences.clear() }
-        let audio = TestAudio(), backend = TestSpeech(), start = SpeechTestGate(), recognize = SpeechTestGate()
+        let audio = TestAudio(), backend = TestSpeech(), start = SpeechTestGate(), recognize = SpeechTestGate(), clock = SpeechTestDeadlines()
         let coordinator = SpeechCoordinator(owner: owner, defaults: preferences.defaults, capture: audio, backend: backend,
-            deadlines: .init(preparation: .milliseconds(300), cleanup: .milliseconds(30), recognition: .milliseconds(30)))
+            waitForDeadline: clock.sleep)
         defer { coordinator.shutdown() }
         try await selectSource(coordinator, owner)
         audio.startGate = start; coordinator.toggle()
-        try await wait { start.entered }
+        try await wait { start.entered && clock.contains(.seconds(30)) }
+        clock.fire(.seconds(30))
+        try await wait { coordinator.phase == .recovering && clock.contains(.seconds(10)) }
+        clock.fire(.seconds(10))
         try await wait { coordinator.phase == .blocked }
         #expect(!coordinator.canRecord)
         start.release(); audio.startGate = nil
         try await wait { coordinator.phase == .idle }
         backend.recognitionGate = recognize
         coordinator.toggle(); try await wait { coordinator.phase == .recording }; coordinator.toggle()
-        try await wait { recognize.entered && coordinator.phase == .blocked }
+        try await wait { recognize.entered && clock.contains(.seconds(180)) }
+        clock.fire(.seconds(180))
+        try await wait { coordinator.phase == .recovering && clock.contains(.seconds(10)) }
+        clock.fire(.seconds(10))
+        try await wait { coordinator.phase == .blocked }
         #expect(!coordinator.canRecord)
         recognize.release(); backend.recognitionGate = nil
         try await wait { coordinator.phase == .ready }
@@ -385,18 +396,20 @@ import CaptureCore
     @Test func uncertainInsertionDoesNotBlockNewTextOrClearItOnLateAcknowledgement() async throws {
         let owner = try await fixture(); defer { cleanup(owner) }
         let preferences = FixturePreferences(); defer { preferences.clear() }
-        let audio = TestAudio(), backend = TestSpeech(), gate = SpeechTestGate()
+        let audio = TestAudio(), backend = TestSpeech(), gate = SpeechTestGate(), clock = SpeechTestDeadlines()
         var calls = 0
         let coordinator = SpeechCoordinator(owner: owner, defaults: preferences.defaults, capture: audio, backend: backend,
-            deadlines: .init(insertion: .milliseconds(300)), insertion: { text, token, context, owner, valid in
+            insertion: { text, token, context, owner, valid in
                 calls += 1
                 if calls == 1 { await gate.wait(); return .inserted }
                 return await DraftInsertionBridge.append(text, token: token, context: context, owner: owner, isCurrent: valid)
-            })
+            }, waitForDeadline: clock.sleep)
         defer { coordinator.shutdown() }
         try await selectSource(coordinator, owner)
         coordinator.toggle(); try await wait { coordinator.phase == .recording }; coordinator.toggle()
-        try await wait { gate.entered && coordinator.phase == .ready }
+        try await wait { gate.entered && clock.contains(.seconds(10)) }
+        clock.fire(.seconds(10))
+        try await wait { coordinator.phase == .ready }
         #expect(coordinator.canRecord && !owner.speechPane.add.isEnabled)
         backend.text = "New uninserted segment"
         coordinator.toggle(); try await wait { coordinator.phase == .recording }; coordinator.toggle()

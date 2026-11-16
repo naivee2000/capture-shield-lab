@@ -29,12 +29,14 @@ struct SpeechDeadlines {
         }
     }
     typealias Insertion = @MainActor (String, String, String, ChatWindow, @escaping @MainActor () -> Bool) async -> DraftInsertionBridge.Outcome
+    typealias DeadlineSleep = @MainActor (Duration) async throws -> Void
     private weak var owner: ChatWindow?
     private let defaults: UserDefaults
     private let capture: any AudioCaptureProviding
     private let backend: any SpeechTranscriptionBackend
     private let insertion: Insertion
     private let deadlines: SpeechDeadlines
+    private let waitForDeadline: DeadlineSleep
     private let limit: Duration
     private var state = SpeechSessionState()
     private var session: Session?
@@ -63,10 +65,11 @@ struct SpeechDeadlines {
     }
     init(owner: ChatWindow, defaults: UserDefaults, capture: (any AudioCaptureProviding)? = nil,
          backend: (any SpeechTranscriptionBackend)? = nil, limit: Duration = .seconds(SpeechAudioPolicy.maximumSeconds),
-         deadlines: SpeechDeadlines = .init(), insertion: Insertion? = nil) {
+         deadlines: SpeechDeadlines = .init(), insertion: Insertion? = nil,
+         waitForDeadline: @escaping DeadlineSleep = { try await Task.sleep(for: $0) }) {
         self.owner = owner; self.defaults = defaults
         self.capture = capture ?? AudioCaptureService(defaults: defaults); self.backend = backend ?? SpeechBackends.make()
-        self.limit = limit; self.deadlines = deadlines
+        self.limit = limit; self.deadlines = deadlines; self.waitForDeadline = waitForDeadline
         self.insertion = insertion ?? { text, token, context, owner, valid in
             await DraftInsertionBridge.append(text, token: token, context: context, owner: owner, isCurrent: valid)
         }
@@ -148,9 +151,10 @@ struct SpeechDeadlines {
     }
     private func deadline(_ value: Session, after delay: Duration, stage: SpeechFailure.Stage) {
         value.deadline?.cancel()
+        let sleep = waitForDeadline
         value.deadline = Task { [weak self, weak value] in
-            do { try await Task.sleep(for: delay) } catch { return }
-            guard let self, let value, self.session === value else { return }
+            do { try await sleep(delay) } catch { return }
+            guard !Task.isCancelled, let self, let value, self.session === value else { return }
             let failure = SpeechFailure(stage: stage, code: 408, message: value.retiring
                 ? "Cleanup has not finished. Recording stays blocked. Retry recovery; if it still cannot finish, preserve pending text before restarting the app."
                 : "\(stage.rawValue.capitalized) timed out. Recovering resources; completed text is retained for review.")
@@ -321,9 +325,10 @@ struct SpeechDeadlines {
         let snapshot = buffer.delivery(); delivery = snapshot
         let generation = state.begin()!
         _ = state.transition(.inserting, generation: generation); render()
+        let sleep = waitForDeadline, delay = deadlines.insertion
         deliveryDeadline = Task { [weak self] in
-            do { try await Task.sleep(for: self?.deadlines.insertion ?? .seconds(10)) } catch { return }
-            guard let self, self.delivery?.id == snapshot.id else { return }
+            do { try await sleep(delay) } catch { return }
+            guard !Task.isCancelled, let self, self.delivery?.id == snapshot.id else { return }
             self.completeInsertion(.uncertain, snapshot: snapshot)
         }
         deliveryTask = Task { [weak self] in
