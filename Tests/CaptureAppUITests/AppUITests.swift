@@ -417,9 +417,13 @@ import XCTest
                 self.mainWindow()["key"] as? Bool == true && host.state == .runningForeground &&
                 self.record()["frontmostPID"] as? Int == backgroundPID
             }
-            focusedText(" panel2468" + mode.lowercased(), through: host)
-            draftContains("panel2468" + mode.lowercased())
-            XCTAssertFalse((host.textFields["background-input"].value as? String ?? "").contains("panel2468"))
+            // Two unique keystrokes per mode prove destination and continued
+            // typing without paying XCTest's foreground synchronization per
+            // character for a long sentence (the editing cases cover long text).
+            let marker = mode == "Normal" ? "26" : "48"
+            focusedText(marker, through: host)
+            draftContains(marker)
+            XCTAssertFalse((host.textFields["background-input"].value as? String ?? "").contains(marker))
             wait("Typing did not activate the application") { self.record()["frontmostPID"] as? Int == backgroundPID }
             host.typeKey("m", modifierFlags: [.command, .shift])
             wait("Panel hidden and original application retained") {

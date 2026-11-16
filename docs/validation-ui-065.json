@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "application_version": "0.6.5",
+  "application_build": "14",
+  "deployment_minimum": "15.6",
+  "local": {
+    "status": "not-tested",
+    "reason": "Packaged XCTest unavailable locally: CLT-only and pre-existing QA042 retained.",
+    "environment": {
+      "system": "26.6.2",
+      "system_build": "25G83",
+      "architecture": "arm64",
+      "swift": "6.2.4",
+      "sdk": "26.2",
+      "xcode": "unavailable"
+    },
+    "clean_clone": {
+      "source_commit": "460cc9ba957e577dbcf4e093387aac25ca412c3d",
+      "build_sign_register": "pass",
+      "space_containing_paths": true,
+      "applications": [
+        {
+          "name": "CaptureShieldLab",
+          "version": "0.6.5",
+          "build": "14",
+          "build_commit": "460cc9ba957e",
+          "minimum": "15.6",
+          "sha256": "f6469474db9efe385d95528a394afaa3e5f6240ee0c849041c532fa7ffcd9e82"
+        },
+        {
+          "name": "CaptureProbe",
+          "version": "0.6.5",
+          "build": "14",
+          "build_commit": "460cc9ba957e",
+          "minimum": "15.6",
+          "sha256": "945086966175ba86b70cb159f109fb034738527a98d86e734d1f3e1f1075516c"
+        }
+      ]
+    },
+    "native": {
+      "status": "pass",
+      "source_commit": "458fddcf4fae170095d9ee6aa1f2ebc6934cbb6c",
+      "reported": 108,
+      "optional_skipped": 2,
+      "hosts": [
+        98,
+        9,
+        1
+      ],
+      "same_application_sources_as_clean_clone": true
+    },
+    "script_tests": {
+      "status": "pass",
+      "count": 20
+    },
+    "manual": {
+      "source_commit": "458fddcf4fae170095d9ee6aa1f2ebc6934cbb6c",
+      "synthetic_input_and_mode_preservation": "pass",
+      "background_fixture_active_appearance": "pass",
+      "escape_keeps_chat_and_cancels_native_sheet": "pass",
+      "chrome_native_titlebar": "not-tested",
+      "global_shortcuts": "not-tested",
+      "physical_pinyin": "not-tested",
+      "receiver": "not-tested"
+    },
+    "first_failures": [
+      "Shared native host exited before final configuration test; rejected incomplete summaries, isolated hosts explicitly.",
+      "Clean clone initial invocation omitted documented serial flag; incomplete result preserved and rejected."
+    ],
+    "cleanup": {
+      "status": "pass",
+      "reclaimed_allocated_bytes": 1905262592,
+      "test_mount_and_image_removed": true,
+      "task_windows_closed": true,
+      "preexisting_QA042_preserved": true,
+      "empty_test_preferences_removed": 276,
+      "empty_test_preferences_bytes": 1130496
+    }
+  },
+  "ci": [],
+  "prior_runs": [
+    {
+      "id": 43777234961,
+      "source": "e8571a5",
+      "status": "fail",
+      "reason": "UI selectors queried ordinary windows; chat panel exposed as system dialog."
+    },
+    {
+      "id": 43785834701,
+      "source": "a391f04",
+      "status": "fail",
+      "reason": "Escape closed panel; target-directed typing changed foreground app; full-screen cleanup activation lost controls.",
+      "round_counts": {
+        "15": [
+          3,
+          6
+        ],
+        "26": [
+          6,
+          3
+        ],
+        "27": [
+          3,
+          6
+        ]
+      }
+    },
+    {
+      "id": 43787248743,
+      "source": "458fddc",
+      "status": "not-tested",
+      "reason": "Seven original UI scenarios passed on all three hosts; two focus scenarios lacked event-posting permission. No permission changed."
+    },
+    {
+      "id": 43788570650,
+      "source": "460cc9b",
+      "status": "fail",
+      "reason": "All three rounds hit the 600-second orchestration deadline; incomplete xcresult counts were rejected. The 15.8.2 log separately showed the strict Normal/Legacy focus case passed in 428 seconds. Shorter unique input markers and a bounded 900-second round budget are evaluated in a new run."
+    }
+  ],
+  "real_chatgpt": "not-tested",
+  "real_speech": "not-tested",
+  "receiver": "not-tested"
+}

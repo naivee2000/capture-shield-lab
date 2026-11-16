@@ -27,7 +27,7 @@ On APFS, generated apps, Swift build files and DerivedData go under the run's ig
 
 ## Checks and verdicts
 
-The default run performs **three sequential rounds**, without parallel UI execution or failure retries. Nine test cases cover:
+The default run performs **three sequential rounds**, each bounded to fifteen minutes, without parallel UI execution or failure retries. Nine test cases cover:
 
 - Packaged process launch, editable WebKit input, quit and restart.
 - Normal/Legacy sharing attributes, whole-window/content alpha, background alpha, Dock activation policy, 70/90/140% zoom, popup inheritance, dialogs and draft preservation.

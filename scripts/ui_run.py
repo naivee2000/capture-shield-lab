@@ -225,7 +225,7 @@ def execute(args):
                               "-destination", "platform=macOS,arch=arm64", "-parallel-testing-enabled", "NO",
                               "-resultBundlePath", str(result)] +
                              (["-only-testing:CaptureShieldUITests/AppUITests/testLaunchTypeAndRestart"] if args.negative else []),
-                             log, env, timeout=600)
+                             log, env, timeout=900)
             try:
                 raw = output(["xcrun", "xcresulttool", "get", "test-results", "summary", "--path", str(result)])
                 counts = result_counts(json.loads(raw))
@@ -234,6 +234,7 @@ def execute(args):
             log_text = log.read_text(errors="replace")
             failures = re.findall(r"AppUITests\.swift:\d+: error: [^\n]+", log_text)
             report["rounds"].append({"round": index, "exit_code": rc, **counts, "failures": failures[:20]})
+            print("UI round " + str(index) + ": " + json.dumps(counts) + "; exit=" + str(rc), flush=True)
             if not result_passed(rc, counts):
                 text = log.read_text(errors="replace").lower()
                 report["negative_control_expected_failure"] = bool(args.negative and counts["failed"] == 1
