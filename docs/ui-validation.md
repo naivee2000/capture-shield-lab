@@ -39,7 +39,7 @@ The default run performs **three sequential rounds**, without parallel UI execut
 - Normal/Legacy keyboard focus without changing the independently running background application’s foreground identity, plus focus return after hide.
 - Persisted pin controls and native full-screen background behavior, using a separate synthetic FocusHost application.
 
-Focus-specific input uses fixed public Core Graphics keystrokes from the XCTest runner because element-targeted XCTest typing activates its application. Event-posting permission must already be available; the test does not request it or patch authorization. Input destinations and the background foreground PID remain asserted. All other controls use XCTest element actions.
+Focus-specific keys are sent by XCTest through the already-foreground background test application, avoiding activation of the panel's application. Actual keyboard input destinations, panel key state and the background foreground PID remain asserted; targeting an element alone is never proof of delivery. No separate event-posting permission is requested or assumed.
 
 Read-only native metadata supplements visible UI assertions for window geometry, sharing settings and alpha. It samples in common run-loop modes during menu/resize tracking and includes monotonic sample time; stale samples cannot satisfy an assertion. That output is enabled only for an isolated UI-test bundle launched with `--chat-preview`. It contains no page text and exposes no application-control commands. An actual image decoded by the offline webpage is required after file handoff; returning a file URL alone is insufficient.
 

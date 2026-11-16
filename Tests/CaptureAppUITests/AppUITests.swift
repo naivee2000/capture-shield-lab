@@ -393,23 +393,11 @@ import XCTest
         XCTAssertTrue(host.textFields["background-input"].waitForExistence(timeout: 15))
         return host
     }
-    /// XCTest element typing activates the target application. These narrowly
-    /// scoped system keystrokes test the existing keyboard owner instead, without
-    /// a destination PID, activation call, private API or permission mutation.
-    private func focusedKey(_ code: CGKeyCode, flags: CGEventFlags = []) throws {
-        guard CGPreflightPostEventAccess() else {
-            throw NSError(domain: "UI focus test is not authorized for event posting", code: 1)
-        }
-        let source = CGEventSource(stateID: .hidSystemState)
-        let down = try XCTUnwrap(CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: true))
-        let up = try XCTUnwrap(CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: false))
-        down.flags = flags; up.flags = flags
-        down.post(tap: .cghidEventTap); up.post(tap: .cghidEventTap)
-    }
-    private func focusedText(_ text: String) throws {
-        let codes: [Character: CGKeyCode] = [" ":49, "p":35, "a":0, "n":45, "e":14, "l":37,
-            "2":19, "4":21, "6":22, "8":28, "o":31, "r":15, "m":46, "g":5, "c":8, "y":16]
-        for character in text { try focusedKey(try XCTUnwrap(codes[character])) }
+    /// Send through the already-foreground application, not the panel's app.
+    /// typeKey does not require the target element's descendants to own editing
+    /// focus. The assertions below verify the actual system keyboard destination.
+    private func focusedText(_ text: String, through host: XCUIApplication) {
+        for character in text { host.typeKey(String(character), modifierFlags: []) }
     }
     func testFocusReturnWithoutApplicationActivation() throws {
         let host = try backgroundHost()
@@ -429,11 +417,11 @@ import XCTest
                 self.mainWindow()["key"] as? Bool == true && host.state == .runningForeground &&
                 self.record()["frontmostPID"] as? Int == backgroundPID
             }
-            try focusedText(" panel2468" + mode.lowercased())
+            focusedText(" panel2468" + mode.lowercased(), through: host)
             draftContains("panel2468" + mode.lowercased())
             XCTAssertFalse((host.textFields["background-input"].value as? String ?? "").contains("panel2468"))
             wait("Typing did not activate the application") { self.record()["frontmostPID"] as? Int == backgroundPID }
-            try focusedKey(46, flags: [.maskCommand, .maskShift])
+            host.typeKey("m", modifierFlags: [.command, .shift])
             wait("Panel hidden and original application retained") {
                 self.mainWindow()["visible"] as? Bool == false && self.record()["frontmostPID"] as? Int == backgroundPID
             }
@@ -460,7 +448,7 @@ import XCTest
         wait("Hide while background stays active") { self.mainWindow()["visible"] as? Bool == false }
         host.typeKey("m", modifierFlags: [.command, .shift])
         wait("Show retains full-screen background activation") { self.record()["frontmostPID"] as? Int == backgroundPID && self.mainWindow()["key"] as? Bool == true }
-        try focusedKey(46, flags: [.maskCommand, .maskShift])
+        host.typeKey("m", modifierFlags: [.command, .shift])
         wait("Panel hidden before leaving full screen") { self.mainWindow()["visible"] as? Bool == false }
         host.buttons["background-fullscreen"].click()
         wait("Background leaves full screen") { (host.staticTexts["background-state"].value as? String) == "Windowed" }
