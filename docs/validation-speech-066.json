@@ -40,10 +40,32 @@
       "bundle_version": "0.6.6",
       "bundle_build": "15",
       "isolated_identifier": true
+    },
+    "native_negative_control": {
+      "status": "pass",
+      "expected_failed_tests": 1
+    },
+    "clean_clone": {
+      "status": "pass",
+      "source_commit": "e0c9523088f681c267e0ad396eeff26a3718bd85",
+      "space_containing_paths": true,
+      "build_sign_register": "pass",
+      "native_reported_tests": 124,
+      "optional_skipped": 2
     }
   },
   "ci": {
-    "status": "pending"
+    "status": "pending",
+    "attempts": [
+      {
+        "run_id": 43945046014,
+        "source_commit": "e0c9523088f681c267e0ad396eeff26a3718bd85",
+        "status": "fail",
+        "stage": "macOS 27 native test bundle load",
+        "classification": "harness",
+        "repair": "Select supported SwiftPM native layout for native tests; packaged UI keeps the existing build script."
+      }
+    ]
   },
   "real_selected_application_capture": "not-tested",
   "real_chatgpt_append": "not-tested",
@@ -73,6 +95,12 @@
       "classification": "harness",
       "result": "fail",
       "detail": "An exact identifier expression selected zero tests; the harness rejected it. A method-boundary selector executes the discovered cases."
+    },
+    {
+      "stage": "clean-clone-registration",
+      "classification": "harness",
+      "result": "fail",
+      "detail": "Duplicate task app destinations shared one test Bundle ID. Removed the duplicate registration and rebuilt at the single registered task destination; subsequent registration and doctor passed."
     }
   ]
 }

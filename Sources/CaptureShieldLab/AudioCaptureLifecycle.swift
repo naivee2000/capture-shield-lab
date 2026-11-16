@@ -35,7 +35,7 @@ struct AudioCaptureStop: Sendable {
             throw SpeechFailure(stage: .capture, code: 409, message: "The previous capture has not finished. Wait for recovery before recording again.")
         }
         let lease = Lease(); self.lease = lease
-        let task = Task { @MainActor in
+        let task = Task { @MainActor [self, lease] in
             try Task.checkCancellation()
             let transport = try await self.factory(source) { [weak self, weak lease] code, terminal in
                 Task { @MainActor in

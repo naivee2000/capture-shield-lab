@@ -7,7 +7,10 @@ FRAMEWORKS="$TOOL_DIR/Library/Developer/Frameworks"
 if [[ -d "$TOOL_DIR/Platforms/MacOSX.platform/Developer/Library/Frameworks/Testing.framework" ]]; then
   FRAMEWORKS="$TOOL_DIR/Platforms/MacOSX.platform/Developer/Library/Frameworks"
 fi
-BUILD_ARGS=()
+# Swift 6.4 defaults to Swift Build's per-target framework bundles. Keep the
+# native unit host on SwiftPM's supported native product layout on every SDK;
+# packaged-app UI tests still build the application through scripts/build.sh.
+BUILD_ARGS=(--build-system native)
 RUN_ARGS=()
 CUSTOM_SELECTION=false
 while [[ "$#" -gt 0 ]]; do

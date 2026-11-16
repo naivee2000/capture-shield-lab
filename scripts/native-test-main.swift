@@ -13,8 +13,12 @@ import Testing
         }
         setenv("CAPTURESHIELD_NATIVE_HOST", "1", 1)
         for path in paths {
-            guard path.hasSuffix(".xctest"), let bundle = Bundle(path: path), bundle.load() else {
+            guard path.hasSuffix(".xctest"), let bundle = Bundle(path: path) else {
                 FileHandle.standardError.write(Data("Native test bundle failed to load.\n".utf8)); exit(2)
+            }
+            do { try bundle.loadAndReturnError() }
+            catch {
+                FileHandle.standardError.write(Data("Native test bundle load error: \(error.localizedDescription)\n".utf8)); exit(2)
             }
         }
         var arguments = Testing.__CommandLineArguments_v0()
