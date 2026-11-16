@@ -180,11 +180,15 @@ import XCTest
         mainUI.typeKey(.escape, modifierFlags: [])
         wait("Escape restores the private-cursor control") { (cursor.value as? Int) == 0 || (cursor.value as? String) == "0" }
         draftContains("1357")
-        app.webViews.buttons["Open test popup"].click()
+        let popupButton = app.webViews.buttons["Open test popup"]
+        for _ in 0..<3 where !popupButton.isHittable { app.webViews.firstMatch.scroll(byDeltaX: 0, deltaY: -400) }
+        popupButton.hover()
+        wait("Popup action is visible at the current page zoom") { popupButton.isHittable }
+        popupButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
         wait("Popup is configured before being used") {
             (self.record()["windows"] as? [[String: Any]] ?? []).contains {
-                $0["identifier"] as? String == "chat-popup" && $0["sharing"] as? Int == 0
-            }
+                $0["identifier"] as? String == "chat-popup" && $0["sharing"] as? Int == 0 && $0["visible"] as? Bool == true
+            } && self.app.descendants(matching: .any).matching(identifier: "chat-popup").firstMatch.exists
         }
         // Use the visible front popup's shared mode control. Its window can
         // cover the main toolbar; clicking through it is not a valid user action.
@@ -234,7 +238,7 @@ import XCTest
             abs((self.mainWindow()["y"] as? Double ?? y) - y - 40) < 3
         }
         let right = window.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5)).withOffset(CGVector(dx: -1, dy: 0))
-        drag(right, dx: -340, dy: 0)
+        drag(right, dx: -400, dy: 0)
         let bottom = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 1)).withOffset(CGVector(dx: 0, dy: -1))
         // Cross the minimum boundary rather than relying on the native resize
         // gesture's initial tracking offset to be exactly zero.

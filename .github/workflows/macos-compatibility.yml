@@ -3,7 +3,7 @@ name: macOS compatibility
 on:
   workflow_dispatch:
   push:
-    branches: [main, codex/app-ui-compatibility, codex/floating-focus-065]
+    branches: [main, codex/app-ui-compatibility, codex/floating-focus-065, codex/floating-focus-065-final]
     paths:
       - '.github/workflows/macos-compatibility.yml'
       - 'Package.swift'
@@ -137,6 +137,9 @@ jobs:
           if [ "$result" -ne 0 ]; then
             for log in artifacts/ui-runs/ui-ci-*/*.log; do
               echo "Synthetic test log: $(basename "$log")"
+              if [[ "$log" == */round-*.log ]]; then
+                grep -B 30 -A 4 'error:' "$log" || true
+              fi
               tail -80 "$log"
             done
           fi

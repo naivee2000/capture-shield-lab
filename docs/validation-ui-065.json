@@ -116,6 +116,12 @@
       "source": "460cc9b",
       "status": "fail",
       "reason": "All three rounds hit the 600-second orchestration deadline; incomplete xcresult counts were rejected. The 15.8.2 log separately showed the strict Normal/Legacy focus case passed in 428 seconds. Shorter unique input markers and a bounded 900-second round budget are evaluated in a new run."
+    },
+    {
+      "id": 43790178900,
+      "source": "247c382",
+      "status": "fail",
+      "reason": "macOS27 first round passed the focus and full-screen cases, but failed popup inventory and a native width gesture (646 rather than640). Other hosts remained running while fixes were prepared on a separate branch."
     }
   ],
   "real_chatgpt": "not-tested",
