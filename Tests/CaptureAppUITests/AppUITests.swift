@@ -58,7 +58,10 @@ import XCTest
     private var editor: XCUIElement { app.webViews.textViews["Synthetic chat input"].firstMatch }
     private var mainUI: XCUIElement { app.descendants(matching: .any).matching(identifier: "chat-window").firstMatch }
     private func quit() {
-        mainUI.typeKey("q", modifierFlags: .command)
+        // A failed full-screen/hide assertion may leave the surface off-space.
+        // Activate only during teardown, then use the ordinary Quit command.
+        app.activate()
+        app.typeKey("q", modifierFlags: .command)
         XCTAssertTrue(app.wait(for: .notRunning, timeout: 10), "The isolated app must quit normally; no force termination is used.")
     }
     private func relaunch() {
@@ -390,6 +393,24 @@ import XCTest
         XCTAssertTrue(host.textFields["background-input"].waitForExistence(timeout: 15))
         return host
     }
+    /// XCTest element typing activates the target application. These narrowly
+    /// scoped system keystrokes test the existing keyboard owner instead, without
+    /// a destination PID, activation call, private API or permission mutation.
+    private func focusedKey(_ code: CGKeyCode, flags: CGEventFlags = []) throws {
+        guard CGPreflightPostEventAccess() else {
+            throw NSError(domain: "UI focus test is not authorized for event posting", code: 1)
+        }
+        let source = CGEventSource(stateID: .hidSystemState)
+        let down = try XCTUnwrap(CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: true))
+        let up = try XCTUnwrap(CGEvent(keyboardEventSource: source, virtualKey: code, keyDown: false))
+        down.flags = flags; up.flags = flags
+        down.post(tap: .cghidEventTap); up.post(tap: .cghidEventTap)
+    }
+    private func focusedText(_ text: String) throws {
+        let codes: [Character: CGKeyCode] = [" ":49, "p":35, "a":0, "n":45, "e":14, "l":37,
+            "2":19, "4":21, "6":22, "8":28, "o":31, "r":15, "m":46, "g":5, "c":8, "y":16]
+        for character in text { try focusedKey(try XCTUnwrap(codes[character])) }
+    }
     func testFocusReturnWithoutApplicationActivation() throws {
         let host = try backgroundHost()
         for mode in ["Normal", "Legacy"] {
@@ -408,11 +429,11 @@ import XCTest
                 self.mainWindow()["key"] as? Bool == true && host.state == .runningForeground &&
                 self.record()["frontmostPID"] as? Int == backgroundPID
             }
-            for character in " panel2468" + mode { mainUI.typeKey(String(character), modifierFlags: []) }
-            draftContains("panel2468" + mode)
+            try focusedText(" panel2468" + mode.lowercased())
+            draftContains("panel2468" + mode.lowercased())
             XCTAssertFalse((host.textFields["background-input"].value as? String ?? "").contains("panel2468"))
             wait("Typing did not activate the application") { self.record()["frontmostPID"] as? Int == backgroundPID }
-            mainUI.typeKey("m", modifierFlags: [.command, .shift])
+            try focusedKey(46, flags: [.maskCommand, .maskShift])
             wait("Panel hidden and original application retained") {
                 self.mainWindow()["visible"] as? Bool == false && self.record()["frontmostPID"] as? Int == backgroundPID
             }
@@ -439,7 +460,8 @@ import XCTest
         wait("Hide while background stays active") { self.mainWindow()["visible"] as? Bool == false }
         host.typeKey("m", modifierFlags: [.command, .shift])
         wait("Show retains full-screen background activation") { self.record()["frontmostPID"] as? Int == backgroundPID && self.mainWindow()["key"] as? Bool == true }
-        mainUI.typeKey("m", modifierFlags: [.command, .shift])
+        try focusedKey(46, flags: [.maskCommand, .maskShift])
+        wait("Panel hidden before leaving full screen") { self.mainWindow()["visible"] as? Bool == false }
         host.buttons["background-fullscreen"].click()
         wait("Background leaves full screen") { (host.staticTexts["background-state"].value as? String) == "Windowed" }
         host.typeKey("m", modifierFlags: [.command, .shift])

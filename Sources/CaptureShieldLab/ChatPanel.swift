@@ -5,6 +5,9 @@ import AppKit
 @MainActor final class ChatPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
+    // Responders (WebKit, IME and sheets) handle their own cancellation first.
+    // An unhandled Escape must not close this persistent chat panel.
+    override func cancelOperation(_ sender: Any?) {}
     static func visibleOwned(_ owned: [NSWindow], ordered: [NSWindow]) -> [NSWindow] {
         let known = ordered.filter { owned.contains($0) }
         return (known + owned.reversed().filter { !known.contains($0) })

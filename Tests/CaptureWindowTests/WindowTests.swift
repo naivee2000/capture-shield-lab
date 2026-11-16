@@ -127,6 +127,14 @@ import CaptureCore
             #expect(panel.collectionBehavior.contains(.canJoinAllSpaces) == pin)
         }
     }
+    @Test func unhandledEscapeDoesNotCloseTheChatPanel() {
+        _ = NSApplication.shared
+        let panel = ChatPanel.make(frame: NSRect(x: 100, y: 100, width: 640, height: 480))
+        defer { panel.close() }
+        panel.orderFrontRegardless()
+        panel.cancelOperation(nil)
+        #expect(panel.isVisible)
+    }
     @Test func modeTransitionsIncludePanelsMissingFromDocumentOrdering() {
         _ = NSApplication.shared
         let panel = ChatPanel.make(frame: NSRect(x: 100, y: 100, width: 640, height: 480))

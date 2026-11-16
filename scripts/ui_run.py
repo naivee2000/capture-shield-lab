@@ -240,6 +240,7 @@ def execute(args):
                     and counts["passed"] == 0 and "negative control must fail" in text)
                 if any(s in text for s in ("does not have permission to use accessibility",
                                           "not authorized for ui testing",
+                                          "not authorized for event posting",
                                           "failed to get authorization")):
                     report["status"] = "not-tested"
                     report["stage"] = "ui-authorization"
