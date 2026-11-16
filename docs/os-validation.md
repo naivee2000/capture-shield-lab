@@ -28,7 +28,9 @@ bash scripts/doctor.sh
 
 ## Evidence boundary
 
-The latest **[0.6.5 floating-panel review](ui-065.md)** passed nine packaged UI scenarios in three rounds on each recorded 15.8.2, 26.7.2 and 27.0.1 host, plus negative controls and native/package checks. Exact source and evidence are in [its ledger](validation-ui-065.json).
+The latest **[0.6.6 continuous-recording review](speech-066.md)** passed eleven packaged UI scenarios in three rounds on each actual **15.8.2, 26.7.2 and 27.0.1** host, plus native/package/script and negative controls. See [the exact source and evidence](validation-speech-066.json). The native host loads the SwiftPM-built bundles and survives stopped CF run loops; tests use the supported native build layout across toolchains. Actual capture, account and receiver checks remain separate.
+
+The earlier **[0.6.5 floating-panel review](ui-065.md)** passed nine packaged UI scenarios in three rounds on each recorded 15.8.2, 26.7.2 and 27.0.1 host, plus negative controls and native/package checks. Exact source and evidence are in [its ledger](validation-ui-065.json).
 
 The earlier **0.6.4 packaged-application review** added three sequential XCTest UI rounds on each actual host, negative controls, scoped application repairs and safe cleanup. See [the UI results](ui-064.md) and [machine-readable evidence](validation-ui-064.json). The 0.6.3 ledger below remains historical evidence for its own source commit; it is not silently reused as a 0.6.4 result.
 

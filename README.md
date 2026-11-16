@@ -3,7 +3,7 @@
 A native ChatGPT web window and a separate macOS capture-protection lab. Can the window remain visible locally while disappearing from a full-display capture?
 
 **Experimental. No universal invisibility claim.**
-Version **0.6.6** fixes repeated recording after retained transcripts, adds confirmed cleanup/recovery, and preserves earlier edits while collecting another segment. See [continuous recording behavior and device checks](docs/speech-066.md). It retains Always on Top, nonactivating chat panels, the compact transcription panel, screenshot cropping and confirmed image attachments. Automated previews do not establish real ChatGPT, audio capture or meeting-receiver results.
+Version **0.6.6** fixes repeated recording after retained transcripts, adds confirmed cleanup/recovery, and preserves earlier edits while collecting another segment. The actual packaged app passed **11 UI scenarios in three rounds** on **macOS 15.8.2, 26.7.2 and 27.0.1**. See [continuous recording behavior, results and device checks](docs/speech-066.md). It retains Always on Top, nonactivating chat panels, the compact transcription panel, screenshot cropping and confirmed image attachments. Automated previews do not establish real ChatGPT, audio capture or meeting-receiver results.
 
 **Operator feedback:** Teams desktop entire-screen sharing from macOS 26.6.2 (25G83), viewed in Chrome: Normal visible, Legacy hidden, but Pinyin candidates visible. Receiver retesting of the candidate-panel repair is pending; this is not a blanket privacy guarantee.
 

@@ -1,5 +1,9 @@
 # Observed compatibility
 
+## Version 0.6.6 continuous recording
+
+The [0.6.6 review](speech-066.md) passed 11 actual packaged-app UI scenarios in three sequential rounds on **15.8.2, 26.7.2 and 27.0.1**, plus native/package/script and negative controls. It repairs retained-text recording lockout, cleanup recovery and multiline draft acknowledgement. Local installed-model recognition passed five English and five Mandarin repetitions. These results do not establish real selected-app audio capture, real ChatGPT insertion or receiver hiding for this release; those device checks remain separate. The deployment floor stays 15.6.
+
 ## Version 0.6.5 floating panels
 
 The [0.6.5 review](ui-065.md) records actual packaged-app UI acceptance on macOS **15.8.2, 26.7.2 and 27.0.1**: nine scenarios, three sequential rounds per host, with negative controls and native/package checks. This includes pinning, native full-screen background behavior and Normal/Legacy keyboard focus without changing the background foreground identity. These are automated UI results, not a new Chrome/Teams receiver verdict. Retest foreground appearance, physical Pinyin and sharing on your own sender/receiver setup.

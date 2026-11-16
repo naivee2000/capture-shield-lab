@@ -36,6 +36,24 @@ The native harness loads the actual SwiftPM-built test bundle(s) in a synchronou
 
 For an explicit local recognition check, generate harmless `english.aiff` and `chinese.aiff` fixtures saying seven plus five in a disposable directory, then set `CAPTURESHIELD_SYNTHETIC_SPEECH_DIR` for `scripts/test.sh --filter LocalSpeechFixtureTests`. The test performs five consecutive recognitions per language with installed models; it does not capture application audio or download models. Delete the generated audio afterward; never use meeting recordings as fixtures.
 
+## Verified release results (2026-11-16)
+
+Tested source: `34f7f7f82c007eaea15c1d48be66d96fea953685`, version **0.6.6/build 15**. [The complete matrix](https://github.com/naivee2000/capture-shield-lab/actions/runs/43949454329) passed without retries. Exact hashes, hosts, counts, first failures and cleanup evidence are in [the machine-readable ledger](validation-speech-066.json).
+
+| Actual host | Native regression | Packaged application UI | Build/sign/register and negative controls |
+| --- | --- | --- | --- |
+| macOS 15.8.2 (24H232), Xcode 26.3 / Swift 6.2.4 / SDK 26.2 | 124 reported; 2 optional cases skipped | 11 scenarios × 3 rounds, all passed | Passed |
+| macOS 26.7.2 (25G332), Xcode 26.6 / Swift 6.3.3 / SDK 26.5 | 124 reported; 2 optional cases skipped | 11 scenarios × 3 rounds, all passed | Passed |
+| macOS 27.0.1 (26A434), Xcode 27.2 / Swift 6.4.2 / SDK 27.2 | 124 reported; 2 optional cases skipped | 11 scenarios × 3 rounds, all passed | Passed |
+
+Each host also passed 20 script checks. The two optional native cases are actual installed-model recognition and visual export; neither is silently counted as device acceptance. UI previews substitute synthetic audio/results and never load a ChatGPT account.
+
+On the development Mac, macOS 26.6.2 (25G83), the complete native suite and a clean clone in a space-containing path passed. Both cloned apps were signed, registered and checked against the 15.6 Info.plist/Mach-O floor. Installed SpeechAnalyzer models recognized five consecutive generated English questions and five Mandarin questions; the tested backend source blob is recorded separately. No meeting audio or model download was used. Actual selected-app capture, a live 120-second capture, real ChatGPT insertion and an independent receiver remain **not-tested for this release**.
+
+The initial failures remain recorded: the original retained-text lock; multiline insertion falsely reported uncertain; the Swift async-main test-host exit; the Xcode 27 test-product loader mismatch; and the shortened startup fixture racing macOS 15 WebView preparation. Corrections preserve assertions and production deadlines. Superseded workflow attempts were cancelled by the existing concurrency policy after corrected commits were pushed; their failed stages are not relabeled as passes.
+
+Local task-generated apps, clones, audio fixtures, build/module caches and raw logs were removed; the APFS image was detached/deleted, reclaiming **2,930,769,920 allocated bytes (about 2.73 GiB)**. Only technical summaries/manifests remain. QA042, user windows/login data and installed speech models were preserved. Each hosted job also completed its scoped UI cleanup.
+
 ## Device acceptance still required
 
 On the actual sender Mac, record the installed app path/version/commit, OS/build, source app/version and language. With a harmless question and an existing draft/image:
