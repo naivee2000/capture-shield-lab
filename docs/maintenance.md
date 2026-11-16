@@ -8,6 +8,7 @@ Audio compatibility lives in `AudioCaptureService`, `SpeechTranscriptionBackend`
 
 | Symptom | Start here | Focused verification |
 | --- | --- | --- |
+| Record unavailable after a segment or stop never settles | `SpeechCoordinator`, `AudioCaptureLifecycle`, `SpeechTranscriptionBackend` | SpeechRecoveryTests / AudioLifecycleTests; real repeated capture on sender |
 | OS update breaks Screenshot | `ScreenshotService` backends and `SystemCompatibility` policy | ScreenshotCompatibilityTests; actual Auto and Compatible captures |
 | Wrong window/popup/candidate sharing setting | `WindowProtection` and `PanelSharingProtection` | WindowTests / PanelSharingTests; independent receiver video |
 | Image chooser/thumbnail stops working after website change | `AttachmentPageBridge` / `ImageAttachmentCoordinator` | AttachmentBridgeTests, including repeated additions and delete/re-add on one document |

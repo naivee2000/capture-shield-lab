@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "application_version": "0.6.6",
+  "application_build": "15",
+  "deployment_minimum": "15.6",
+  "local": {
+    "system": "26.6.2",
+    "system_build": "25G83",
+    "architecture": "arm64",
+    "swift": "6.2.4",
+    "sdk": "26.2",
+    "packaged_ui": {
+      "status": "not-tested",
+      "reason": "CLT only; preserve the pre-existing QA042 process."
+    },
+    "local_models": {
+      "status": "pass",
+      "engine": "SpeechAnalyzer",
+      "synthetic_english_recognitions": 5,
+      "synthetic_mandarin_recognitions": 5,
+      "downloaded_models": false
+    },
+    "native": {
+      "status": "pass",
+      "reported_tests": 124,
+      "optional_skipped": 2,
+      "process_counts": [
+        114,
+        9,
+        1
+      ],
+      "runner": "Synchronous host loading actual SwiftPM-built bundles; no retries"
+    },
+    "scripts": {
+      "status": "pass",
+      "tests": 20
+    },
+    "build_sign_register": {
+      "status": "pass",
+      "bundle_version": "0.6.6",
+      "bundle_build": "15",
+      "isolated_identifier": true
+    }
+  },
+  "ci": {
+    "status": "pending"
+  },
+  "real_selected_application_capture": "not-tested",
+  "real_chatgpt_append": "not-tested",
+  "actual_120_second_capture": "not-tested",
+  "receiver": "not-tested",
+  "first_failures": [
+    {
+      "stage": "retained-transcript",
+      "classification": "application",
+      "result": "fail",
+      "detail": "The original ready phase disabled Record and prevented a second start."
+    },
+    {
+      "stage": "multiline-draft-insertion",
+      "classification": "application",
+      "result": "fail",
+      "detail": "Inserted paragraph nodes caused a false uncertain acknowledgement."
+    },
+    {
+      "stage": "shared-native-host",
+      "classification": "harness",
+      "result": "fail",
+      "detail": "Swift async-main exited when the CF main run loop stopped. Fresh processes alone did not reliably prevent it. A synchronous test-only entry point now keeps the run loop alive until Swift Testing exits with its verdict; deliberate stop and negative controls validate it."
+    },
+    {
+      "stage": "discovered-test-selector",
+      "classification": "harness",
+      "result": "fail",
+      "detail": "An exact identifier expression selected zero tests; the harness rejected it. A method-boundary selector executes the discovered cases."
+    }
+  ]
+}

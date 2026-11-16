@@ -60,6 +60,7 @@ import AppKit
                         row["speechPhase"] = String(describing: owner.speech.phase)
                         row["speechSourceSelected"] = owner.speechPane.selectedAudioSource != nil
                         row["speechRecordTitle"] = owner.speechPane.record.title
+                        row["speechRecordEnabled"] = owner.speech.canRecord
                     }
                 }
             }

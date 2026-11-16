@@ -47,7 +47,8 @@ import Testing
         var progress = 0.0
         try await backend.prepare(.english, download: true) { progress = $0 }
         #expect(progress == 1 && backend.name.contains("no speech recognition"))
-        let text = try await backend.transcribe(samples, language: .english) { _ in }
+        #expect(samples.terminationConfirmed)
+        let text = try await backend.transcribe(samples.samples, language: .english) { _ in }
         #expect(text == "Synthetic transcript 中文")
     }
     @Test func offlineFailurePreservesAReviewablePartial() async throws {

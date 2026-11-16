@@ -39,11 +39,11 @@ final class AudioSampleSink: NSObject, SCStreamOutput, SCStreamDelegate, @unchec
     private var samples: [Float] = []
     private var converter: AVAudioConverter?
     private var active = true
-    let failure: @Sendable (Int) -> Void
-    init(failure: @escaping @Sendable (Int) -> Void) { self.failure = failure }
+    let failure: @Sendable (Int, Bool) -> Void
+    init(failure: @escaping @Sendable (Int, Bool) -> Void) { self.failure = failure }
     static var format: AVAudioFormat { AVAudioFormat(standardFormatWithSampleRate: Double(SpeechAudioPolicy.sampleRate), channels: 1)! }
     func take() -> [Float] { queue.sync { active = false; defer { samples.removeAll(keepingCapacity: false); converter = nil }; return samples } }
-    func stream(_ stream: SCStream, didStopWithError error: any Error) { failure((error as NSError).code) }
+    func stream(_ stream: SCStream, didStopWithError error: any Error) { failure((error as NSError).code, true) }
     func stream(_ stream: SCStream, didOutputSampleBuffer sample: CMSampleBuffer, of type: SCStreamOutputType) {
         guard active, type == .audio, sample.isValid, samples.count < SpeechAudioPolicy.maximumSamples else { return }
         guard let description = sample.formatDescription, let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(description),
@@ -63,27 +63,38 @@ final class AudioSampleSink: NSObject, SCStreamOutput, SCStreamDelegate, @unchec
         let count = min(Int(output.frameLength), SpeechAudioPolicy.maximumSamples - samples.count)
         samples.append(contentsOf: UnsafeBufferPointer(start: channel, count: count))
     }
-    private func fail(_ code: Int) { active = false; failure(code) }
+    private func fail(_ code: Int) { active = false; failure(code, false) }
 }
 
 @MainActor protocol AudioCaptureProviding: AnyObject {
     var failed: ((Int) -> Void)? { get set }
     func sources() async throws -> [AudioSource]
     func start(source: AudioSource) async throws
-    func stop() async -> [Float]
+    func stop() async -> AudioCaptureStop
 }
 
 @MainActor final class AudioCaptureService: AudioCaptureProviding {
-    private var stream: SCStream?
-    private var sink: AudioSampleSink?
-    private var streamID: UUID?
+    private let lifecycle: AudioCaptureLifecycle
     private let defaults: UserDefaults
     private let permission: any ScreenCapturePermissionChecking
     var failed: ((Int) -> Void)?
     init(defaults: UserDefaults, permission: any ScreenCapturePermissionChecking = SystemScreenCapturePermission()) {
         self.defaults = defaults; self.permission = permission
+        lifecycle = AudioCaptureLifecycle { source, failure in
+            try ScreenCaptureAuthorization.ensure(defaults: defaults, permission: permission)
+            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
+            try Task.checkCancellation()
+            guard let app = content.applications.first(where: { $0.processID == source.pid && $0.bundleIdentifier == source.bundleID }),
+                  let display = content.displays.first else {
+                throw SpeechFailure(stage: .source, code: 1, message: "The selected application is no longer available. Refresh sources and select it again.")
+            }
+            let filter = SCContentFilter(display: display, including: [app], exceptingWindows: [])
+            return try ScreenAudioTransport(filter: filter, failure: failure)
+        }
+        lifecycle.failed = { [weak self] code in self?.failed?(code) }
     }
     func sources() async throws -> [AudioSource] {
+        try Task.checkCancellation()
         try ScreenCaptureAuthorization.ensure(defaults: defaults, permission: permission)
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
         return content.applications.filter { $0.processID != ProcessInfo.processInfo.processIdentifier && !$0.bundleIdentifier.isEmpty }
@@ -99,30 +110,20 @@ final class AudioSampleSink: NSObject, SCStreamOutput, SCStreamDelegate, @unchec
         config.showsCursor = false; config.showMouseClicks = false
         return config
     }
-    func start(source: AudioSource) async throws {
-        guard stream == nil else { return }
-        try ScreenCaptureAuthorization.ensure(defaults: defaults, permission: permission)
-        let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
-        try Task.checkCancellation()
-        guard let app = content.applications.first(where: { $0.processID == source.pid && $0.bundleIdentifier == source.bundleID }),
-              let display = content.displays.first else {
-            throw SpeechFailure(stage: .source, code: 1, message: "The selected application is no longer available. Refresh sources and select it again.")
-        }
-        let filter = SCContentFilter(display: display, including: [app], exceptingWindows: [])
-        let id = UUID()
-        let sink = AudioSampleSink { [weak self] code in Task { @MainActor in
-            guard self?.streamID == id else { return }; self?.failed?(code)
-        } }
-        let stream = SCStream(filter: filter, configuration: Self.configuration(), delegate: sink)
+    func start(source: AudioSource) async throws { try await lifecycle.start(source: source) }
+    func stop() async -> AudioCaptureStop { await lifecycle.stop() }
+}
+
+@MainActor private final class ScreenAudioTransport: AudioStreamTransport {
+    private let stream: SCStream
+    private let sink: AudioSampleSink
+    private var startAttempted = false
+    init(filter: SCContentFilter, failure: @escaping @Sendable (Int, Bool) -> Void) throws {
+        sink = AudioSampleSink(failure: failure)
+        stream = SCStream(filter: filter, configuration: AudioCaptureService.configuration(), delegate: sink)
         try stream.addStreamOutput(sink, type: .audio, sampleHandlerQueue: sink.queue)
-        self.sink = sink; self.stream = stream; streamID = id
-        do { try await stream.startCapture(); try Task.checkCancellation() }
-        catch { if streamID == id { _ = await stop() }; throw error }
     }
-    func stop() async -> [Float] {
-        let stream = self.stream, sink = self.sink
-        self.stream = nil; self.sink = nil; streamID = nil
-        try? await stream?.stopCapture()
-        return sink?.take() ?? []
-    }
+    func start() async throws { startAttempted = true; try await stream.startCapture() }
+    func stop() async throws { if startAttempted { try await stream.stopCapture() } }
+    func takeSamples() -> [Float] { sink.take() }
 }

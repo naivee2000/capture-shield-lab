@@ -390,6 +390,57 @@ import XCTest
         wait("Idle after adding") { !self.app.textViews["speech-text"].isHittable }
     }
 
+    func testSpeechThreeConsecutiveCompletions() throws {
+        editor.click(); editor.typeText("Repeat draft")
+        loadImage(); click("image-add"); waitText("Images: 1 · Sends: 0")
+        click("toolbar-transcript")
+        for count in 1...3 {
+            wait("Record available for segment \(count)") { self.app.buttons["speech-record"].isEnabled }
+            mainUI.typeKey("r", modifierFlags: [.command, .shift])
+            wait("Recording segment \(count)") { self.mainWindow()["speechPhase"] as? String == "recording" }
+            click("speech-record")
+            wait("Segment \(count) appended and ready") {
+                self.mainWindow()["speechPhase"] as? String == "idle" &&
+                (self.editor.value as? String ?? "").components(separatedBy: "Synthetic transcript").count - 1 == count &&
+                self.app.buttons["speech-record"].isEnabled
+            }
+        }
+        draftContains("Repeat draft"); waitText("Images: 1 · Sends: 0")
+    }
+    func testSpeechRetainedErrorThenAnotherRecording() throws {
+        editor.click(); editor.typeText("Retained repeat draft")
+        loadImage(); click("image-add"); waitText("Images: 1 · Sends: 0")
+        click("toolbar-transcript")
+        wait("Source ready") { self.app.buttons["speech-record"].isEnabled }
+        click("speech-record")
+        wait("First recording") { self.mainWindow()["speechPhase"] as? String == "recording" }
+        click("speech-record")
+        wait("Error retained and recording available") {
+            self.mainWindow()["speechPhase"] as? String == "ready" && self.app.buttons["speech-record"].isEnabled
+        }
+        click("speech-review")
+        let text = app.textViews["speech-text"]
+        text.click(); text.typeKey("a", modifierFlags: .command); text.typeText("Reviewed first segment")
+        click("speech-review")
+        click("speech-record")
+        wait("Second recording") { self.mainWindow()["speechPhase"] as? String == "recording" }
+        click("speech-cancel")
+        wait("Cancel retains first text") { self.mainWindow()["speechPhase"] as? String == "ready" }
+        click("speech-record")
+        wait("Third recording") { self.mainWindow()["speechPhase"] as? String == "recording" }
+        click("speech-record")
+        wait("Both results retained") { self.mainWindow()["speechPhase"] as? String == "ready" && self.app.buttons["speech-record"].isEnabled }
+        XCTAssertFalse((editor.value as? String ?? "").contains("Synthetic transcript"))
+        click("speech-review")
+        XCTAssertTrue((text.value as? String ?? "").contains("Reviewed first segment"))
+        XCTAssertTrue((text.value as? String ?? "").contains("Synthetic transcript"))
+        click("speech-add")
+        wait("Merged result appended once") { self.mainWindow()["speechPhase"] as? String == "idle" }
+        draftContains("Reviewed first segment"); draftContains("Synthetic transcript")
+        draftContains("Retained repeat draft"); waitText("Images: 1 · Sends: 0")
+        XCTAssertEqual((editor.value as? String ?? "").components(separatedBy: "Synthetic transcript").count - 1, 1)
+    }
+
     private func backgroundHost() throws -> XCUIApplication {
         let url = URL(fileURLWithPath: try XCTUnwrap(ProcessInfo.processInfo.environment["CAPTURESHIELD_UI_FOCUS_HOST"]))
         XCTAssertTrue(Bundle(url: url)?.bundleIdentifier?.hasPrefix("dev.naivee2000.captureshield.uitest.") == true)

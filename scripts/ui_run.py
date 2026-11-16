@@ -145,7 +145,7 @@ def result_counts(result):
         raise ValueError("Unrecognized xcresult counts.")
     return {"passed": passed, "failed": failed, "skipped": skipped}
 
-def result_passed(code, counts, expected=9):
+def result_passed(code, counts, expected=11):
     return code == 0 and counts == {"passed": expected, "failed": 0, "skipped": 0}
 
 def validate_application(app, prefix):
@@ -225,7 +225,7 @@ def execute(args):
                               "-destination", "platform=macOS,arch=arm64", "-parallel-testing-enabled", "NO",
                               "-resultBundlePath", str(result)] +
                              (["-only-testing:CaptureShieldUITests/AppUITests/testLaunchTypeAndRestart"] if args.negative else []),
-                             log, env, timeout=900)
+                             log, env, timeout=1200)
             try:
                 raw = output(["xcrun", "xcresulttool", "get", "test-results", "summary", "--path", str(result)])
                 counts = result_counts(json.loads(raw))

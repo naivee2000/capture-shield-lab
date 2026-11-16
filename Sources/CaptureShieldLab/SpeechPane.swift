@@ -13,6 +13,7 @@ import CaptureCore
     let add = NSButton(title: "Add to Chat", target: nil, action: nil)
     let discard = NSButton(title: "Cancel", target: nil, action: nil)
     let review = NSButton(title: "Review transcript", target: nil, action: nil)
+    let reviewSelection = NSPopUpButton()
     private let summary = NSTextField(labelWithString: "Ready")
     private let clock = NSTextField(labelWithString: "00:00 / 02:00")
     private let settings = NSButton(image: NSImage(systemSymbolName: "slider.horizontal.3", accessibilityDescription: "Audio settings")!, target: nil, action: nil)
@@ -31,6 +32,7 @@ import CaptureCore
     private(set) var transcriptExpanded = false
     private(set) var detailsExpanded = false
     private(set) var preferredHeight: CGFloat = compactHeight
+    var reviewSelectionAction: ((String?) -> Void)?
     var recordAction: (() -> Void)?
     var prepareAction: (() -> Void)?
     var refreshAction: (() -> Void)?
@@ -83,7 +85,11 @@ import CaptureCore
         scroll.documentView = result; scroll.hasVerticalScroller = true; scroll.drawsBackground = false
         scroll.borderType = .lineBorder
         result.isVerticallyResizable = true; result.autoresizingMask = [.width]; result.textContainer?.widthTracksTextView = true
-        resultButtons = NSStackView(views: [add]); resultButtons.spacing = 8
+        reviewSelection.setAccessibilityIdentifier("speech-review-selection")
+        reviewSelection.setAccessibilityLabel("Transcript delivery status")
+        reviewSelection.controlSize = .small
+        reviewSelection.target = self; reviewSelection.action = #selector(reviewSelectionChanged)
+        resultButtons = NSStackView(views: [reviewSelection, add]); resultButtons.spacing = 8
         stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 4
         [row, settingsRow!, status, scroll, resultButtons!].forEach { stack.addArrangedSubview($0) }
         stack.translatesAutoresizingMaskIntoConstraints = false; addSubview(stack)
@@ -96,26 +102,30 @@ import CaptureCore
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
-    func update(phase: SpeechSessionState.Phase, busy: Bool, inserting: Bool, uncertain: Bool, sourceName: String?) {
+    func update(phase: SpeechSessionState.Phase, busy: Bool, inserting: Bool, uncertain: Bool, sourceName: String?, recordEnabled: Bool? = nil, pendingEditable: Bool? = nil) {
         self.phase = phase; self.busy = busy; self.sourceName = sourceName ?? selectedAudioSource?.name ?? "Choose source"
-        let idle = phase == .idle && !busy
+        let idle = (phase == .idle || phase == .ready) && !busy && !inserting
         let recording = phase == .recording
-        record.title = recording ? "Stop" : "Record"; record.isEnabled = idle || recording
+        record.title = recording ? "Stop" : "Record"; record.isEnabled = recordEnabled ?? (idle || recording)
         source.isEnabled = idle; language.isEnabled = idle; refresh.isEnabled = idle; prepare.isEnabled = idle
-        let editable = phase == .ready && !inserting
+        let editable = (pendingEditable ?? (phase == .ready)) && !inserting && !uncertain
         if result.isEditable != editable { result.isEditable = editable }
-        add.isEnabled = phase == .ready && !result.string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !inserting && !uncertain
+        add.isEnabled = idle && !result.string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !inserting && !uncertain
         discard.isEnabled = !inserting
-        discard.title = phase == .ready ? "Discard" : "Cancel"
+        discard.title = phase == .blocked ? "Retry recovery" : (idle ? "Discard" : "Cancel")
         // Selecting all and replacing a retained transcript must not collapse
         // the editor at the moment the user deletes the old text.
-        if result.string.isEmpty && phase != .ready { transcriptExpanded = false }
-        if phase != .idle { settingsExpanded = false }
+        if result.string.isEmpty && !editable { transcriptExpanded = false }
+        if !idle { settingsExpanded = false }
         switch phase {
         case .idle: summary.stringValue = busy ? "Preparing…" : (error ? "Needs attention" : "Ready · \(self.sourceName)")
         case .preparing: summary.stringValue = "Preparing · \(self.sourceName)"
         case .recording: summary.stringValue = "Recording · \(self.sourceName)"
+        case .stopping: summary.stringValue = "Stopping capture…"
         case .transcribing: summary.stringValue = "Transcribing on this Mac…"
+        case .recovering: summary.stringValue = "Finishing cleanup…"
+        case .blocked: summary.stringValue = "Capture needs recovery"
+        case .inserting: summary.stringValue = "Adding to draft…"
         case .ready: summary.stringValue = inserting ? "Adding to draft…" : (error ? "Review required" : "Transcript retained")
         }
         summary.toolTip = self.sourceName + " · " + (language.titleOfSelectedItem ?? "")
@@ -135,7 +145,7 @@ import CaptureCore
     func setTranscript(_ text: String) {
         // No assignment while editing unless the content actually changed.
         if result.string != text { result.string = text; result.undoManager?.removeAllActions() }
-        if text.isEmpty { transcriptExpanded = false }
+        if text.isEmpty && !result.isEditable { transcriptExpanded = false }
         refreshLayout()
     }
     func textDidChange(_ notification: Notification) {
@@ -152,11 +162,12 @@ import CaptureCore
         review.isHidden = !pending && !transcriptExpanded
         review.title = transcriptExpanded ? "Hide transcript" : "Review transcript"
         discard.isHidden = phase == .idle && !busy && !pending
-        settings.isEnabled = phase == .idle && !busy
+        settings.isEnabled = (phase == .idle || phase == .ready) && !busy
         settingsRow.isHidden = !settingsExpanded
         status.isHidden = !detailsExpanded
         scroll.isHidden = !transcriptExpanded
         resultButtons.isHidden = !transcriptExpanded
+        reviewSelection.isHidden = reviewSelection.numberOfItems < 2
         settings.toolTip = settingsExpanded ? "Close audio settings" : "Audio source, language and preparation"
         let next = Self.compactHeight + (settingsExpanded ? 32 : 0) + (detailsExpanded ? 56 : 0)
             + (transcriptExpanded ? editorHeight.constant + 32 : 0)
@@ -172,6 +183,18 @@ import CaptureCore
     @objc private func toggleDetails() {
         detailsExpanded.toggle(); settingsExpanded = false; transcriptExpanded = false; refreshLayout()
     }
+    func setReviewItems(_ identifiers: [String], selected: String?) {
+        let existing = reviewSelection.itemArray.compactMap { $0.representedObject as? String }
+        if existing != identifiers || reviewSelection.numberOfItems == 0 {
+            reviewSelection.removeAllItems(); reviewSelection.addItem(withTitle: "Pending text")
+            for (index, id) in identifiers.enumerated() {
+                reviewSelection.addItem(withTitle: "Check draft · segment \(index + 1)")
+                reviewSelection.lastItem?.representedObject = id
+            }
+        }
+        reviewSelection.selectItem(at: selected.flatMap { identifiers.firstIndex(of: $0).map { $0 + 1 } } ?? 0)
+    }
+    @objc private func reviewSelectionChanged() { reviewSelectionAction?(reviewSelection.selectedItem?.representedObject as? String) }
     var selectedAudioSource: AudioSource? { source.selectedItem?.representedObject as? AudioSource }
     func setSources(_ sources: [AudioSource], savedBundle: String?) {
         let counts = Dictionary(grouping: sources, by: \.name).mapValues(\.count)

@@ -3,7 +3,7 @@ name: macOS compatibility
 on:
   workflow_dispatch:
   push:
-    branches: [main, codex/app-ui-compatibility, codex/floating-focus-065, codex/floating-focus-065-final]
+    branches: [main, codex/app-ui-compatibility, codex/floating-focus-065, codex/floating-focus-065-final, codex/continuous-recording-066]
     paths:
       - '.github/workflows/macos-compatibility.yml'
       - 'Package.swift'
@@ -36,7 +36,7 @@ jobs:
     name: macOS ${{ matrix.os }} / Xcode ${{ matrix.xcode }} / arm64
     # Standard Apple Silicon runners; do not replace with paid -xlarge runners.
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 65
+    timeout-minutes: 80
     strategy:
       fail-fast: false
       matrix:
@@ -87,11 +87,22 @@ jobs:
         run: bash scripts/build.sh
       - name: Run behavioral and native WebKit tests
         id: tests
-        timeout-minutes: 5
+        timeout-minutes: 8
         # WebViews share native presentation resources. Do not exhaust the
         # 7-GB hosted runner with dozens of concurrent file-picker fixtures.
         # Keep all assertions and production timeouts unchanged.
         run: bash scripts/test.sh --no-parallel
+      - name: Verify the native host still reports a deliberate failure
+        shell: bash
+        run: |
+          set +e
+          CAPTURESHIELD_NATIVE_NEGATIVE=1 bash scripts/test.sh --no-parallel --filter nativeTestHostSurvivesStoppedRunLoop > "$RUNNER_TEMP/native-negative.log" 2>&1
+          result=$?
+          set -e
+          test "$result" -eq 1
+          grep 'Deliberate native-host negative control' "$RUNNER_TEMP/native-negative.log"
+          grep -E 'Test run with 1 test .*failed after' "$RUNNER_TEMP/native-negative.log"
+          echo 'Native run-loop negative control failed exactly as required.' >> "$GITHUB_STEP_SUMMARY"
       - name: Test the UI harness and cleanup safety
         run: python3 -m unittest discover -s Tests/ScriptTests -v
       - name: Check installation and deployment floor
@@ -128,8 +139,8 @@ jobs:
       - name: Test the packaged application through XCTest UI automation
         id: app_ui
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        # Three bounded fifteen-minute rounds plus packaging/runner compilation.
-        timeout-minutes: 50
+        # Three bounded twenty-minute rounds (eleven UI scenarios) plus packaging/runner compilation.
+        timeout-minutes: 65
         run: |
           set +e
           bash scripts/test-ui.sh --run-id "ui-ci-${{ github.run_id }}-${{ matrix.os }}"

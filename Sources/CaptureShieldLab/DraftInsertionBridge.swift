@@ -3,14 +3,15 @@ import WebKit
 
 @MainActor enum DraftInsertionBridge {
     enum Outcome: String { case inserted, blocked, stale, unavailable, uncertain }
-    static func append(_ text: String, token: String, context: String, owner: ChatWindow) async -> Outcome {
+    static func append(_ text: String, token: String, context: String, owner: ChatWindow,
+                       isCurrent: @MainActor () -> Bool = { true }) async -> Outcome {
         guard owner.isMain, owner.window?.isVisible == true, owner.window?.isMiniaturized != true,
               owner.window?.attachedSheet == nil, NSApp.modalWindow == nil else { return .blocked }
         await owner.composition.synchronize(in: owner.webView)
-        guard owner.composition.composing == false,
+        guard isCurrent(), owner.composition.composing == false,
               (owner.window?.firstResponder as? any NSTextInputClient)?.hasMarkedText() != true else { return .blocked }
         guard await AttachmentPageBridge.identity(in: owner.webView, preview: owner.preview) == context else { return .stale }
-        guard owner.window?.isVisible == true, owner.window?.isMiniaturized != true, owner.window?.attachedSheet == nil else { return .blocked }
+        guard isCurrent(), owner.window?.isVisible == true, owner.window?.isMiniaturized != true, owner.window?.attachedSheet == nil else { return .blocked }
         do {
             let value = try await owner.webView.callAsyncJavaScript(script,
                 arguments: ["text": text, "token": token, "context": context], in: nil, contentWorld: ChatPageAdapter.world)
@@ -42,7 +43,16 @@ import WebKit
     document.execCommand('insertText',false,addition);
     const after=read(),expected=before+addition;
     const comparable=s=>editor instanceof HTMLTextAreaElement?s:s.replace(/\u00a0/g,' ');
-    const verified=comparable(after)===comparable(expected);
+    let verified=comparable(after)===comparable(expected);
+    if(!verified&&!(editor instanceof HTMLTextAreaElement)&&text.includes('\n')){
+      // WebKit represents inserted newlines with paragraph/BR nodes, while
+      // innerText also adds layout-only terminal newlines. Require both the
+      // unchanged full text-node sequence and the visible inserted paragraphs.
+      const flat=s=>comparable(s).replace(/\r?\n/g,'');
+      const visible=comparable(editor.innerText??'').replace(/\r\n/g,'\n');
+      const inserted=comparable(text).replace(/\r\n/g,'\n').replace(/\n+$/,'');
+      verified=flat(after)===flat(expected)&&visible.includes(inserted);
+    }
     const outcome=verified?'inserted':'uncertain';states.set(token,outcome);return outcome;
     """#
 }

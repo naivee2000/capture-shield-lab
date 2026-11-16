@@ -6,7 +6,7 @@ import CaptureCore
     var name: String { get }
     func prepare(_ language: TranscriptionLanguage, download: Bool, progress: @escaping @MainActor (Double) -> Void) async throws
     func transcribe(_ samples: [Float], language: TranscriptionLanguage, partial: @escaping @MainActor (String) -> Void) async throws -> String
-    func cancel()
+    func cancel() async
 }
 
 @MainActor enum SpeechBackends {
@@ -27,7 +27,20 @@ import CaptureCore
 @available(macOS 26, *)
 @MainActor final class ModernSpeechBackend: SpeechTranscriptionBackend {
     let name = "SpeechAnalyzer (on device)"
-    private var analyzer: SpeechAnalyzer?
+    @MainActor private final class Analysis {
+        let analyzer: SpeechAnalyzer
+        var reader: Task<String, any Error>?
+        var cancellation: Task<Void, Never>?
+        init(_ analyzer: SpeechAnalyzer) { self.analyzer = analyzer }
+        func cancel() async {
+            if let cancellation { await cancellation.value; return }
+            let analyzer = analyzer, reader = reader
+            let task = Task { reader?.cancel(); await analyzer.cancelAndFinishNow(); _ = try? await reader?.value }
+            cancellation = task
+            await task.value
+        }
+    }
+    private var analysis: Analysis?
     private var prepared: SpeechTranscriber?
     private var preparedLanguage: TranscriptionLanguage?
     func prepare(_ language: TranscriptionLanguage, download: Bool, progress: @escaping @MainActor (Double) -> Void) async throws {
@@ -60,7 +73,9 @@ import CaptureCore
               let converter = AVAudioConverter(from: AudioSampleSink.format, to: format) else {
             throw SpeechFailure(stage: .recognition, code: 1, message: "No supported speech audio format is available.")
         }
-        let analyzer = SpeechAnalyzer(modules: [transcriber]); self.analyzer = analyzer
+        try Task.checkCancellation()
+        let analyzer = SpeechAnalyzer(modules: [transcriber])
+        let analysis = Analysis(analyzer); self.analysis = analysis
         let (input, continuation) = AsyncStream<AnalyzerInput>.makeStream()
         let reader = Task { @MainActor in
             var text = ""
@@ -70,6 +85,7 @@ import CaptureCore
             }
             return text.trimmingCharacters(in: .whitespacesAndNewlines)
         }
+        analysis.reader = reader
         do {
             try await analyzer.start(inputSequence: input)
             for start in stride(from: 0, to: samples.count, by: SpeechAudioPolicy.sampleRate) {
@@ -91,13 +107,18 @@ import CaptureCore
             continuation.finish()
             try await analyzer.finalizeAndFinishThroughEndOfInput()
             let text = try await reader.value
-            self.analyzer = nil; return text
+            if self.analysis === analysis { self.analysis = nil }; return text
         } catch {
-            continuation.finish(); reader.cancel(); await analyzer.cancelAndFinishNow(); self.analyzer = nil
+            continuation.finish(); await analysis.cancel()
+            if self.analysis === analysis { self.analysis = nil }
             throw error
         }
     }
-    func cancel() { let current = analyzer; analyzer = nil; Task { await current?.cancelAndFinishNow() } }
+    func cancel() async {
+        guard let analysis else { return }
+        await analysis.cancel()
+        if self.analysis === analysis { self.analysis = nil }
+    }
 }
 
 /// macOS 15.6 path. Never starts a request unless local recognition is supported.
@@ -123,47 +144,80 @@ import CaptureCore
         for chunk in chunks {
             try Task.checkCancellation()
             let request = LegacySpeechRequest(); current = request
-            let segments = try await request.run(samples[chunk], language: language)
-            current = nil; results.append(segments)
+            let segments: [TimedSpeechSegment]
+            do { segments = try await request.run(samples[chunk], language: language) }
+            catch { if current === request { current = nil }; throw error }
+            if current === request { current = nil }; results.append(segments)
             partial(SpeechAudioPolicy.merge(results, chunks: chunks, language: language))
         }
         return SpeechAudioPolicy.merge(results, chunks: chunks, language: language)
     }
-    func cancel() { current?.finish(.failure(CancellationError())); current = nil }
+    func cancel() async {
+        guard let request = current else { return }
+        await request.cancel()
+        if current === request { current = nil }
+    }
 }
 
 @MainActor private final class LegacySpeechRequest {
     private var task: SFSpeechRecognitionTask?
     private var continuation: CheckedContinuation<[TimedSpeechSegment], any Error>?
     private var timeout: Task<Void, Never>?
+    private var settlement: Task<Void, Never>?
     func run(_ samples: ArraySlice<Float>, language: TranscriptionLanguage) async throws -> [TimedSpeechSegment] {
         guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: language.rawValue)), recognizer.supportsOnDeviceRecognition else {
             throw SpeechFailure(stage: .model, code: 1, message: "Local speech recognition became unavailable.")
         }
-        return try await withCheckedThrowingContinuation { continuation in
-            self.continuation = continuation
-            let request = SFSpeechAudioBufferRecognitionRequest()
-            request.requiresOnDeviceRecognition = true; request.shouldReportPartialResults = false; request.addsPunctuation = true
-            task = recognizer.recognitionTask(with: request) { [weak self] result, error in
-                let segments = result?.isFinal == true ? result?.bestTranscription.segments.map {
-                    TimedSpeechSegment(text: $0.substring, start: $0.timestamp, duration: $0.duration)
-                } : nil
-                let code = error.map { ($0 as NSError).code }
-                Task { @MainActor in
-                    if let segments { self?.finish(.success(segments)) }
-                    else if let code { self?.finish(.failure(SpeechFailure(stage: .recognition, code: code, message: "Local speech recognition failed. Any completed segments remain available for review."))) }
+        do {
+            let segments: [TimedSpeechSegment] = try await withCheckedThrowingContinuation { continuation in
+                self.continuation = continuation
+                let request = SFSpeechAudioBufferRecognitionRequest()
+                request.requiresOnDeviceRecognition = true; request.shouldReportPartialResults = false; request.addsPunctuation = true
+                task = recognizer.recognitionTask(with: request) { [weak self] result, error in
+                    let segments = result?.isFinal == true ? result?.bestTranscription.segments.map {
+                        TimedSpeechSegment(text: $0.substring, start: $0.timestamp, duration: $0.duration)
+                    } : nil
+                    let code = error.map { ($0 as NSError).code }
+                    Task { @MainActor in
+                        if let segments { self?.finish(.success(segments)) }
+                        else if let code { self?.finish(.failure(SpeechFailure(stage: .recognition, code: code, message: "Local speech recognition failed. Any completed segments remain available for review."))) }
+                    }
+                }
+                request.append(SpeechBackends.buffer(samples)); request.endAudio()
+                timeout = Task { [weak self] in
+                    do { try await Task.sleep(for: .seconds(60)) } catch { return }
+                    self?.finish(.failure(SpeechFailure(stage: .recognition, code: 408, message: "Local speech recognition timed out.")))
                 }
             }
-            request.append(SpeechBackends.buffer(samples)); request.endAudio()
-            timeout = Task { [weak self] in
-                do { try await Task.sleep(for: .seconds(60)) } catch { return }
-                self?.finish(.failure(SpeechFailure(stage: .recognition, code: 408, message: "Local speech recognition timed out.")))
-            }
+            await settle()
+            return segments
+        } catch {
+            await cancel()
+            throw error
         }
     }
     func finish(_ result: Result<[TimedSpeechSegment], any Error>) {
         guard let continuation else { return }
-        self.continuation = nil; timeout?.cancel(); timeout = nil; task?.cancel(); task = nil
+        self.continuation = nil; timeout?.cancel(); timeout = nil
+        if case .failure = result { task?.cancel() }
         continuation.resume(with: result)
+    }
+    func cancel() async {
+        finish(.failure(CancellationError()))
+        task?.cancel()
+        await settle()
+    }
+    private func settle() async {
+        if let settlement { await settlement.value; return }
+        let native = task
+        // `isCancelled` acknowledges the request, not completed cleanup. Keep
+        // ownership until the native state is terminal; the coordinator supplies
+        // a visible recovery deadline without opening an overlapping session.
+        let settlement = Task { @MainActor in
+            while let native, native.state != .completed { try? await Task.sleep(for: .milliseconds(50)) }
+        }
+        self.settlement = settlement
+        await settlement.value
+        task = nil
     }
 }

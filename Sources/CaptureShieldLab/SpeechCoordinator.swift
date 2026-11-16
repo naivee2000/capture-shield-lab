@@ -1,25 +1,51 @@
 import AppKit
 import CaptureCore
 
+struct SpeechDeadlines {
+    var preparation: Duration = .seconds(30)
+    var cleanup: Duration = .seconds(10)
+    var recognition: Duration = .seconds(180)
+    var insertion: Duration = .seconds(10)
+}
+
 @MainActor final class SpeechCoordinator {
+    private final class Session {
+        let generation: Int
+        let language: TranscriptionLanguage
+        let hadPending: Bool
+        var captureStatus = "not started"
+        var source: AudioSource?
+        var context: String?
+        var partial = ""
+        var failure: SpeechFailure?
+        var retiring = false
+        var retainPartial = false
+        var operation: Task<Void, Never>?
+        var timer: Task<Void, Never>?
+        var deadline: Task<Void, Never>?
+        var cleanup: Task<Void, Never>?
+        init(generation: Int, language: TranscriptionLanguage, hadPending: Bool) {
+            self.generation = generation; self.language = language; self.hadPending = hadPending
+        }
+    }
+    typealias Insertion = @MainActor (String, String, String, ChatWindow, @escaping @MainActor () -> Bool) async -> DraftInsertionBridge.Outcome
     private weak var owner: ChatWindow?
     private let defaults: UserDefaults
     private let capture: any AudioCaptureProviding
     private let backend: any SpeechTranscriptionBackend
-    private var state = SpeechSessionState()
-    private var sources: [AudioSource] = []
-    private var activeSource: AudioSource?
-    private var operation: Task<Void, Never>?
-    private var timer: Task<Void, Never>?
-    private var recognitionTimeout: Task<Void, Never>?
-    private var observers: [(NotificationCenter, NSObjectProtocol)] = []
-    private var context: String?
-    private var token = UUID().uuidString
-    private var transcript = ""
-    private var insertionUncertain = false
-    private var inserting = false
-    private var refreshing = false
+    private let insertion: Insertion
+    private let deadlines: SpeechDeadlines
     private let limit: Duration
+    private var state = SpeechSessionState()
+    private var session: Session?
+    private var sources: [AudioSource] = []
+    private var observers: [(NotificationCenter, NSObjectProtocol)] = []
+    private var buffer = SpeechTranscriptBuffer()
+    private var selectedReview: String?
+    private var delivery: SpeechTranscriptBuffer.Delivery?
+    private var deliveryTask: Task<Void, Never>?
+    private var deliveryDeadline: Task<Void, Never>?
+    private var stopped = false
     private var capability = "not checked"
     private(set) var lastFailure: SpeechFailure?
     private var pane: SpeechPane? { owner?.speechPane }
@@ -27,25 +53,40 @@ import CaptureCore
         let index = pane?.language.indexOfSelectedItem ?? 0
         return TranscriptionLanguage.allCases.indices.contains(index) ? TranscriptionLanguage.allCases[index] : .english
     }
-    var diagnostic: String {
-        "Speech: \(backend.name)\nSpeech language: \(language.rawValue); capability: \(capability)\nLast speech error: \(lastFailure?.diagnostic ?? "none")"
+    private var idle: Bool { state.phase == .idle && !stopped }
+    var canRecord: Bool { idle || state.phase == .recording }
+    var phase: SpeechSessionState.Phase {
+        idle && (buffer.hasText || !buffer.uncertain.isEmpty) ? .ready : state.phase
     }
-    var phase: SpeechSessionState.Phase { state.phase }
+    var diagnostic: String {
+        "Speech: \(backend.name)\nSpeech language: \(language.rawValue); capability: \(capability)\nSpeech phase: \(state.phase.rawValue); available: \(canRecord); capture: \(session?.captureStatus ?? "ended")\nPending text: \(buffer.hasText); uncertain delivery: \(!buffer.uncertain.isEmpty)\nLast speech error: \(lastFailure?.diagnostic ?? "none")"
+    }
     init(owner: ChatWindow, defaults: UserDefaults, capture: (any AudioCaptureProviding)? = nil,
-         backend: (any SpeechTranscriptionBackend)? = nil, limit: Duration = .seconds(SpeechAudioPolicy.maximumSeconds)) {
+         backend: (any SpeechTranscriptionBackend)? = nil, limit: Duration = .seconds(SpeechAudioPolicy.maximumSeconds),
+         deadlines: SpeechDeadlines = .init(), insertion: Insertion? = nil) {
         self.owner = owner; self.defaults = defaults
-        self.capture = capture ?? AudioCaptureService(defaults: defaults); self.backend = backend ?? SpeechBackends.make(); self.limit = limit
+        self.capture = capture ?? AudioCaptureService(defaults: defaults); self.backend = backend ?? SpeechBackends.make()
+        self.limit = limit; self.deadlines = deadlines
+        self.insertion = insertion ?? { text, token, context, owner, valid in
+            await DraftInsertionBridge.append(text, token: token, context: context, owner: owner, isCurrent: valid)
+        }
         let saved = defaults.string(forKey: "SpeechLanguage").flatMap(TranscriptionLanguage.init(rawValue:)) ?? .english
         pane?.language.selectItem(at: TranscriptionLanguage.allCases.firstIndex(of: saved) ?? 0)
         pane?.recordAction = { [weak self] in self?.toggle() }
         pane?.prepareAction = { [weak self] in self?.prepareLanguage() }
         pane?.refreshAction = { [weak self] in self?.refreshSources() }
-        pane?.addAction = { [weak self] in self?.addManually() }
-        pane?.discardAction = { [weak self] in self?.cancel() }
+        pane?.addAction = { [weak self] in self?.insert(manual: true, context: nil) }
+        pane?.discardAction = { [weak self] in
+            guard let self else { return }
+            if self.state.phase == .blocked { self.retryRecovery() }
+            else if !self.idle { self.cancel() }
+            else { self.discardSelected() }
+        }
+        pane?.reviewSelectionAction = { [weak self] id in self?.selectedReview = id; self?.render() }
         pane?.selectionAction = { [weak self] in self?.selectionChanged() }
         pane?.editAction = { [weak self] text in
-            guard let self, self.state.phase == .ready, !self.inserting else { return }
-            self.transcript = text; self.render()
+            guard let self, self.selectedReview == nil, self.delivery == nil, self.pane?.result.isEditable == true else { return }
+            self.buffer.edit(text); self.render()
         }
         pane?.closeAction = { [weak owner] in owner?.showSpeechPane(false) }
         self.capture.failed = { [weak self] code in self?.interrupt(SpeechFailure(stage: .capture, code: code, message: "Audio capture was interrupted. Review any recovered text before adding it.")) }
@@ -57,7 +98,7 @@ import CaptureCore
         let observer = center.addObserver(forName: NSWorkspace.didTerminateApplicationNotification, object: nil, queue: .main) { [weak self] note in
             let pid = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.processIdentifier
             Task { @MainActor in
-                guard let self, pid == self.activeSource?.pid else { return }
+                guard let self, pid == self.session?.source?.pid else { return }
                 self.interrupt(SpeechFailure(stage: .source, code: 2, message: "The audio source exited. Review any recovered text before adding it."))
             }
         }
@@ -71,186 +112,271 @@ import CaptureCore
     }
     func show() {
         owner?.showSpeechPane(true)
-        if sources.isEmpty && state.phase == .idle { refreshSources() }
+        if sources.isEmpty && idle { refreshSources() }
     }
     func toggle() {
         if state.phase == .recording { stop(); return }
-        guard state.phase == .idle, !refreshing else { return }
+        guard idle else { owner?.showSpeechPane(true); message(busyReason); return }
         show()
-        guard !sources.isEmpty else { owner?.present(); return }
+        guard idle, !sources.isEmpty else { return }
         start()
     }
+    private var busyReason: String {
+        switch state.phase {
+        case .stopping, .recovering, .blocked: "Waiting for the previous capture to end. Use Retry recovery if available; recording is blocked until cleanup is confirmed."
+        case .transcribing: "Finishing the previous transcription. Wait, or Cancel this segment. Earlier text is retained."
+        case .inserting: "Checking the draft insertion. Another recording is available when this check finishes."
+        default: "Preparing the current operation. Wait or Cancel; another recording is not queued."
+        }
+    }
     private func selectionChanged() {
-        guard state.phase == .idle else { return }
+        guard idle else { return }
         capability = "not checked"
         defaults.set(language.rawValue, forKey: "SpeechLanguage")
-        if let source = selectedSource { defaults.set(source.bundleID, forKey: "SpeechSourceBundleID") }
+        if let source = pane?.selectedAudioSource { defaults.set(source.bundleID, forKey: "SpeechSourceBundleID") }
         render()
     }
-    private var selectedSource: AudioSource? {
-        pane?.selectedAudioSource
+    private func begin() -> Session? {
+        guard idle, let generation = state.begin() else { return nil }
+        let value = Session(generation: generation, language: language, hadPending: buffer.hasText || !buffer.uncertain.isEmpty)
+        session = value; lastFailure = nil; return value
+    }
+    private func current(_ value: Session) -> Bool { session === value && !value.retiring && !stopped }
+    private func transition(_ phase: SpeechSessionState.Phase, _ value: Session) {
+        guard session === value else { return }
+        _ = state.transition(phase, generation: value.generation); render()
+    }
+    private func deadline(_ value: Session, after delay: Duration, stage: SpeechFailure.Stage) {
+        value.deadline?.cancel()
+        value.deadline = Task { [weak self, weak value] in
+            do { try await Task.sleep(for: delay) } catch { return }
+            guard let self, let value, self.session === value else { return }
+            let failure = SpeechFailure(stage: stage, code: 408, message: value.retiring
+                ? "Cleanup has not finished. Recording stays blocked. Retry recovery; if it still cannot finish, preserve pending text before restarting the app."
+                : "\(stage.rawValue.capitalized) timed out. Recovering resources; completed text is retained for review.")
+            if value.retiring { self.transition(.blocked, value); self.report(failure) }
+            else { self.recover(value, failure: failure, retainPartial: true) }
+        }
     }
     func refreshSources() {
-        guard state.phase == .idle, !refreshing else { return }
-        refreshing = true; render(); message("Reading audio applications…")
-        let generation = state.generation
-        operation = Task { [weak self] in
+        guard let value = begin() else { return }
+        message("Reading audio applications…"); render()
+        deadline(value, after: deadlines.preparation, stage: .source)
+        value.operation = Task { [weak self] in
             guard let self else { return }
-            defer { if self.state.generation == generation { self.refreshing = false; self.render() } }
             do {
                 let sources = try await self.capture.sources()
-                try Task.checkCancellation(); guard self.state.generation == generation else { return }
+                try Task.checkCancellation(); guard self.current(value) else { return }
                 self.sources = sources
-                let saved = self.defaults.string(forKey: "SpeechSourceBundleID")
-                self.pane?.setSources(sources, savedBundle: saved)
+                self.pane?.setSources(sources, savedBundle: self.defaults.string(forKey: "SpeechSourceBundleID"))
+                self.finish(value, text: "", autoInsert: false)
                 self.message("Choose the meeting application. Browser audio includes other tabs. Microphone is off.")
-            } catch is CancellationError {} catch { if self.state.generation == generation { self.report(error, stage: .source) } }
+            } catch { if self.current(value) { self.recover(value, failure: self.failure(error, stage: .source)) } }
         }
     }
     func prepareLanguage() {
-        guard !refreshing, let generation = state.begin() else { return }
-        let language = language
+        guard let value = begin() else { return }
         message("Preparing on-device language… No audio is being recorded."); render()
-        operation = Task { [weak self] in
+        // Explicit asset downloads report progress and are cancellable, without
+        // the normal startup deadline. Cancellation still waits for settlement.
+        value.operation = Task { [weak self] in
             guard let self else { return }
             do {
-                try await self.backend.prepare(language, download: true) { [weak self] value in
-                    guard let self, self.state.generation == generation else { return }
-                    self.message("Preparing language: \(Int(value * 100))%. No audio is being recorded.")
+                try await self.backend.prepare(value.language, download: true) { [weak self] progress in
+                    guard let self, self.current(value) else { return }
+                    self.message("Preparing language: \(Int(progress * 100))%. No audio is being recorded.")
                 }
-                try Task.checkCancellation(); guard self.state.generation == generation else { return }
-                self.capability = "ready"; self.lastFailure = nil; self.message("On-device language is ready. Click Record when ready.")
-            } catch is CancellationError {} catch { if self.state.generation == generation { self.capability = "unavailable"; self.report(error, stage: .model) } }
-            if self.state.transition(.idle, generation: generation) { self.render() }
+                try Task.checkCancellation(); guard self.current(value) else { return }
+                self.capability = "ready"; self.finish(value, text: "", autoInsert: false)
+                self.message("On-device language is ready. Click Record when ready.")
+            } catch { if self.current(value) { self.capability = "unavailable"; self.recover(value, failure: self.failure(error, stage: .model)) } }
         }
     }
     private func start() {
-        guard let source = selectedSource else { message("Select the meeting application before recording."); return }
-        guard let owner, owner.window?.attachedSheet == nil, NSApp.modalWindow == nil,
-              let generation = state.begin() else { return }
-        let language = language
-        activeSource = source; defaults.set(source.bundleID, forKey: "SpeechSourceBundleID")
-        token = UUID().uuidString; lastFailure = nil; transcript = ""; insertionUncertain = false
+        guard let source = pane?.selectedAudioSource else { message("Select the meeting application before recording."); return }
+        guard let owner, owner.window?.attachedSheet == nil, NSApp.modalWindow == nil, let value = begin() else { return }
+        value.source = source; defaults.set(source.bundleID, forKey: "SpeechSourceBundleID")
         message("Checking audio and local language…"); render()
-        operation = Task { [weak self] in
+        deadline(value, after: deadlines.preparation, stage: .capture)
+        value.operation = Task { [weak self] in
             guard let self else { return }
             do {
-                self.context = await AttachmentPageBridge.context(in: owner.webView, preview: owner.preview)
-                guard self.context != nil else { throw SpeechFailure(stage: .insertion, code: 1, message: "Open a ChatGPT chat before recording. Nothing was recorded.") }
-                try await self.backend.prepare(language, download: false) { _ in }
-                self.capability = "ready"
+                value.context = await AttachmentPageBridge.context(in: owner.webView, preview: owner.preview)
                 try Task.checkCancellation()
+                guard value.context != nil else { throw SpeechFailure(stage: .insertion, code: 1, message: "Open a ChatGPT chat before recording. Nothing was recorded.") }
+                try await self.backend.prepare(value.language, download: false) { _ in }
+                try Task.checkCancellation(); guard self.current(value) else { return }
+                self.capability = "ready"
+                value.captureStatus = "starting"
                 try await self.capture.start(source: source)
-                guard self.state.generation == generation, !Task.isCancelled else { return }
-                _ = self.state.transition(.recording, generation: generation)
-                self.render()
-                let clock = ContinuousClock(), start = ContinuousClock.now
-                self.timer = Task { [weak self] in
+                try Task.checkCancellation(); guard self.current(value) else { return }
+                value.deadline?.cancel(); value.deadline = nil
+                value.captureStatus = "recording"
+                self.transition(.recording, value)
+                let start = ContinuousClock.now
+                value.timer = Task { [weak self] in
                     while !Task.isCancelled {
-                        guard let self, self.state.phase == .recording else { return }
-                        let seconds = Int(start.duration(to: clock.now).components.seconds)
+                        guard let self, self.current(value), self.state.phase == .recording else { return }
+                        let elapsed = start.duration(to: .now)
+                        let seconds = Int(elapsed.components.seconds)
                         self.pane?.setElapsed(seconds)
-                        self.message("Recording \(source.name) · \(language.title) · \(seconds)/120 s · \(ChatKeyboard.recordLabel) stops")
-                        if clock.now >= start.advanced(by: self.limit) { self.stop(); return }
+                        self.message("Recording \(source.name) · \(value.language.title) · \(seconds)/120 s · \(ChatKeyboard.recordLabel) stops")
+                        if elapsed >= self.limit { self.stop(); return }
                         do { try await Task.sleep(for: .milliseconds(200)) } catch { return }
                     }
                 }
-            } catch is CancellationError {} catch {
-                if self.state.generation == generation {
-                    _ = await self.capture.stop()
-                    self.report(error, stage: .capture); _ = self.state.transition(.idle, generation: generation); self.render()
-                }
-            }
+            } catch { if self.current(value) { self.recover(value, failure: self.failure(error, stage: .capture)) } }
         }
     }
     private func interrupt(_ error: SpeechFailure) {
+        guard let value = session else { return }
         if state.phase == .recording { stop(interruption: error) }
-        else if state.phase == .preparing { cancel(); report(error, stage: error.stage) }
+        else if current(value), state.phase == .preparing { recover(value, failure: error) }
     }
     private func stop(interruption: SpeechFailure? = nil) {
-        guard state.phase == .recording else { return }
-        let generation = state.generation, language = language
-        _ = state.transition(.transcribing, generation: generation); timer?.cancel(); timer = nil
-        message(interruption?.message ?? "Transcribing on this Mac…"); render()
-        operation = Task { [weak self] in
+        guard state.phase == .recording, let value = session else { return }
+        value.failure = interruption; value.timer?.cancel(); value.timer = nil
+        value.captureStatus = "stopping"
+        transition(.stopping, value); message("Stopping audio capture…")
+        deadline(value, after: deadlines.cleanup, stage: .capture)
+        value.operation = Task { [weak self] in
             guard let self else { return }
-            let samples = await self.capture.stop()
-            guard self.state.generation == generation, !Task.isCancelled else { return }
-            self.recognitionTimeout = Task { [weak self] in
-                do { try await Task.sleep(for: .seconds(180)) } catch { return }
-                guard let self, self.state.phase == .transcribing else { return }
-                self.backend.cancel(); self.operation?.cancel()
-                self.report(SpeechFailure(stage: .recognition, code: 408, message: "Transcription timed out. Review any completed text."), stage: .recognition)
-                _ = self.state.transition(.ready, generation: generation); self.render()
+            let result = await self.capture.stop()
+            guard self.current(value), !Task.isCancelled else { return }
+            value.captureStatus = result.terminationConfirmed ? "ended" : "unconfirmed"
+            guard result.terminationConfirmed else {
+                self.recover(value, failure: result.failure ?? SpeechFailure(stage: .capture, code: 409, message: "Capture has not ended. Retry recovery before recording again.")); return
             }
-            defer { self.recognitionTimeout?.cancel(); self.recognitionTimeout = nil }
+            value.failure = value.failure ?? result.failure
+            self.transition(.transcribing, value); self.message("Transcribing on this Mac…")
+            self.deadline(value, after: self.deadlines.recognition, stage: .recognition)
             do {
-                guard !samples.isEmpty, samples.contains(where: { abs($0) > 0.0001 }) else { throw SpeechFailure(stage: .capture, code: 4, message: "No audible samples arrived from this application. Check playback and the selected source.") }
-                let text = try await self.backend.transcribe(samples, language: language) { [weak self] text in
-                    guard let self, self.state.generation == generation, self.state.phase == .transcribing else { return }
-                    self.transcript = text; self.pane?.setTranscript(text)
+                guard !result.samples.isEmpty, result.samples.contains(where: { abs($0) > 0.0001 }) else {
+                    throw SpeechFailure(stage: .capture, code: 4, message: "No audible samples arrived. Check playback and the selected source, then record again.")
                 }
-                try Task.checkCancellation(); guard self.state.generation == generation else { return }
-                self.transcript = text; self.pane?.setTranscript(text)
-                guard !text.isEmpty else { throw SpeechFailure(stage: .recognition, code: 4, message: "No speech was recognized. The draft was not changed.") }
-                _ = self.state.transition(.ready, generation: generation); self.render()
-                if let interruption { self.report(interruption, stage: interruption.stage) }
-                else { await self.insert(manual: false) }
-            } catch is CancellationError {} catch {
-                if self.state.generation == generation { self.report(error, stage: .recognition); _ = self.state.transition(.ready, generation: generation); self.render() }
+                let text = try await self.backend.transcribe(result.samples, language: value.language) { [weak self] text in
+                    guard let self, self.current(value), self.state.phase == .transcribing else { return }
+                    value.partial = text; self.render()
+                }
+                try Task.checkCancellation(); guard self.current(value) else { return }
+                guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                    throw SpeechFailure(stage: .recognition, code: 4, message: "No speech was recognized. The draft was not changed; you can record again.")
+                }
+                self.finish(value, text: text, autoInsert: value.failure == nil && !value.hadPending)
+            } catch { if self.current(value) { self.recover(value, failure: self.failure(error, stage: .recognition), retainPartial: true) } }
+        }
+    }
+    private func finish(_ value: Session, text: String, autoInsert: Bool) {
+        guard session === value else { return }
+        value.timer?.cancel(); value.deadline?.cancel()
+        buffer.append(text)
+        session = nil; state.reset(); render()
+        if let failure = value.failure { report(failure) }
+        else { message(buffer.hasText ? "Transcript retained. You can record again, review, or add it to your draft." : "Ready to record again.") }
+        if autoInsert && buffer.hasText && !stopped { insert(manual: false, context: value.context) }
+    }
+    /// Cleanup owns both tasks until they actually settle. A deadline changes
+    /// presentation only; it never drops a live native capture or opens a new one.
+    private func recover(_ value: Session, failure: SpeechFailure? = nil, retainPartial: Bool = false) {
+        guard session === value else { return }
+        if !value.retiring {
+            value.retiring = true; value.retainPartial = retainPartial; value.failure = failure
+            value.operation?.cancel(); value.timer?.cancel(); value.deadline?.cancel()
+        }
+        guard value.cleanup == nil else { message(busyReason); return }
+        transition(.recovering, value)
+        if let failure = value.failure { report(failure) } else { message("Cancelling this segment. Earlier text is retained.") }
+        deadline(value, after: deadlines.cleanup, stage: .capture)
+        let operation = value.operation, capture = capture, backend = backend
+        value.cleanup = Task { [weak self] in
+            let cancel = Task { await backend.cancel() }
+            let stop = Task { await capture.stop() }
+            await operation?.value
+            await cancel.value
+            let result = await stop.value
+            guard let self, self.session === value else { return }
+            value.cleanup = nil; value.deadline?.cancel()
+            value.captureStatus = result.terminationConfirmed ? "ended" : "unconfirmed"
+            if result.terminationConfirmed {
+                self.finish(value, text: value.retainPartial ? value.partial : "", autoInsert: false)
+            } else {
+                self.transition(.blocked, value)
+                self.report(result.failure ?? SpeechFailure(stage: .capture, code: 409, message: "Capture has not ended. Retry recovery before recording again."))
             }
         }
     }
-    private func addManually() { Task { [weak self] in await self?.insert(manual: true) } }
-    private func insert(manual: Bool) async {
-        guard state.phase == .ready, !transcript.isEmpty, !inserting, !insertionUncertain, let owner else { return }
-        inserting = true; render(); defer { inserting = false; render() }
-        let generation = state.generation
-        let target = manual ? await AttachmentPageBridge.context(in: owner.webView, preview: owner.preview) : context
-        guard let target else { message("Transcript retained. Open the intended chat, then click Add to Chat."); return }
-        let outcome = await DraftInsertionBridge.append(transcript, token: token, context: target, owner: owner)
-        guard generation == state.generation else { return }
+    private func retryRecovery() { if let session { recover(session) } }
+    func cancel() {
+        guard let session else { return }
+        recover(session)
+    }
+    private func discardSelected() {
+        guard idle else { return }
+        if let selectedReview { buffer.discardUncertain(selectedReview); self.selectedReview = nil }
+        else { buffer.edit("") }
+        render(); message("Selected transcript discarded. Ready to record.")
+    }
+    private func insert(manual: Bool, context: String?) {
+        guard idle, buffer.hasText, selectedReview == nil, let owner else { return }
+        let snapshot = buffer.delivery(); delivery = snapshot
+        let generation = state.begin()!
+        _ = state.transition(.inserting, generation: generation); render()
+        deliveryDeadline = Task { [weak self] in
+            do { try await Task.sleep(for: self?.deadlines.insertion ?? .seconds(10)) } catch { return }
+            guard let self, self.delivery?.id == snapshot.id else { return }
+            self.completeInsertion(.uncertain, snapshot: snapshot)
+        }
+        deliveryTask = Task { [weak self] in
+            guard let self else { return }
+            let target = manual ? await AttachmentPageBridge.context(in: owner.webView, preview: owner.preview) : context
+            guard self.delivery?.id == snapshot.id, !self.stopped else { return }
+            guard let target else { self.completeInsertion(.unavailable, snapshot: snapshot); return }
+            let outcome = await self.insertion(snapshot.text, snapshot.id, target, owner) { [weak self] in
+                self?.delivery?.id == snapshot.id && self?.stopped == false
+            }
+            guard self.delivery?.id == snapshot.id else { return }
+            self.completeInsertion(outcome, snapshot: snapshot)
+        }
+    }
+    private func completeInsertion(_ outcome: DraftInsertionBridge.Outcome, snapshot: SpeechTranscriptBuffer.Delivery) {
+        guard delivery?.id == snapshot.id else { return }
+        deliveryDeadline?.cancel(); deliveryDeadline = nil; delivery = nil
+        deliveryTask = nil; state.reset()
         switch outcome {
         case .inserted:
-            transcript = ""; pane?.setTranscript(""); context = nil; state.reset()
+            buffer.acknowledge(snapshot, uncertain: false)
             message("Transcript appended to your draft. Review it and send manually.")
         case .uncertain:
-            insertionUncertain = true
-            report(SpeechFailure(stage: .insertion, code: 2, message: "Insertion could not be confirmed. Check the draft before copying any missing text; automatic retry is disabled."), stage: .insertion)
-        default: message("Transcript retained. Show the chat, finish any Chinese composition, and click Add to Chat when ready.")
+            buffer.acknowledge(snapshot, uncertain: true); selectedReview = snapshot.id
+            report(SpeechFailure(stage: .insertion, code: 2, message: "Insertion could not be confirmed. Check the draft before copying missing text. This segment cannot be automatically retried; new recordings remain available."))
+        default: message("Transcript retained. Show the chat, finish any Chinese composition, and click Add to Chat when ready. You can also record again.")
         }
-    }
-    func cancel() {
-        state.reset(); operation?.cancel(); operation = nil; timer?.cancel(); timer = nil
-        recognitionTimeout?.cancel(); recognitionTimeout = nil; backend.cancel()
-        refreshing = false; transcript = ""; context = nil; activeSource = nil; pane?.setTranscript("")
-        insertionUncertain = false
-        let capture = capture
-        // Await cleanup before accepting another start; otherwise an old stop can
-        // race with the next recording's stream.
-        refreshing = true; render()
-        let generation = state.generation
-        operation = Task { [weak self] in
-            _ = await capture.stop()
-            guard let self, self.state.generation == generation else { return }; self.refreshing = false; self.render()
-            self.message("Cancelled. Audio and pending transcript were discarded.")
-        }
+        render()
     }
     func shutdown() {
-        operation?.cancel(); timer?.cancel(); recognitionTimeout?.cancel(); backend.cancel()
+        guard !stopped else { return }
+        stopped = true
         for (center, observer) in observers { center.removeObserver(observer) }; observers.removeAll()
-        state.reset(); transcript = ""; pane?.setTranscript("")
-        let capture = capture; Task { _ = await capture.stop() }
+        deliveryDeadline?.cancel(); deliveryTask?.cancel(); delivery = nil
+        if let session { recover(session) }
+        owner = nil; buffer = .init()
     }
     private func render() {
-        pane?.update(phase: state.phase, busy: refreshing, inserting: inserting, uncertain: insertionUncertain,
-                     sourceName: state.phase == .idle ? selectedSource?.name : activeSource?.name)
-        owner?.updateRecordButton(recording: state.phase == .recording,
-                                  enabled: (state.phase == .idle && !refreshing) || state.phase == .recording)
+        guard let pane else { return }
+        if let selectedReview, !buffer.uncertain.contains(where: { $0.id == selectedReview }) { self.selectedReview = nil }
+        let uncertain = selectedReview.flatMap { id in buffer.uncertain.first { $0.id == id } }
+        let partial = !buffer.hasText && uncertain == nil && session?.hadPending == false ? session?.partial ?? "" : ""
+        pane.setReviewItems(buffer.uncertain.map(\.id), selected: selectedReview)
+        pane.setTranscript(uncertain?.text ?? (buffer.hasText ? buffer.text : partial))
+        pane.update(phase: phase, busy: false, inserting: delivery != nil, uncertain: uncertain != nil,
+                    sourceName: session?.source?.name ?? pane.selectedAudioSource?.name, recordEnabled: canRecord,
+                    pendingEditable: selectedReview == nil && delivery == nil && (buffer.hasText || idle || session?.hadPending == true))
+        owner?.updateRecordButton(recording: state.phase == .recording, enabled: canRecord)
     }
     private func message(_ text: String) { pane?.showMessage(text) }
-    private func report(_ error: any Error, stage: SpeechFailure.Stage) {
-        let failure = error as? SpeechFailure ?? SpeechFailure(stage: stage, code: (error as NSError).code, message: "\(stage.rawValue.capitalized) failed (code \((error as NSError).code)). Nothing was sent. Review settings and try again manually.")
-        lastFailure = failure; pane?.showMessage(failure.message, error: true)
+    private func failure(_ error: any Error, stage: SpeechFailure.Stage) -> SpeechFailure {
+        error as? SpeechFailure ?? SpeechFailure(stage: stage, code: (error as NSError).code,
+            message: "\(stage.rawValue.capitalized) failed (code \((error as NSError).code)). Nothing was sent. Review settings and try again manually.")
     }
+    private func report(_ failure: SpeechFailure) { lastFailure = failure; pane?.showMessage(failure.message, error: true) }
 }

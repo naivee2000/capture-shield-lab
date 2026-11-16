@@ -2,7 +2,7 @@
 
 ## Data flow and safety boundaries
 
-`AudioCaptureService` uses a ScreenCaptureKit application filter and registers only an audio output. The microphone is disabled. A serial queue converts to mono 16 kHz float PCM and retains at most 120 seconds in memory. Stop/cancel detaches the stream and releases buffered samples. Audio, transcripts and page text are not logged, written as history, or uploaded to a transcription service.
+`AudioCaptureService` uses a ScreenCaptureKit application filter and registers only an audio output. The microphone is disabled. A serial queue converts to mono 16 kHz float PCM and retains at most 120 seconds in memory. In 0.6.6, stop/cancel retains ownership until native termination is confirmed, then releases buffered samples; failed cleanup blocks new capture. See [continuous recording and recovery](speech-066.md). Audio, transcripts and page text are not logged, written as history, or uploaded to a transcription service.
 
 `SpeechTranscriptionBackend` selects SpeechAnalyzer on macOS 26+ or explicitly local SFSpeechRecognizer on older supported systems. Language assets are reserved explicitly before installation/readiness checks; a completed download alone is not readiness. Each recognition session gets a fresh result sequence. The older engine uses <=50-second requests with one-second overlap and timestamp midpoint ownership at boundaries. It must advertise local support; no network-recognition fallback exists.
 
@@ -12,7 +12,7 @@
 
 Native source menu items carry the actual `AudioSource` identity. They are never mapped back by a display-name index: NSPopUpButton's bulk title API coalesces duplicates. Duplicate visible names receive a PID suffix in the local menu; these identities are excluded from diagnostic exports.
 
-`ApplicationPresentation` maps Normal to regular and Legacy to accessory activation. LSUIElement prevents a cold Legacy launch from starting as a Dock app; the lab explicitly chooses regular activation. Windows remain ordinary normal-level windows. Global keys register exclusively, suppress held-key repeats and report conflicts. When the visibility key is unavailable, Legacy refuses Hide/close and keeps a Finder reopen recovery path. No Dock preferences or user-pinned tiles are edited.
+`ApplicationPresentation` maps Normal to regular and Legacy to accessory activation. LSUIElement prevents a cold Legacy launch from starting as a Dock app; the lab explicitly chooses regular activation. Since 0.6.5, nonactivating chat panels use the saved Always on Top setting. Global keys register exclusively, suppress held-key repeats and report conflicts. When the visibility key is unavailable, Legacy refuses Hide/close and keeps a Finder reopen recovery path. No Dock preferences or user-pinned tiles are edited.
 
 ## Validation ledger (2026-11-12)
 

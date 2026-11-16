@@ -3,6 +3,30 @@ import Testing
 @testable import CaptureCore
 
 struct SpeechSessionTests {
+    @MainActor @Test(.enabled(if: ProcessInfo.processInfo.environment["CAPTURESHIELD_NATIVE_HOST"] == "1"))
+    func nativeTestHostSurvivesStoppedRunLoop() async throws {
+        CFRunLoopStop(CFRunLoopGetMain())
+        try await Task.sleep(for: .milliseconds(20))
+        MainActor.preconditionIsolated()
+        #expect(ProcessInfo.processInfo.environment["CAPTURESHIELD_NATIVE_NEGATIVE"] != "1", "Deliberate native-host negative control")
+    }
+    @Test func pendingEditsAndUncertainDeliveryStayIndependent() {
+        var buffer = SpeechTranscriptBuffer()
+        buffer.append("First"); buffer.edit("Reviewed first")
+        buffer.append("Second")
+        #expect(buffer.text == "Reviewed first\n\nSecond")
+        let old = buffer.delivery()
+        buffer.edit("Newer edit")
+        buffer.acknowledge(old, uncertain: false)
+        #expect(buffer.text == "Newer edit")
+        let current = buffer.delivery()
+        buffer.acknowledge(current, uncertain: true)
+        buffer.append("Next recording")
+        buffer.acknowledge(current, uncertain: true)
+        #expect(buffer.text == "Next recording" && buffer.uncertain.count == 1)
+        buffer.discardUncertain(current.id)
+        #expect(buffer.text == "Next recording" && buffer.uncertain.isEmpty)
+    }
     @Test func requestsStayUnderOneMinuteAndCoverTwoMinutes() {
         let chunks = SpeechAudioPolicy.chunks(sampleCount: 16000 * 150)
         #expect(chunks.count == 3)
