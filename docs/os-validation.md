@@ -28,7 +28,9 @@ bash scripts/doctor.sh
 
 ## Evidence boundary
 
-The **0.6.4 packaged-application review** adds three sequential XCTest UI rounds on each actual host, negative controls, scoped application repairs and safe cleanup. See [the UI results](ui-064.md) and [machine-readable evidence](validation-ui-064.json). The 0.6.3 ledger below remains historical evidence for its own source commit; it is not silently reused as a 0.6.4 result.
+The latest **[0.6.5 floating-panel review](ui-065.md)** passed nine packaged UI scenarios in three rounds on each recorded 15.8.2, 26.7.2 and 27.0.1 host, plus negative controls and native/package checks. Exact source and evidence are in [its ledger](validation-ui-065.json).
+
+The earlier **0.6.4 packaged-application review** added three sequential XCTest UI rounds on each actual host, negative controls, scoped application repairs and safe cleanup. See [the UI results](ui-064.md) and [machine-readable evidence](validation-ui-064.json). The 0.6.3 ledger below remains historical evidence for its own source commit; it is not silently reused as a 0.6.4 result.
 
 CI can detect unavailable APIs, dynamic-linking failures, compiler changes and failures in synthetic native/WebKit behavior, including background alpha, attachment handoff, draft preservation and layout. A hosted macOS 15.x job does not test the exact 15.6 release unless its recorded host version says 15.6. A later patch release is likewise not evidence for every earlier or future patch.
 
@@ -42,7 +44,7 @@ The [first cross-version run](https://github.com/naivee2000/capture-shield-lab/a
 
 Version **0.6.3/build 12** explicitly weak-links ScreenCaptureKit for the app target (also propagated to its test bundle), following [Apple's weak-linking guidance](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPFrameworks/Concepts/WeakLinking.html). Modern screenshot calls remain inside the existing macOS 26 availability gate; macOS 15 still selects the compatible backend. No SDK files or user settings are patched. `scripts/check-linkage.sh` inspects the actual binary and stops packaging if these new classes are strongly required again; it rejected the original binary and accepted the repaired binary and test bundle.
 
-## Run ledger
+## 0.6.3 run ledger
 
 Final tested source/workflow: **`2cd247ac3c46a536a14077144c86534427c28086`**, [successful run 43491343815](https://github.com/naivee2000/capture-shield-lab/actions/runs/43491343815), 2026-11-13. All three independent clean-checkout jobs succeeded. The earlier repaired-source run at `5ca68eb` is preserved [here](https://github.com/naivee2000/capture-shield-lab/actions/runs/43490166026).
 

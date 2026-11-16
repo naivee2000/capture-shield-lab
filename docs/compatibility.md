@@ -1,5 +1,9 @@
 # Observed compatibility
 
+## Version 0.6.5 floating panels
+
+The [0.6.5 review](ui-065.md) records actual packaged-app UI acceptance on macOS **15.8.2, 26.7.2 and 27.0.1**: nine scenarios, three sequential rounds per host, with negative controls and native/package checks. This includes pinning, native full-screen background behavior and Normal/Legacy keyboard focus without changing the background foreground identity. These are automated UI results, not a new Chrome/Teams receiver verdict. Retest foreground appearance, physical Pinyin and sharing on your own sender/receiver setup.
+
 ## Version 0.6.3 cross-version validation (2026-11-13)
 
 See [exact OS, toolchain and CI results](os-validation.md). The first actual macOS 15 run found that the 0.6.2 executable strongly required screenshot classes introduced in macOS 26, despite source availability guards. Version 0.6.3 weak-links those references and checks the binary before packaging. Repaired source passed clean builds, signatures/registration and synthetic AppKit/WebKit tests on **macOS 15.8.2, 26.7.2 and 27.0.1**, plus local 26.6.2 regression. The final matrix runs native fixtures serially after the concurrent 26.7.2 run exposed attachment-fixture timeouts; no assertions or production deadlines were weakened. These results supersede the older "15.x/27 runtime pending" statements **only for those automated checks and exact versions**, not physical-device capture, account/recognition or receiver behavior. The declared floor remains 15.6; that exact point release is not independently tested.

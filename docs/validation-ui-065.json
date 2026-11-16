@@ -15,31 +15,33 @@
       "xcode": "unavailable"
     },
     "clean_clone": {
-      "source_commit": "460cc9ba957e577dbcf4e093387aac25ca412c3d",
+      "source_commit": "fde0cca5fda4095f1be90945a190231d4482326d",
+      "origin": "https://github.com/naivee2000/capture-shield-lab.git",
       "build_sign_register": "pass",
+      "source_dirty": false,
       "space_containing_paths": true,
       "applications": [
         {
           "name": "CaptureShieldLab",
           "version": "0.6.5",
           "build": "14",
-          "build_commit": "460cc9ba957e",
+          "build_commit": "fde0cca5fda4",
           "minimum": "15.6",
-          "sha256": "f6469474db9efe385d95528a394afaa3e5f6240ee0c849041c532fa7ffcd9e82"
+          "sha256": "d7bc2987a942336c0482ff0492e0bc00ba4b7c9ea8c9319f6828f62f1cbfb2d8"
         },
         {
           "name": "CaptureProbe",
           "version": "0.6.5",
           "build": "14",
-          "build_commit": "460cc9ba957e",
+          "build_commit": "fde0cca5fda4",
           "minimum": "15.6",
-          "sha256": "945086966175ba86b70cb159f109fb034738527a98d86e734d1f3e1f1075516c"
+          "sha256": "bbc6f059d982805991bc1886cb9a8ce4e5299ffa0213702ccaa8a9211098dcaf"
         }
       ]
     },
     "native": {
       "status": "pass",
-      "source_commit": "458fddcf4fae170095d9ee6aa1f2ebc6934cbb6c",
+      "source_commit": "fde0cca5fda4095f1be90945a190231d4482326d",
       "reported": 108,
       "optional_skipped": 2,
       "hosts": [
@@ -69,15 +71,272 @@
     ],
     "cleanup": {
       "status": "pass",
-      "reclaimed_allocated_bytes": 1905262592,
-      "test_mount_and_image_removed": true,
-      "task_windows_closed": true,
-      "preexisting_QA042_preserved": true,
-      "empty_test_preferences_removed": 276,
-      "empty_test_preferences_bytes": 1130496
+      "runs": [
+        {
+          "run_id": "ui065-dev",
+          "status": "pass",
+          "reclaimed_allocated_bytes": 1905262592,
+          "test_mount_and_image_removed": true,
+          "task_windows_closed": true,
+          "preexisting_QA042_preserved": true,
+          "empty_test_preferences_removed": 276,
+          "empty_test_preferences_bytes": 1130496
+        },
+        {
+          "run_id": "ui065-final",
+          "status": "pass",
+          "reclaimed_allocated_bytes": 1549795328,
+          "empty_test_preferences_removed": 22,
+          "empty_test_preferences_bytes": 90112,
+          "test_mount_and_image_removed": true,
+          "task_windows_closed": true,
+          "preexisting_QA042_preserved": true
+        }
+      ],
+      "reclaimed_allocated_bytes": 3456278528
+    },
+    "manual_followup": {
+      "source_commit": "fde0cca5fda4095f1be90945a190231d4482326d",
+      "popup_at_140_percent": "pass",
+      "owned_popup_mode_inheritance": "pass",
+      "draft_preservation_after_popup_close": "pass",
+      "task_test_instance_closed": "pass"
     }
   },
-  "ci": [],
+  "ci": [
+    {
+      "job_url": "https://github.com/naivee2000/capture-shield-lab/actions/runs/43792227280/job/133053039456",
+      "environment": {
+        "architecture": "arm64",
+        "system": "15.8.2",
+        "source_commit": "fde0cca5fda4095f1be90945a190231d4482326d",
+        "source_dirty": false,
+        "system_build": "24H232",
+        "swift": "swift-driver version: 1.127.15 Apple Swift version 6.2.4 (swiftlang-6.2.4.1.4 clang-1700.6.4.2)",
+        "sdk": "26.2",
+        "xcode": "Xcode 26.3",
+        "display": {
+          "ready": true,
+          "scale": 1,
+          "visible_height": 910,
+          "visible_width": 1344
+        }
+      },
+      "application": {
+        "version": "0.6.5",
+        "build": "14",
+        "build_commit": "fde0cca5fda4",
+        "minimum_system": "15.6"
+      },
+      "application_sha256": "82477381fe959d1963d0a81c49a8442869c55e66f34dca23b98b528c72a563ab",
+      "build_sign_register": "pass",
+      "native_reported": 108,
+      "native_run_counts": [
+        98,
+        9,
+        1
+      ],
+      "native_optional_skipped": 2,
+      "script_tests": 20,
+      "packaged_UI": "pass",
+      "rounds": [
+        {
+          "round": 1,
+          "exit_code": 0,
+          "passed": 9,
+          "failed": 0,
+          "skipped": 0,
+          "failures": []
+        },
+        {
+          "round": 2,
+          "exit_code": 0,
+          "passed": 9,
+          "failed": 0,
+          "skipped": 0,
+          "failures": []
+        },
+        {
+          "round": 3,
+          "exit_code": 0,
+          "passed": 9,
+          "failed": 0,
+          "skipped": 0,
+          "failures": []
+        }
+      ],
+      "negative_control": {
+        "status": "pass",
+        "expected_assertion_failures": 1,
+        "actual": {
+          "round": 1,
+          "exit_code": 65,
+          "passed": 0,
+          "failed": 1,
+          "skipped": 0,
+          "failures": [
+            "AppUITests.swift:50: error: -[CaptureShieldUITests.AppUITests testLaunchTypeAndRestart] : XCTAssertTrue failed - Negative control must fail"
+          ]
+        }
+      },
+      "cleanup": "positive and negative runs cleaned"
+    },
+    {
+      "job_url": "https://github.com/naivee2000/capture-shield-lab/actions/runs/43792227280/job/133053039490",
+      "environment": {
+        "architecture": "arm64",
+        "system": "26.7.2",
+        "source_commit": "fde0cca5fda4095f1be90945a190231d4482326d",
+        "source_dirty": false,
+        "system_build": "25G332",
+        "swift": "swift-driver version: 1.148.6 Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)",
+        "sdk": "26.5",
+        "xcode": "Xcode 26.6",
+        "display": {
+          "ready": true,
+          "scale": 1,
+          "visible_height": 900,
+          "visible_width": 1344
+        }
+      },
+      "application": {
+        "version": "0.6.5",
+        "build": "14",
+        "build_commit": "fde0cca5fda4",
+        "minimum_system": "15.6"
+      },
+      "application_sha256": "ef73e7b78288d3ab475762b44f9ecd0da02b70125862e61d4a3779fbde1dec03",
+      "build_sign_register": "pass",
+      "native_reported": 108,
+      "native_run_counts": [
+        98,
+        9,
+        1
+      ],
+      "native_optional_skipped": 2,
+      "script_tests": 20,
+      "packaged_UI": "pass",
+      "rounds": [
+        {
+          "round": 1,
+          "exit_code": 0,
+          "passed": 9,
+          "failed": 0,
+          "skipped": 0,
+          "failures": []
+        },
+        {
+          "round": 2,
+          "exit_code": 0,
+          "passed": 9,
+          "failed": 0,
+          "skipped": 0,
+          "failures": []
+        },
+        {
+          "round": 3,
+          "exit_code": 0,
+          "passed": 9,
+          "failed": 0,
+          "skipped": 0,
+          "failures": []
+        }
+      ],
+      "negative_control": {
+        "status": "pass",
+        "expected_assertion_failures": 1,
+        "actual": {
+          "round": 1,
+          "exit_code": 65,
+          "passed": 0,
+          "failed": 1,
+          "skipped": 0,
+          "failures": [
+            "AppUITests.swift:50: error: -[CaptureShieldUITests.AppUITests testLaunchTypeAndRestart] : XCTAssertTrue failed - Negative control must fail"
+          ]
+        }
+      },
+      "cleanup": "positive and negative runs cleaned"
+    },
+    {
+      "job_url": "https://github.com/naivee2000/capture-shield-lab/actions/runs/43792227280/job/133053039329",
+      "environment": {
+        "architecture": "arm64",
+        "system": "27.0.1",
+        "source_commit": "fde0cca5fda4095f1be90945a190231d4482326d",
+        "source_dirty": false,
+        "system_build": "26A434",
+        "swift": "swift-driver version: 1.168.6 Apple Swift version 6.4.2 (swiftlang-6.4.2.1.9 clang-2100.4.1.1)",
+        "sdk": "27.2",
+        "xcode": "Xcode 27.2",
+        "display": {
+          "ready": true,
+          "scale": 1,
+          "visible_height": 900,
+          "visible_width": 1344
+        }
+      },
+      "application": {
+        "version": "0.6.5",
+        "build": "14",
+        "build_commit": "fde0cca5fda4",
+        "minimum_system": "15.6"
+      },
+      "application_sha256": "45eafa8fcd1d2649c25fb479c8d41a49c51687b9d28d90948657742fdbfcce10",
+      "build_sign_register": "pass",
+      "native_reported": 108,
+      "native_run_counts": [
+        62,
+        36,
+        9,
+        1
+      ],
+      "native_optional_skipped": 2,
+      "script_tests": 20,
+      "packaged_UI": "pass",
+      "rounds": [
+        {
+          "round": 1,
+          "exit_code": 0,
+          "passed": 9,
+          "failed": 0,
+          "skipped": 0,
+          "failures": []
+        },
+        {
+          "round": 2,
+          "exit_code": 0,
+          "passed": 9,
+          "failed": 0,
+          "skipped": 0,
+          "failures": []
+        },
+        {
+          "round": 3,
+          "exit_code": 0,
+          "passed": 9,
+          "failed": 0,
+          "skipped": 0,
+          "failures": []
+        }
+      ],
+      "negative_control": {
+        "status": "pass",
+        "expected_assertion_failures": 1,
+        "actual": {
+          "round": 1,
+          "exit_code": 65,
+          "passed": 0,
+          "failed": 1,
+          "skipped": 0,
+          "failures": [
+            "AppUITests.swift:50: error: -[CaptureShieldUITests.AppUITests testLaunchTypeAndRestart] : XCTAssertTrue failed - Negative control must fail"
+          ]
+        }
+      },
+      "cleanup": "positive and negative runs cleaned"
+    }
+  ],
   "prior_runs": [
     {
       "id": 43777234961,
@@ -121,10 +380,39 @@
       "id": 43790178900,
       "source": "247c382",
       "status": "fail",
-      "reason": "macOS27 first round passed the focus and full-screen cases, but failed popup inventory and a native width gesture (646 rather than640). Other hosts remained running while fixes were prepared on a separate branch."
+      "reason": "15.8.2 and26.7.2 passed all9 UI cases in three sequential rounds and the negative control. 27.0.1 passed focus/full-screen cases but failed popup inventory and a native width gesture (646 rather than640); fixed in the next source revision.",
+      "hosts": {
+        "15": {
+          "status": "pass",
+          "passed_per_round": [
+            9,
+            9,
+            9
+          ],
+          "negative_control": "pass"
+        },
+        "26": {
+          "status": "pass",
+          "passed_per_round": [
+            9,
+            9,
+            9
+          ],
+          "negative_control": "pass"
+        },
+        "27": {
+          "status": "fail",
+          "passed": 7,
+          "failed": 2
+        }
+      }
     }
   ],
   "real_chatgpt": "not-tested",
   "real_speech": "not-tested",
-  "receiver": "not-tested"
+  "receiver": "not-tested",
+  "tested_source_commit": "fde0cca5fda4095f1be90945a190231d4482326d",
+  "application_source_tree": "866bf714a26f7c7b2298504969654c766cf1ff02",
+  "workflow_url": "https://github.com/naivee2000/capture-shield-lab/actions/runs/43792227280",
+  "automated_acceptance": "pass"
 }
