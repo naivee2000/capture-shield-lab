@@ -12,6 +12,11 @@ import CaptureCore
         controller = ChatWindow(configuration: configuration, isMain: false,
                                 preferences: ChatPreferences(mode: .normal), preview: preview)
         controller.window?.title = "CaptureShield automated synthetic test"
+        // These fixtures drive DOM operations, never physical input. A real
+        // pointer already over a newly ordered control is trusted user intent
+        // and correctly cancels initial collapse; isolate that unrelated input.
+        // Packaged UI tests cover actual Home hover/focus separately.
+        controller.window?.ignoresMouseEvents = true
         controller.window?.orderFront(nil)
     }
     func load(_ html: String) { controller.webView.loadHTMLString(html, baseURL: nil) }
@@ -22,7 +27,8 @@ import CaptureCore
             try await Task.sleep(for: .milliseconds(50))
         }
         let installed = try? await controller.webView.evaluateJavaScript("typeof window.captureShieldPresentation", in: nil, contentWorld: ChatPageAdapter.world)
-        throw FixtureError.timeout(expression, String(describing: installed))
+        let state = try? await controller.webView.evaluateJavaScript("JSON.stringify({ready:document.readyState,hydrated:document.body?.dataset.hydrated??null,expanded:document.querySelector('button[aria-controls]')?.getAttribute('aria-expanded')??null})")
+        throw FixtureError.timeout(expression, "adapter=\(String(describing: installed)); fixture=\(String(describing: state))")
     }
     enum FixtureError: Error { case timeout(String, String) }
 }
@@ -74,18 +80,17 @@ import CaptureCore
         let opened = try await page.controller.webView.evaluateJavaScript("window.openCalls") as? Int
         #expect(opened == 0)
     }
-    @Test func sidebarCollapseWaitsForHydrationAndHandlesRestoredOpenState() async throws {
-        for initial in ["true", "false"] {
-            let page = PageFixture(); defer { page.close() }
-            let html = """
-            <html><body><button aria-controls="app-shell-sidebar" aria-expanded="\(initial)">Sidebar</button>
-            <nav id="app-shell-sidebar">Synthetic history</nav><div data-composer-markdown contenteditable="true">Synthetic editor</div>
-            <script>setTimeout(()=>{const b=document.querySelector('button');b.onclick=()=>{b.setAttribute('aria-expanded',String(b.getAttribute('aria-expanded')!=='true'));document.querySelector('nav').hidden=b.getAttribute('aria-expanded')==='false'};b.setAttribute('aria-expanded','true');document.body.dataset.hydrated='true';},150)</script>
-            </body></html>
-            """
-            page.load(html)
-            try await page.wait("document.body.dataset.hydrated === 'true' && document.querySelector('button').getAttribute('aria-expanded') === 'false'")
-        }
+    @Test(arguments: ["true", "false"])
+    func sidebarCollapseWaitsForHydrationAndHandlesRestoredOpenState(initial: String) async throws {
+        let page = PageFixture(); defer { page.close() }
+        let html = """
+        <html><body><button aria-controls="app-shell-sidebar" aria-expanded="\(initial)">Sidebar</button>
+        <nav id="app-shell-sidebar">Synthetic history</nav><div data-composer-markdown contenteditable="true">Synthetic editor</div>
+        <script>setTimeout(()=>{const b=document.querySelector('button');b.onclick=()=>{b.setAttribute('aria-expanded',String(b.getAttribute('aria-expanded')!=='true'));document.querySelector('nav').hidden=b.getAttribute('aria-expanded')==='false'};b.setAttribute('aria-expanded','true');document.body.dataset.hydrated='true';},150)</script>
+        </body></html>
+        """
+        page.load(html)
+        try await page.wait("document.body.dataset.hydrated === 'true' && document.querySelector('button').getAttribute('aria-expanded') === 'false'")
     }
     @Test func compactPageDisablesSuggestionsAndDoesNotFightUserSidebarChoice() async throws {
         let page = PageFixture(); defer { page.close() }

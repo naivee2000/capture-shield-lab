@@ -7,6 +7,7 @@ import CaptureCore
     @Test func gripAcceptsTheFirstDragFromAnotherApplication() {
         let grip = LegacyResizeGrip(frame: NSRect(x: 0, y: 0, width: 22, height: 22))
         #expect(grip.acceptsFirstMouse(for: nil))
+        #expect(!grip.mouseDownCanMoveWindow)
     }
     @Test func keypadEnterCanBeRepresentedByItsAppKitCharacter() {
         let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .numericPad,
@@ -76,6 +77,8 @@ import CaptureCore
     }
     @Test func resizingAndFocusingPreviewPreservesTheSelectedImagePixels() throws {
         let canvas = CropCanvas(image: ChatPreview.sampleImage())
+        #expect(!canvas.mouseDownCanMoveWindow)
+        #expect(canvas.acceptsFirstMouse(for: nil))
         canvas.frame = NSRect(x: 0, y: 0, width: 600, height: 400)
         let rect = canvas.imageRect
         func event(_ type: NSEvent.EventType, _ point: CGPoint) -> NSEvent {

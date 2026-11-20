@@ -59,6 +59,19 @@
       "classification": "application",
       "status": "fail",
       "detail": "Initial collapse could still synthesize a click on website Home for a floating drawer. This action is removed; Home may navigate, so floating website history is left alone."
+    },
+    {
+      "stage": "interactive-view-background-drag",
+      "classification": "application",
+      "status": "fail",
+      "detail": "macOS 27 packaged UI first background-host grip drag resized from 640 to 720 points but moved x from 100 to 178 instead of keeping the top-left fixed. Both nonopaque interactive views inherited mouseDownCanMoveWindow=true. Grip and crop canvas now explicitly return false; native regression failed on both before repair."
+    },
+    {
+      "stage": "macos15-native-sidebar-initial-load",
+      "classification": "fixture-under-investigation",
+      "status": "fail",
+      "run": 44820895960,
+      "detail": "Native hydration/restored-open test timed out on macOS 15; packaged UI round 1 passed 14/14. DOM-only fixtures now ignore unrelated physical mouse events and report ready/hydration/expanded state on failure; the original collapse assertion and timing limits remain."
     }
   ],
   "local": {
@@ -155,6 +168,11 @@
     "final_interaction_regression": {
       "status": "pass",
       "tests": 20
+    },
+    "background_drag_regression": {
+      "status": "pass",
+      "initial_assertion_failures": 2,
+      "assertions": "Grip and crop canvas opt out of AppKit window dragging; first mouse is accepted."
     }
   },
   "ci": {
@@ -231,7 +249,77 @@
       "run": 44817346139,
       "source_commit": "23e728593b912f3d92b97bf5619950f4ca7ae1f3",
       "status": "superseded",
-      "reason": "Crop focus-click retention and removal of the remaining automatic Home action were added before delivery."
+      "reason": "Crop focus-click retention and removal of the remaining automatic Home action were added before delivery.",
+      "completed_ui_rounds_before_superseding": {
+        "15": [
+          {
+            "round": 1,
+            "passed": 14,
+            "failed": 0,
+            "skipped": 0
+          }
+        ],
+        "26": [
+          {
+            "round": 1,
+            "passed": 14,
+            "failed": 0,
+            "skipped": 0
+          }
+        ],
+        "27": [
+          {
+            "round": 1,
+            "passed": 13,
+            "failed": 1,
+            "skipped": 0,
+            "stage": "interactive-view-background-drag"
+          }
+        ]
+      }
+    },
+    {
+      "run": 44820895960,
+      "source_commit": "d13c6ee4a75335c04f9d31d863289e4f56bf347d",
+      "status": "superseded",
+      "reason": "Reproduced background-drag defect requires interactive views to opt out of window dragging. macOS 15 native failure retained for diagnosis before the next commit.",
+      "completed_ui_rounds_before_superseding": {
+        "15": [
+          {
+            "round": 1,
+            "passed": 14,
+            "failed": 0,
+            "skipped": 0
+          }
+        ],
+        "26": [
+          {
+            "round": 1,
+            "passed": 14,
+            "failed": 0,
+            "skipped": 0
+          }
+        ],
+        "27": [
+          {
+            "round": 1,
+            "passed": 14,
+            "failed": 0,
+            "skipped": 0
+          },
+          {
+            "round": 2,
+            "passed": 14,
+            "failed": 0,
+            "skipped": 0
+          }
+        ]
+      },
+      "native_failure": {
+        "system_major": "15",
+        "test": "sidebarCollapseWaitsForHydrationAndHandlesRestoredOpenState",
+        "detail": "Initial-collapse timeout; input isolation and failure diagnostics added without reducing assertions."
+      }
     }
   ]
 }

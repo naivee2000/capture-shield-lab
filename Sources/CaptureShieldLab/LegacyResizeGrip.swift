@@ -17,6 +17,7 @@ import CaptureCore
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override var mouseDownCanMoveWindow: Bool { false }
     override func resetCursorRects() { addCursorRect(bounds, cursor: .arrow) }
     override func updateTrackingAreas() {
         if let tracking { removeTrackingArea(tracking) }

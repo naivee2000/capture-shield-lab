@@ -345,8 +345,14 @@ import XCTest
         editor.click(); editor.typeText("Keep Enter draft 1357")
         loadImage()
         let canvas = app.descendants(matching: .any).matching(identifier: "crop-canvas").firstMatch
+        let cropX = try XCTUnwrap(mainWindow()["x"] as? Double)
+        let cropY = try XCTUnwrap(mainWindow()["y"] as? Double)
         canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.3)).click(forDuration: 0.2,
             thenDragTo: canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.7)))
+        let cropCompleted = ProcessInfo.processInfo.systemUptime
+        wait("Fresh metadata after cropping") { (self.record()["sampleUptime"] as? Double ?? 0) > cropCompleted }
+        XCTAssertEqual(mainWindow()["x"] as? Double ?? 0, cropX, accuracy: 2, "Cropping must not move the window")
+        XCTAssertEqual(mainWindow()["y"] as? Double ?? 0, cropY, accuracy: 2, "Cropping must not move the window")
         let right = mainUI.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5)).withOffset(CGVector(dx: -1, dy: 0))
         drag(right, dx: -120, dy: 0)
         canvas.click() // Taking focus must not reset the already chosen crop.
@@ -373,11 +379,6 @@ import XCTest
         }
         mainUI.radioButtons["Legacy"].click()
         wait("Legacy disables native resizing") { self.mainWindow()["nativeResizable"] as? Bool == false }
-        let legacyEdge = mainUI.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5)).withOffset(CGVector(dx: -1, dy: 0))
-        drag(legacyEdge, dx: 60, dy: 0)
-        let edgeCompleted = ProcessInfo.processInfo.systemUptime
-        wait("Fresh metadata after a Legacy edge drag") { (self.record()["sampleUptime"] as? Double ?? 0) > edgeCompleted }
-        XCTAssertEqual(mainWindow()["width"] as? Double ?? 0, 640, accuracy: 2, "Legacy edges must not resize the shell")
         let grip = mainUI.descendants(matching: .any).matching(identifier: "window-resize-grip").firstMatch
         XCTAssertTrue(grip.waitForExistence(timeout: 10)); XCTAssertTrue(grip.isHittable)
         let host = try backgroundHost()
@@ -396,6 +397,11 @@ import XCTest
         XCTAssertEqual((mainWindow()["y"] as? Double ?? 0) + (mainWindow()["height"] as? Double ?? 0), top, accuracy: 2)
         drag(grip.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)), dx: -300, dy: -300)
         wait("Grip respects minimum size") { abs((self.mainWindow()["width"] as? Double ?? 0) - 640) < 3 && abs((self.mainWindow()["height"] as? Double ?? 0) - 480) < 3 }
+        let legacyEdge = mainUI.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5)).withOffset(CGVector(dx: -1, dy: 0))
+        drag(legacyEdge, dx: 60, dy: 0)
+        let edgeCompleted = ProcessInfo.processInfo.systemUptime
+        wait("Fresh metadata after a Legacy edge drag") { (self.record()["sampleUptime"] as? Double ?? 0) > edgeCompleted }
+        XCTAssertEqual(mainWindow()["width"] as? Double ?? 0, 640, accuracy: 2, "Legacy edges must not resize the shell")
         mainUI.buttons.matching(identifier: "window-zoom").allElementsBoundByIndex.first { $0.isHittable }!.click()
         wait("Legacy zoom remains available") { (self.mainWindow()["width"] as? Double ?? 0) > 640 }
         mainUI.buttons.matching(identifier: "window-zoom").allElementsBoundByIndex.first { $0.isHittable }!.click()

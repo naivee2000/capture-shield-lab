@@ -16,6 +16,8 @@ import CaptureCore
         }
     }
     override var isFlipped: Bool { true }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override var mouseDownCanMoveWindow: Bool { false }
     init(image: CGImage) {
         self.image = image; super.init(frame: .zero)
         setAccessibilityElement(true); setAccessibilityLabel("Image crop preview. Drag a rectangle to crop.")
