@@ -10,6 +10,15 @@ import CaptureCore
             charactersIgnoringModifiers: "\u{3}", isARepeat: false, keyCode: 0)!
         #expect(ImageReturnGate.key(for: event) == 76)
     }
+    @Test func freshPressRecoversWhenKeyUpWasDeliveredToAnotherWindow() {
+        var gate = ImageReturnGate()
+        #expect(gate.action(type: .keyDown, key: 36, modifiers: [], repeatKey: false,
+            preview: true, pending: false, canConfirm: true, marked: false, modal: false) == .confirm)
+        // A file panel/focus change can consume the release. AppKit identifies
+        // the next physical press as nonrepeat; it must not remain latched.
+        #expect(gate.action(type: .keyDown, key: 36, modifiers: [], repeatKey: false,
+            preview: true, pending: false, canConfirm: true, marked: false, modal: false) == .confirm)
+    }
     @Test(arguments: [UInt16(36), UInt16(76)]) func enterIsOneShotUntilReleaseAndCannotSendDuringHandoff(key: UInt16) {
         var gate = ImageReturnGate()
         func down(_ preview: Bool, _ pending: Bool, _ repeatKey: Bool = false) -> ImageReturnGate.Action {

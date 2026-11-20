@@ -29,6 +29,12 @@
       "classification": "under-investigation",
       "status": "fail",
       "detail": "All three CI hosts passed 13/14 UI scenarios, but keypad Enter did not produce the second image. AppKit character normalization and bounded offline key/phase diagnostics added; fresh CI required."
+    },
+    {
+      "stage": "missing-key-up",
+      "classification": "application",
+      "status": "fail",
+      "detail": "A fresh nonrepeat press was rejected after an earlier key-up went to another window. The gate now distinguishes a new press from autorepeat."
     }
   ],
   "local": {
@@ -43,13 +49,14 @@
     },
     "native": {
       "status": "pass",
-      "reported_tests": 137,
+      "reported_tests": 138,
       "optional_skipped": 2,
       "process_counts": [
-        126,
+        127,
         10,
         1
-      ]
+      ],
+      "source_commit": "c71acc0e7dfdaf64c366d996ff4cce29a2b29dad"
     },
     "scripts": {
       "status": "pass",
@@ -58,6 +65,11 @@
     "focused_after_ci_correction": {
       "status": "pass",
       "tests": 16
+    },
+    "keyup_regression": {
+      "status": "pass",
+      "tests": 6,
+      "full_final_commit_verification": "pending"
     }
   },
   "ci": {
@@ -84,5 +96,13 @@
   "native_cursor_experiment": {
     "status": "not-tested",
     "reason": "Isolated public API probe lacked continuous live-resize/system-cursor samples in the remote development interaction. Uniform protected in-window grip selected."
-  }
+  },
+  "intermediate_ci": [
+    {
+      "run": 44811950913,
+      "source_commit": "c71acc0e7dfdaf64c366d996ff4cce29a2b29dad",
+      "status": "superseded",
+      "reason": "Additional reproduced missing-key-up defect repaired before release; final commit needs a fresh complete matrix."
+    }
+  ]
 }
