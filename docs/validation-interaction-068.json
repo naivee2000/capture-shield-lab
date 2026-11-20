@@ -35,6 +35,12 @@
       "classification": "application",
       "status": "fail",
       "detail": "A fresh nonrepeat press was rejected after an earlier key-up went to another window. The gate now distinguishes a new press from autorepeat."
+    },
+    {
+      "stage": "resize-grip-first-mouse",
+      "classification": "application",
+      "status": "fail",
+      "detail": "The new NSView grip inherited false for acceptsFirstMouse. It now accepts the initial drag; the packaged scenario also sends the gesture through an independent foreground host and checks that host remains active."
     }
   ],
   "local": {
@@ -49,14 +55,14 @@
     },
     "native": {
       "status": "pass",
-      "reported_tests": 138,
+      "reported_tests": 139,
       "optional_skipped": 2,
       "process_counts": [
-        127,
+        128,
         10,
         1
       ],
-      "source_commit": "c71acc0e7dfdaf64c366d996ff4cce29a2b29dad"
+      "source_commit": "f31af163bfdd93d3eacac7116022fee4388c536e"
     },
     "scripts": {
       "status": "pass",
@@ -69,7 +75,60 @@
     "keyup_regression": {
       "status": "pass",
       "tests": 6,
-      "full_final_commit_verification": "pending"
+      "full_final_commit_verification": "pass"
+    },
+    "clean_clone": {
+      "status": "pass",
+      "source_commit": "f31af163bfdd93d3eacac7116022fee4388c536e",
+      "space_containing_paths": true,
+      "source_clean": true,
+      "native_reported_tests": 139,
+      "optional_skipped": 2,
+      "native_process_counts": [
+        128,
+        10,
+        1
+      ],
+      "script_tests": 20,
+      "applications": [
+        {
+          "name": "CaptureShieldLab",
+          "version": "0.6.8",
+          "build": "17",
+          "commit": "f31af163bfdd",
+          "minimum": "15.6",
+          "mach_o_minimum": "15.6",
+          "sha256": "53989c4e7ad9151a42e92c46271935e964992e840665001789fa1b23210d7c95",
+          "signature": "pass"
+        },
+        {
+          "name": "CaptureProbe",
+          "version": "0.6.8",
+          "build": "17",
+          "commit": "f31af163bfdd",
+          "minimum": "15.6",
+          "mach_o_minimum": "15.6",
+          "sha256": "ce04fde6a997e4870541140d20e72bbe2e76efe5738267a05a14ef3894d3a42e",
+          "signature": "pass"
+        }
+      ]
+    },
+    "manual_packaged_ui": {
+      "status": "not-tested",
+      "reason": "Computer-use session was interrupted before app inspection; isolated preview was closed normally. User QA042 and login data were preserved."
+    },
+    "git_integrity": {
+      "status": "pass",
+      "appledouble_sidecars_moved": 17,
+      "actual_git_objects_modified": false
+    },
+    "first_mouse_regression": {
+      "status": "pass",
+      "related_tests": 7
+    },
+    "doctor": {
+      "status": "pass",
+      "source_commit": "f31af163bfdd93d3eacac7116022fee4388c536e"
     }
   },
   "ci": {
@@ -103,6 +162,12 @@
       "source_commit": "c71acc0e7dfdaf64c366d996ff4cce29a2b29dad",
       "status": "superseded",
       "reason": "Additional reproduced missing-key-up defect repaired before release; final commit needs a fresh complete matrix."
+    },
+    {
+      "run": 44812799770,
+      "source_commit": "f31af163bfdd93d3eacac7116022fee4388c536e",
+      "status": "superseded",
+      "reason": "Initial-drag acceptance and a background-host UI assertion added before release; final source requires a complete fresh matrix."
     }
   ]
 }

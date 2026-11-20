@@ -374,11 +374,18 @@ import XCTest
         wait("Legacy disables native resizing") { self.mainWindow()["nativeResizable"] as? Bool == false }
         let grip = mainUI.descendants(matching: .any).matching(identifier: "window-resize-grip").firstMatch
         XCTAssertTrue(grip.waitForExistence(timeout: 10)); XCTAssertTrue(grip.isHittable)
+        let host = try backgroundHost()
+        host.activate(); host.textFields["background-input"].click()
+        wait("Background application owns focus before the first grip drag") {
+            host.state == .runningForeground && self.mainWindow()["key"] as? Bool == false
+        }
+        let backgroundPID = try XCTUnwrap(record()["frontmostPID"] as? Int)
         let before = mainWindow()
         let top = try XCTUnwrap(before["y"] as? Double) + XCTUnwrap(before["height"] as? Double)
         let x = try XCTUnwrap(before["x"] as? Double)
-        drag(grip.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)), dx: 80, dy: 60)
+        drag(grip.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)), dx: 80, dy: 60, through: host)
         wait("Grip grows width with a fixed top-left") { abs((self.mainWindow()["width"] as? Double ?? 0) - 720) < 3 }
+        XCTAssertEqual(record()["frontmostPID"] as? Int, backgroundPID, "Resize must not activate the panel's application")
         XCTAssertEqual(mainWindow()["x"] as? Double ?? 0, x, accuracy: 2)
         XCTAssertEqual((mainWindow()["y"] as? Double ?? 0) + (mainWindow()["height"] as? Double ?? 0), top, accuracy: 2)
         drag(grip.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)), dx: -300, dy: -300)
@@ -394,13 +401,14 @@ import XCTest
         drag(right, dx: 80, dy: 0)
         wait("Normal edge resizing works") { (self.mainWindow()["width"] as? Double ?? 0) > 700 }
     }
-    private func drag(_ start: XCUICoordinate, dx: CGFloat, dy: CGFloat) {
+    private func drag(_ start: XCUICoordinate, dx: CGFloat, dy: CGFloat, through host: XCUIApplication? = nil) {
         // A destination anchored to the moving window changes during the drag.
         // The native menu bar is stationary; derive its offset from current AX geometry.
-        let anchor = app.menuBars.firstMatch.coordinate(withNormalizedOffset: .zero)
+        let anchor = (host ?? app).menuBars.firstMatch.coordinate(withNormalizedOffset: .zero)
         let from = start.screenPoint, fixed = anchor.screenPoint
+        let actualStart = host == nil ? start : anchor.withOffset(CGVector(dx: from.x - fixed.x, dy: from.y - fixed.y))
         let end = anchor.withOffset(CGVector(dx: from.x + dx - fixed.x, dy: from.y + dy - fixed.y))
-        start.click(forDuration: 0.2, thenDragTo: end)
+        actualStart.click(forDuration: 0.2, thenDragTo: end)
     }
     func testCompactWindowMovementCompositionAndVisibility() throws {
         wait("Small initial window") { abs((self.mainWindow()["width"] as? Double ?? 0) - 640) < 1 }

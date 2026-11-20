@@ -4,6 +4,10 @@ import CaptureCore
 @testable import CaptureShieldLab
 
 @MainActor struct ImagePreviewTests {
+    @Test func gripAcceptsTheFirstDragFromAnotherApplication() {
+        let grip = LegacyResizeGrip(frame: NSRect(x: 0, y: 0, width: 22, height: 22))
+        #expect(grip.acceptsFirstMouse(for: nil))
+    }
     @Test func keypadEnterCanBeRepresentedByItsAppKitCharacter() {
         let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .numericPad,
             timestamp: 0, windowNumber: 0, context: nil, characters: "\u{3}",
