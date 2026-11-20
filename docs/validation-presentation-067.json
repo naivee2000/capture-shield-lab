@@ -55,11 +55,33 @@
     },
     "clean_clone": {
       "status": "pass",
-      "source_commit": "9b53af659c67f05d7eea339dfa45d6151639d759",
+      "source_commit": "d707c2af482dde6ad478ad1b98caac0d15a2629a",
       "space_containing_paths": true,
       "build_sign_register": "pass",
       "native_reported_tests": 136,
-      "optional_skipped": 2
+      "optional_skipped": 2,
+      "identity": {
+        "source_commit": "d707c2af482dde6ad478ad1b98caac0d15a2629a",
+        "source_tree": "ec9cda4d1c623936bde61024e4b008b59d00f226",
+        "applications": [
+          {
+            "name": "CaptureShieldLab",
+            "version": "0.6.7",
+            "build": "16",
+            "commit": "d707c2af482d",
+            "minimum": "15.6",
+            "sha256": "48889a0f2c49803cf3e5d47fd0851aa8a0170d5722e102ab6656f4a356a6ced0"
+          },
+          {
+            "name": "CaptureProbe",
+            "version": "0.6.7",
+            "build": "16",
+            "commit": "d707c2af482d",
+            "minimum": "15.6",
+            "sha256": "3f62f9ded070b194deff639c806231d57190c2f0545392b286f00e4326636456"
+          }
+        ]
+      }
     },
     "pixel_combinations": {
       "status": "pass",
@@ -93,7 +115,9 @@
       "remaining_painted_layers": 0,
       "native_background_readback": "drawing disabled",
       "normal_exit": true,
-      "preexisting_qa_preserved": true
+      "preexisting_qa_preserved": true,
+      "application_source_tree": "ec9cda4d1c623936bde61024e4b008b59d00f226",
+      "scope": "Official signed-out guest page only; no account history loaded and no message sent."
     }
   },
   "ci": {
@@ -105,7 +129,18 @@
         "status": "fail",
         "stage": "macOS 15 decorative-background snapshot",
         "classification": "harness",
-        "detail": "Blank alpha was 1.0. The snapshot waited only for DOM eligibility, before the asynchronous native WebKit background acknowledgement. Revised verification awaits actual readback and retains pixel assertions at six size/zoom combinations."
+        "detail": "Blank alpha was 1.0. The snapshot waited only for DOM eligibility, before the asynchronous native WebKit background acknowledgement. Revised verification awaits actual readback and retains pixel assertions at six size/zoom combinations.",
+        "workflow_conclusion": "cancelled",
+        "disposition": "Superseded after the corrective test commit; the failed stage remains recorded."
+      },
+      {
+        "run_id": 44669719428,
+        "source_commit": "d707c2af482dde6ad478ad1b98caac0d15a2629a",
+        "status": "fail",
+        "stage": "macOS 15 packaged UI round 2 / testLaunchTypeAndRestart",
+        "classification": "harness",
+        "detail": "All three first UI rounds passed 12 cases. In macOS 15 round 2, the immediate AX-value assertion after keyboard synthesis failed (11 pass, 1 fail). Replace the one-shot read with the existing bounded draft predicate, requiring the complete test string; no repeated typing, fixed sleep, app change or failure retry. A missing draft still fails. Timing diagnosis remains subject to the corrected full run.",
+        "workflow_conclusion": "failure-or-superseded-pending"
       }
     ]
   },
@@ -114,6 +149,19 @@
   "receiver": "not-tested",
   "cleanup": {
     "status": "pending",
-    "run_id": "ui067-dev"
-  }
+    "run_id": "ui067-dev",
+    "guest_data": {
+      "status": "pass",
+      "bundle_identifier": "dev.naivee2000.captureshield.uitest.ui067-dev.lab",
+      "reclaimed_allocated_bytes": 15015936,
+      "preexisting_qa_preserved": true,
+      "types": [
+        "guest WebKit data",
+        "guest cache",
+        "test preferences"
+      ]
+    }
+  },
+  "tested_source_commit": "d707c2af482dde6ad478ad1b98caac0d15a2629a",
+  "application_source_tree": "ec9cda4d1c623936bde61024e4b008b59d00f226"
 }

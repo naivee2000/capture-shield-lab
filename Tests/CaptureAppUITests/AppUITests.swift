@@ -46,7 +46,9 @@ import XCTest
         XCTAssertTrue(editor.waitForExistence(timeout: 15))
         editor.click()
         editor.typeText("Synthetic draft 2468")
-        XCTAssertTrue((editor.value as? String ?? "").contains("2468"))
+        // WebKit's AX value may arrive after keyboard synthesis completes.
+        // Observe the full draft once; never type again to make the test pass.
+        draftContains("Synthetic draft 2468")
         if ProcessInfo.processInfo.environment["CAPTURESHIELD_UI_NEGATIVE"] == "1" {
             XCTAssertTrue(app.buttons["Deliberately absent UI marker"].exists, "Negative control must fail")
         }
