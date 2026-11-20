@@ -113,27 +113,34 @@ import CaptureCore
         }
         #expect(solidTextPixels > 50)
     }
-    @Test func decorativePseudoBackdropDoesNotHideTransparency() async throws {
-        let owner = owner(); defer { owner.webView.stopLoading(); owner.closeTestFixture() }
-        owner.applyPreferences(.init(mode: .legacy))
-        owner.webView.loadHTMLString("""
-        <html><style>body{margin:0;color:white}#shell{position:relative;min-height:100vh}
-        #shell::before{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(#123456,#123456)}
-        main{position:relative;min-height:100vh}pre::before{content:'Code label';background:rgb(30,40,50)}</style>
-        <body><div id="shell"><main><textarea id="prompt-textarea">Synthetic draft</textarea>
-        <pre id="code">const value = 42;</pre><div style="position:absolute;left:100px;top:100px;width:40px;height:40px;background:red"> </div>
-        </main></div></body></html>
-        """, baseURL: nil)
-        try await wait(owner.webView, "document.documentElement.dataset.csMode === 'legacy'")
-        let image = try await owner.webView.takeSnapshot(configuration: nil)
-        let bitmap = try #require(image.tiffRepresentation.flatMap(NSBitmapImageRep.init(data:)))
-        let blank = try #require(bitmap.colorAt(x: bitmap.pixelsWide - 30, y: bitmap.pixelsHigh - 30)?.usingColorSpace(.deviceRGB))
-        #expect(blank.alphaComponent < 0.01)
-        #expect(try await owner.webView.evaluateJavaScript("getComputedStyle(document.querySelector('#code'),'::before').backgroundColor === 'rgb(30, 40, 50)'") as? Bool == true)
-        let width = try #require(try await owner.webView.evaluateJavaScript("innerWidth") as? Double)
-        let scale = Double(bitmap.pixelsWide) / width
-        let foreground = try #require(bitmap.colorAt(x: Int(120 * scale), y: Int(120 * scale))?.usingColorSpace(.deviceRGB))
-        #expect(foreground.alphaComponent > 0.99 && foreground.redComponent > 0.99)
+    @Test(arguments: [70, 90, 140]) func decorativePseudoBackdropDoesNotHideTransparency(zoom: Int) async throws {
+        for windowWidth: CGFloat in [980, 640] {
+            let owner = owner(); defer { owner.webView.stopLoading(); owner.closeTestFixture() }
+            owner.window?.setFrame(NSRect(x: 100, y: 100, width: windowWidth, height: windowWidth == 640 ? 480 : 700), display: true)
+            owner.applyPreferences(.init(mode: .legacy, zoomPercent: zoom))
+            owner.webView.loadHTMLString("""
+            <html><style>body{margin:0;color:white}#shell{position:relative;min-height:100vh}
+            #shell::before{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(#123456,#123456)}
+            main{position:relative;min-height:100vh}pre::before{content:'Code label';background:rgb(30,40,50)}</style>
+            <body><div id="shell"><main><textarea id="prompt-textarea">Synthetic draft</textarea>
+            <pre id="code">const value = 42;</pre><div style="position:absolute;left:100px;top:100px;width:40px;height:40px;background:red"> </div>
+            </main></div></body></html>
+            """, baseURL: nil)
+            try await wait(owner.webView, "document.documentElement.dataset.csMode === 'legacy'")
+            for _ in 0..<100 where WebBackgroundCompatibility.state(in: owner.webView) != .transparent {
+                try await Task.sleep(for: .milliseconds(20))
+            }
+            try #require(WebBackgroundCompatibility.state(in: owner.webView) == .transparent)
+            let image = try await owner.webView.takeSnapshot(configuration: nil)
+            let bitmap = try #require(image.tiffRepresentation.flatMap(NSBitmapImageRep.init(data:)))
+            let blank = try #require(bitmap.colorAt(x: bitmap.pixelsWide - 30, y: bitmap.pixelsHigh - 30)?.usingColorSpace(.deviceRGB))
+            #expect(blank.alphaComponent < 0.01)
+            #expect(try await owner.webView.evaluateJavaScript("getComputedStyle(document.querySelector('#code'),'::before').backgroundColor === 'rgb(30, 40, 50)'") as? Bool == true)
+            let width = try #require(try await owner.webView.evaluateJavaScript("innerWidth") as? Double)
+            let scale = Double(bitmap.pixelsWide) / width
+            let foreground = try #require(bitmap.colorAt(x: Int(120 * scale), y: Int(120 * scale))?.usingColorSpace(.deviceRGB))
+            #expect(foreground.alphaComponent > 0.99 && foreground.redComponent > 0.99)
+        }
     }
     @Test func unsupportedBackgroundHookIsExplicitAndLeavesContentReadable() {
         final class UnsupportedWebView: WKWebView {

@@ -54,11 +54,60 @@
       "reason": "CLT only; pre-existing QA042 preserved."
     },
     "clean_clone": {
-      "status": "not-tested"
+      "status": "pass",
+      "source_commit": "9b53af659c67f05d7eea339dfa45d6151639d759",
+      "space_containing_paths": true,
+      "build_sign_register": "pass",
+      "native_reported_tests": 136,
+      "optional_skipped": 2
+    },
+    "pixel_combinations": {
+      "status": "pass",
+      "zoom_percent": [
+        70,
+        90,
+        140
+      ],
+      "window_sizes": [
+        [
+          980,
+          700
+        ],
+        [
+          640,
+          480
+        ]
+      ],
+      "combinations": 6
+    },
+    "real_signed_out_wkwebview": {
+      "status": "pass",
+      "app_commit": "9b53af659c67",
+      "webkit_build": "21624.5.1.11.3",
+      "sidebar_open_close": true,
+      "draft_preserved": true,
+      "sent_messages": 0,
+      "mode_switch": true,
+      "read_only_page_check": "ready",
+      "layout": "classic",
+      "remaining_painted_layers": 0,
+      "native_background_readback": "drawing disabled",
+      "normal_exit": true,
+      "preexisting_qa_preserved": true
     }
   },
   "ci": {
-    "status": "not-tested"
+    "status": "pending",
+    "attempts": [
+      {
+        "run_id": 44668196239,
+        "source_commit": "9b53af659c67f05d7eea339dfa45d6151639d759",
+        "status": "fail",
+        "stage": "macOS 15 decorative-background snapshot",
+        "classification": "harness",
+        "detail": "Blank alpha was 1.0. The snapshot waited only for DOM eligibility, before the asynchronous native WebKit background acknowledgement. Revised verification awaits actual readback and retains pixel assertions at six size/zoom combinations."
+      }
+    ]
   },
   "real_logged_in_wkwebview": "not-tested",
   "physical_transparency": "not-tested",
