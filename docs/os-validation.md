@@ -28,7 +28,9 @@ bash scripts/doctor.sh
 
 ## Evidence boundary
 
-The latest **[0.6.6 continuous-recording review](speech-066.md)** passed eleven packaged UI scenarios in three rounds on each actual **15.8.2, 26.7.2 and 27.0.1** host, plus native/package/script and negative controls. See [the exact source and evidence](validation-speech-066.json). The native host loads the SwiftPM-built bundles and survives stopped CF run loops; tests use the supported native build layout across toolchains. Actual capture, account and receiver checks remain separate.
+The latest **[0.6.7 webpage-presentation review](presentation-067.md)** passed twelve packaged UI scenarios in three sequential rounds on each actual **15.8.2, 26.7.2 and 27.0.1** host: **108 positive UI executions**, with no skipped UI cases or retries. Each host also passed the native suite (136 reported tests, two optional skips), 20 script checks, package/signature/deployment checks and deliberate native/UI negative controls. The [release ledger](validation-presentation-067.json) records exact source, systems, toolchains, binary hashes, first failures and cleanup. Local signed-out WKWebView checks are separate from account-history, physical-transparency and receiver acceptance.
+
+The earlier **[0.6.6 continuous-recording review](speech-066.md)** passed eleven packaged UI scenarios in three rounds on each actual **15.8.2, 26.7.2 and 27.0.1** host, plus native/package/script and negative controls. See [the exact source and evidence](validation-speech-066.json). The native host loads the SwiftPM-built bundles and survives stopped CF run loops; tests use the supported native build layout across toolchains. Actual capture, account and receiver checks remain separate.
 
 The earlier **[0.6.5 floating-panel review](ui-065.md)** passed nine packaged UI scenarios in three rounds on each recorded 15.8.2, 26.7.2 and 27.0.1 host, plus negative controls and native/package checks. Exact source and evidence are in [its ledger](validation-ui-065.json).
 

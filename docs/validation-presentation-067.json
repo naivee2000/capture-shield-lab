@@ -3,7 +3,7 @@
   "application_version": "0.6.7",
   "application_build": "16",
   "deployment_minimum": "15.6",
-  "validation_date": "2026-11-19",
+  "validation_date": "2026-11-20",
   "baseline_commit": "d2fc5c6d64a6550192e7286476ce584558f950cf",
   "first_failures": [
     {
@@ -47,7 +47,8 @@
     },
     "build_sign_register": {
       "status": "pass",
-      "source_state": "development build before commit"
+      "source_commit": "6b12f1a5d8c6323c3d4d2da9d14133051e459318",
+      "isolated_identifier": true
     },
     "packaged_ui": {
       "status": "not-tested",
@@ -55,33 +56,37 @@
     },
     "clean_clone": {
       "status": "pass",
-      "source_commit": "d707c2af482dde6ad478ad1b98caac0d15a2629a",
+      "source_commit": "6b12f1a5d8c6323c3d4d2da9d14133051e459318",
       "space_containing_paths": true,
       "build_sign_register": "pass",
       "native_reported_tests": 136,
       "optional_skipped": 2,
       "identity": {
-        "source_commit": "d707c2af482dde6ad478ad1b98caac0d15a2629a",
+        "source_commit": "6b12f1a5d8c6323c3d4d2da9d14133051e459318",
         "source_tree": "ec9cda4d1c623936bde61024e4b008b59d00f226",
         "applications": [
           {
             "name": "CaptureShieldLab",
             "version": "0.6.7",
             "build": "16",
-            "commit": "d707c2af482d",
+            "commit": "6b12f1a5d8c6",
             "minimum": "15.6",
-            "sha256": "48889a0f2c49803cf3e5d47fd0851aa8a0170d5722e102ab6656f4a356a6ced0"
+            "sha256": "fd9ee84f39bd4884e5f97d00d39880c910a1d65faa57f0eff17e2140939aee11",
+            "signature": "pass"
           },
           {
             "name": "CaptureProbe",
             "version": "0.6.7",
             "build": "16",
-            "commit": "d707c2af482d",
+            "commit": "6b12f1a5d8c6",
             "minimum": "15.6",
-            "sha256": "3f62f9ded070b194deff639c806231d57190c2f0545392b286f00e4326636456"
+            "sha256": "658a88ccdb689fb517427af20c6d9ade176b022c6976af9641d5b21c3e37174f",
+            "signature": "pass"
           }
         ]
-      }
+      },
+      "native_test_source_commit": "d707c2af482dde6ad478ad1b98caac0d15a2629a",
+      "native_test_scope": "The subsequent commit changes only packaged XCTest acceptance and its evidence; native sources and tests are identical."
     },
     "pixel_combinations": {
       "status": "pass",
@@ -121,7 +126,7 @@
     }
   },
   "ci": {
-    "status": "pending",
+    "status": "pass",
     "attempts": [
       {
         "run_id": 44668196239,
@@ -139,17 +144,241 @@
         "status": "fail",
         "stage": "macOS 15 packaged UI round 2 / testLaunchTypeAndRestart",
         "classification": "harness",
-        "detail": "All three first UI rounds passed 12 cases. In macOS 15 round 2, the immediate AX-value assertion after keyboard synthesis failed (11 pass, 1 fail). Replace the one-shot read with the existing bounded draft predicate, requiring the complete test string; no repeated typing, fixed sleep, app change or failure retry. A missing draft still fails. Timing diagnosis remains subject to the corrected full run.",
-        "workflow_conclusion": "failure-or-superseded-pending"
+        "detail": "All three first UI rounds passed 12 cases. In macOS 15 round 2, the immediate AX-value assertion after keyboard synthesis failed (11 pass, 1 fail). Replace the one-shot read with the existing bounded draft predicate, requiring the complete test string; no repeated typing, fixed sleep, app change or failure retry. A missing draft still fails.",
+        "workflow_conclusion": "cancelled",
+        "disposition": "Superseded after the test correction; the macOS 15 second-round failure remains recorded. Before cancellation macOS 26 completed one passing round and macOS 27 completed two.",
+        "verification": "The corrected full matrix passed three UI rounds per host, deliberate negative controls and cleanup."
       }
-    ]
+    ],
+    "run_id": 44673242952,
+    "run_url": "https://github.com/naivee2000/capture-shield-lab/actions/runs/44673242952",
+    "source_commit": "6b12f1a5d8c6323c3d4d2da9d14133051e459318",
+    "workflow_conclusion": "success",
+    "hosts": [
+      {
+        "job_id": 136079023254,
+        "job_url": "https://github.com/naivee2000/capture-shield-lab/actions/runs/44673242952/job/136079023254",
+        "status": "pass",
+        "environment": {
+          "architecture": "arm64",
+          "system": "15.8.2",
+          "source_commit": "6b12f1a5d8c6323c3d4d2da9d14133051e459318",
+          "source_dirty": false,
+          "system_build": "24H232",
+          "swift": "swift-driver version: 1.127.15 Apple Swift version 6.2.4 (swiftlang-6.2.4.1.4 clang-1700.6.4.2)",
+          "sdk": "26.2",
+          "xcode": "Xcode 26.3",
+          "display": {
+            "ready": true,
+            "scale": 1,
+            "visible_height": 910,
+            "visible_width": 1344
+          }
+        },
+        "application": {
+          "version": "0.6.7",
+          "build": "16",
+          "build_commit": "6b12f1a5d8c6",
+          "minimum_system": "15.6"
+        },
+        "application_sha256": "f0232b7404b5b03bfd489da4ece92f12ae7a8a67aa6334b755993ecba936dbf0",
+        "native_reported_tests": 136,
+        "native_process_counts": [
+          126,
+          9,
+          1
+        ],
+        "optional_skipped": 2,
+        "ui_rounds": [
+          {
+            "round": 1,
+            "exit_code": 0,
+            "passed": 12,
+            "failed": 0,
+            "skipped": 0,
+            "failures": []
+          },
+          {
+            "round": 2,
+            "exit_code": 0,
+            "passed": 12,
+            "failed": 0,
+            "skipped": 0,
+            "failures": []
+          },
+          {
+            "round": 3,
+            "exit_code": 0,
+            "passed": 12,
+            "failed": 0,
+            "skipped": 0,
+            "failures": []
+          }
+        ],
+        "native_negative_control": "pass",
+        "ui_negative_control": "pass",
+        "real_capture": "not-tested",
+        "real_speech": "not-tested",
+        "real_chatgpt": "not-tested",
+        "receiver": "not-tested",
+        "build_sign_register": "pass",
+        "deployment_checks": "pass",
+        "script_tests": 20,
+        "test_cleanup": "pass"
+      },
+      {
+        "job_id": 136079023599,
+        "job_url": "https://github.com/naivee2000/capture-shield-lab/actions/runs/44673242952/job/136079023599",
+        "status": "pass",
+        "environment": {
+          "architecture": "arm64",
+          "system": "26.7.2",
+          "source_commit": "6b12f1a5d8c6323c3d4d2da9d14133051e459318",
+          "source_dirty": false,
+          "system_build": "25G332",
+          "swift": "swift-driver version: 1.148.6 Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)",
+          "sdk": "26.5",
+          "xcode": "Xcode 26.6",
+          "display": {
+            "ready": true,
+            "scale": 1,
+            "visible_height": 899,
+            "visible_width": 1344
+          }
+        },
+        "application": {
+          "version": "0.6.7",
+          "build": "16",
+          "build_commit": "6b12f1a5d8c6",
+          "minimum_system": "15.6"
+        },
+        "application_sha256": "b77e3a77437f18a6a0caeb51a1edba6b97fbd4074698e8929a95e291101446be",
+        "native_reported_tests": 136,
+        "native_process_counts": [
+          126,
+          9,
+          1
+        ],
+        "optional_skipped": 2,
+        "ui_rounds": [
+          {
+            "round": 1,
+            "exit_code": 0,
+            "passed": 12,
+            "failed": 0,
+            "skipped": 0,
+            "failures": []
+          },
+          {
+            "round": 2,
+            "exit_code": 0,
+            "passed": 12,
+            "failed": 0,
+            "skipped": 0,
+            "failures": []
+          },
+          {
+            "round": 3,
+            "exit_code": 0,
+            "passed": 12,
+            "failed": 0,
+            "skipped": 0,
+            "failures": []
+          }
+        ],
+        "native_negative_control": "pass",
+        "ui_negative_control": "pass",
+        "real_capture": "not-tested",
+        "real_speech": "not-tested",
+        "real_chatgpt": "not-tested",
+        "receiver": "not-tested",
+        "build_sign_register": "pass",
+        "deployment_checks": "pass",
+        "script_tests": 20,
+        "test_cleanup": "pass"
+      },
+      {
+        "job_id": 136079023646,
+        "job_url": "https://github.com/naivee2000/capture-shield-lab/actions/runs/44673242952/job/136079023646",
+        "status": "pass",
+        "environment": {
+          "architecture": "arm64",
+          "system": "27.0.1",
+          "source_commit": "6b12f1a5d8c6323c3d4d2da9d14133051e459318",
+          "source_dirty": false,
+          "system_build": "26A434",
+          "swift": "swift-driver version: 1.168.6 Apple Swift version 6.4.2 (swiftlang-6.4.2.1.9 clang-2100.4.1.1)",
+          "sdk": "27.2",
+          "xcode": "Xcode 27.2",
+          "display": {
+            "ready": true,
+            "scale": 1,
+            "visible_height": 899,
+            "visible_width": 1344
+          }
+        },
+        "application": {
+          "version": "0.6.7",
+          "build": "16",
+          "build_commit": "6b12f1a5d8c6",
+          "minimum_system": "15.6"
+        },
+        "application_sha256": "11459db0ee410752f0796e96a7985147ea7c728c2dbae29f6a22ae99f43cd845",
+        "native_reported_tests": 136,
+        "native_process_counts": [
+          126,
+          9,
+          1
+        ],
+        "optional_skipped": 2,
+        "ui_rounds": [
+          {
+            "round": 1,
+            "exit_code": 0,
+            "passed": 12,
+            "failed": 0,
+            "skipped": 0,
+            "failures": []
+          },
+          {
+            "round": 2,
+            "exit_code": 0,
+            "passed": 12,
+            "failed": 0,
+            "skipped": 0,
+            "failures": []
+          },
+          {
+            "round": 3,
+            "exit_code": 0,
+            "passed": 12,
+            "failed": 0,
+            "skipped": 0,
+            "failures": []
+          }
+        ],
+        "native_negative_control": "pass",
+        "ui_negative_control": "pass",
+        "real_capture": "not-tested",
+        "real_speech": "not-tested",
+        "real_chatgpt": "not-tested",
+        "receiver": "not-tested",
+        "build_sign_register": "pass",
+        "deployment_checks": "pass",
+        "script_tests": 20,
+        "test_cleanup": "pass"
+      }
+    ],
+    "total_positive_ui_executions": 108
   },
   "real_logged_in_wkwebview": "not-tested",
   "physical_transparency": "not-tested",
   "receiver": "not-tested",
   "cleanup": {
-    "status": "pending",
+    "status": "pass",
     "run_id": "ui067-dev",
+    "reclaimed_allocated_bytes": 1714757632,
+    "test_image_allocated_bytes": 1699741696,
     "guest_data": {
       "status": "pass",
       "bundle_identifier": "dev.naivee2000.captureshield.uitest.ui067-dev.lab",
@@ -160,8 +389,17 @@
         "guest cache",
         "test preferences"
       ]
-    }
+    },
+    "temporary_mount_removed": true,
+    "test_applications_unregistered": true,
+    "task_windows_and_tabs_closed": true,
+    "preserved": [
+      "QA042 and its login session",
+      "User windows and other project caches",
+      "Permanent tests, compatibility skill and technical evidence"
+    ]
   },
-  "tested_source_commit": "d707c2af482dde6ad478ad1b98caac0d15a2629a",
-  "application_source_tree": "ec9cda4d1c623936bde61024e4b008b59d00f226"
+  "tested_source_commit": "6b12f1a5d8c6323c3d4d2da9d14133051e459318",
+  "application_source_tree": "ec9cda4d1c623936bde61024e4b008b59d00f226",
+  "skill_validation": "pass"
 }

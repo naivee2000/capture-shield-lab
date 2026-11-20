@@ -1,5 +1,11 @@
 # Observed compatibility
 
+## Version 0.6.7 webpage presentation
+
+The [0.6.7 repair](presentation-067.md) passed **12 packaged-app UI scenarios in three sequential rounds** on actual **15.8.2 (24H232), 26.7.2 (25G332) and 27.0.1 (26A434)** hosts. Each also passed the native suite (136 reported tests, two optional skips), 20 script tests, package checks and deliberate negative controls. See [exact commits, hashes, first failures and cleanup evidence](validation-presentation-067.json).
+
+This repairs large decorative webpage backgrounds and the current history navigation rail, with a read-only page compatibility check and a WebKit-upgrade notice. Local signed-out ChatGPT controls and draft preservation passed; logged-in history, physical desktop transparency and independent receiver hiding remain separate device checks. Background-property readback and synthetic pixel results are not receiver evidence. The runtime floor remains 15.6; these results do not certify every intermediate or future patch release.
+
 ## Version 0.6.6 continuous recording
 
 The [0.6.6 review](speech-066.md) passed 11 actual packaged-app UI scenarios in three sequential rounds on **15.8.2, 26.7.2 and 27.0.1**, plus native/package/script and negative controls. It repairs retained-text recording lockout, cleanup recovery and multiline draft acknowledgement. Local installed-model recognition passed five English and five Mandarin repetitions. These results do not establish real selected-app audio capture, real ChatGPT insertion or receiver hiding for this release; those device checks remain separate. The deployment floor stays 15.6.

@@ -32,6 +32,14 @@ Native regressions exercise pseudo-background pixels and opaque foreground/code,
 
 The packaged suite now contains **12 scenarios**, adding real toolbar history actions, retained drafts, mode switching and the compatibility sheet. Its preview has a synthetic rail/pseudo-background fixture and an independent nonpersistent store. The usual 980×700/640×480 and 70/90/140% cases remain in the suite. CI runs three sequential UI rounds per available actual OS, without retries; exact hosts and results belong in the release ledger, not inferred from runner labels.
 
+## Recorded validation
+
+The repaired application source is identical across the corrective test commits. The final tested commit and exact host/build/toolchain, package hashes and round counts are recorded in [the release ledger](validation-presentation-067.json). The three CI hosts each completed **three sequential rounds of 12 packaged-app UI scenarios**, without retries or skipped UI cases. Final negative-control and cleanup outcomes are included in the ledger.
+
+Local macOS 26.6.2 completed the native suite (136 reported tests, two optional skips), 20 script tests, the six background pixel combinations and clean-clone build/sign/register checks. The clone and separate build directories contained spaces. A distinct packaged app also opened the official **signed-out** ChatGPT page: the native sidebar opened/closed, mode changes and the read-only page check retained a harmless draft, and no message was sent. Its structural report was ready with background drawing disabled by actual readback. This does not establish logged-in history navigation, physical desktop translucency or receiver hiding.
+
+The first application failures and two test-harness failures are retained. One snapshot had checked DOM eligibility before the native background acknowledgement; it now waits for actual readback and still checks pixels. One macOS 15 startup UI assertion read the WebKit AX value immediately after key synthesis; it now waits for the complete test draft without retyping. The corrected macOS 15 suite completed all three rounds and the deliberate negative control. Both corrections observe completion without repeating the action or changing application behavior.
+
 ## Live-device acceptance
 
 On the sender Mac, record app version/commit, OS/WebKit build, website language and window size. Use harmless content and keep existing drafts/images:

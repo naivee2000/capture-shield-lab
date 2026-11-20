@@ -5,6 +5,8 @@ A native ChatGPT web window and a separate macOS capture-protection lab. Can the
 **Experimental. No universal invisibility claim.**
 Version **0.6.7** repairs decorative webpage backgrounds and the history toolbar button, and adds a read-only page compatibility check for future website/WebKit changes. See [presentation behavior and verification](docs/presentation-067.md). Continuous recording, Always on Top, compact transcription and screenshot/image attachment behavior remain available. Automated previews do not establish real ChatGPT or meeting-receiver results.
 
+For **0.6.7**, the actual packaged-app UI suite passed **12 scenarios × 3 rounds** on each of **macOS 15.8.2, 26.7.2 and 27.0.1**, alongside native/script tests and negative controls. See [the exact release evidence](docs/validation-presentation-067.json). Logged-in history, physical desktop transparency and meeting-receiver behavior still need device verification.
+
 **Operator feedback:** Teams desktop entire-screen sharing from macOS 26.6.2 (25G83), viewed in Chrome: Normal visible, Legacy hidden, but Pinyin candidates visible. Receiver retesting of the candidate-panel repair is pending; this is not a blanket privacy guarantee.
 
 **Earlier operator observation (native text lab):** on the user's personal laptop, Teams whole-screen sharing with **Legacy sharing** kept the lab window visible locally while omitting it at the receiver; other windows continued updating. **Protected mask** disappeared locally as well. WebView content requires a new test; see [observed compatibility](docs/compatibility.md).
@@ -76,9 +78,9 @@ Legacy is a compatibility experiment, not a security guarantee. The main app doe
 
 ### Compatibility and updates
 
-Open **Compatibility…** from the app menu or the button at the bottom of the window. **Auto** selects the newer screenshot API on macOS 26+ and the compatible API on 15.6–15.x. **Compatible** always selects the earlier API, useful when diagnosing an OS upgrade. The setting is saved on this Mac. On the development host's remote-control session, Compatible returned the system privacy curtain; normal desktop capture on 15.6/15.x still needs a physical-device test. Switching does not capture, upload, reset Legacy or reload the webpage; take another screenshot yourself when ready.
+Open **Compatibility…** from the shield icon in the toolbar (or its overflow), or the app menu when available. **Auto** selects the newer screenshot API on macOS 26+ and the compatible API on 15.6–15.x. **Compatible** always selects the earlier API, useful when diagnosing an OS upgrade. The setting is saved on this Mac. On the development host's remote-control session, Compatible returned the system privacy curtain; normal desktop capture on 15.6/15.x still needs a physical-device test. Switching does not capture, upload, reset Legacy or reload the webpage; take another screenshot yourself when ready.
 
-The panel shows the system/build, app/commit, selected implementation, recording-permission preflight and sanitized screenshot error stage/code. **Copy diagnostic summary** copies only those technical fields. A changed OS build triggers an in-window reminder to retest sharing, without changing modes. Neither the panel nor the script below certifies receiver invisibility.
+The panel shows the system/build, app/commit, screenshot implementation, recording-permission preflight, speech capability/error stages, and bounded page/WebKit compatibility fields. **Copy diagnostic summary** copies only these technical fields. A changed macOS or WebKit build triggers an in-window reminder to retest appearance and sharing, without changing modes. Neither the panel nor the script below certifies receiver invisibility.
 
 ```bash
 bash scripts/doctor.sh   # inspect tools, app identity, signature and registration; change no settings
