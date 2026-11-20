@@ -41,6 +41,12 @@
       "classification": "application",
       "status": "fail",
       "detail": "The new NSView grip inherited false for acceptsFirstMouse. It now accepts the initial drag; the packaged scenario also sends the gesture through an independent foreground host and checks that host remains active."
+    },
+    {
+      "stage": "held-return-physical-identity",
+      "classification": "application",
+      "status": "fail",
+      "detail": "Character-first normalization assigned Fn-Return a different identity from the same physical Return key after Fn release. Known physical Return/Enter key codes now take precedence; character fallback is retained for virtual events."
     }
   ],
   "local": {
@@ -129,6 +135,10 @@
     "doctor": {
       "status": "pass",
       "source_commit": "f31af163bfdd93d3eacac7116022fee4388c536e"
+    },
+    "return_identity_regression": {
+      "status": "pass",
+      "related_tests": 8
     }
   },
   "ci": {
@@ -167,7 +177,39 @@
       "run": 44812799770,
       "source_commit": "f31af163bfdd93d3eacac7116022fee4388c536e",
       "status": "superseded",
-      "reason": "Initial-drag acceptance and a background-host UI assertion added before release; final source requires a complete fresh matrix."
+      "reason": "Initial-drag acceptance and a background-host UI assertion added before release; final source requires a complete fresh matrix.",
+      "completed_ui_rounds_before_superseding": {
+        "15": [
+          {
+            "round": 1,
+            "passed": 14,
+            "failed": 0,
+            "skipped": 0
+          }
+        ],
+        "26": [
+          {
+            "round": 1,
+            "passed": 14,
+            "failed": 0,
+            "skipped": 0
+          }
+        ],
+        "27": [
+          {
+            "round": 1,
+            "passed": 14,
+            "failed": 0,
+            "skipped": 0
+          }
+        ]
+      }
+    },
+    {
+      "run": 44816521282,
+      "source_commit": "41725b17fb6027c445367014543136cccb1fa5d0",
+      "status": "superseded",
+      "reason": "Physical Return identity stabilized before final release verification."
     }
   ]
 }

@@ -14,6 +14,12 @@ import CaptureCore
             charactersIgnoringModifiers: "\u{3}", isARepeat: false, keyCode: 0)!
         #expect(ImageReturnGate.key(for: event) == 76)
     }
+    @Test func functionModifierCannotChangeTheIdentityOfAHeldReturn() {
+        let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .function,
+            timestamp: 0, windowNumber: 0, context: nil, characters: "\u{3}",
+            charactersIgnoringModifiers: "\u{3}", isARepeat: false, keyCode: 36)!
+        #expect(ImageReturnGate.key(for: event) == 36)
+    }
     @Test func freshPressRecoversWhenKeyUpWasDeliveredToAnotherWindow() {
         var gate = ImageReturnGate()
         #expect(gate.action(type: .keyDown, key: 36, modifiers: [], repeatKey: false,
