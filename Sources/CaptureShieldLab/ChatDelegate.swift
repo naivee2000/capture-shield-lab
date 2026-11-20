@@ -42,7 +42,9 @@ import CaptureCore
         let config = WKWebViewConfiguration(); config.websiteDataStore = preview ? .nonPersistent() : .default()
         main = ChatWindow(configuration: config, isMain: true, preferences: preferences, defaults: defaults, preview: preview)
         wire(main)
-        if SystemCompatibility.recordOSBuild(SystemCompatibility.osBuild, in: defaults) { main.noteOSUpgrade() }
+        let osChanged = SystemCompatibility.recordOSBuild(SystemCompatibility.osBuild, in: defaults)
+        let webKitChanged = SystemCompatibility.recordWebKitBuild(WebBackgroundCompatibility.runtimeVersion, in: defaults)
+        if osChanged || webKitChanged { main.noteOSUpgrade() }
         _ = main.speech
         registerShortcut()
         main.present(); main.goHome()

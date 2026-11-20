@@ -1,6 +1,40 @@
 import AppKit
 
 enum ChatPreview {
+    /// A structural fixture of the navigation rail, not a saved account page.
+    static var railHTML: String {
+        html.replacingOccurrences(of: "<body>", with: """
+        <body><div id="fixture-shell">
+        <style>
+        #fixture-shell{position:relative;min-height:100vh;isolation:isolate}
+        #fixture-shell::before{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(#182839,#304050);z-index:-1}
+        #app-shell-sidebar{position:fixed;inset:0 auto 0 0;width:48px;z-index:2}
+        #app-shell-sidebar nav{position:static;width:auto;padding:4px;background:transparent}
+        #fixture-history{position:absolute;left:48px;top:0;width:180px;height:100vh;background:#222;padding:8px;box-sizing:border-box}
+        #fixture-history[hidden]{display:none} main{margin-left:48px!important;position:relative}
+        body[data-pinned="true"] main{margin-left:228px!important}
+        @media(max-width:767px){body[data-pinned="true"] main{margin-left:48px!important}}
+        </style>
+        """)
+        .replacingOccurrences(of: "<nav id=\"app-shell-sidebar\"><strong>Test history</strong><p>Synthetic conversation</p><p>No account data</p></nav>", with: """
+        <aside id="app-shell-sidebar"><nav aria-label="Application navigation"><button id="fixture-home" aria-expanded="false">Home</button></nav>
+        <section id="fixture-history"><nav role="navigation"><button id="fixture-pin" aria-controls="app-shell-sidebar" aria-expanded="true" aria-label="Toggle sidebar">Pin history</button>
+        <a href="#synthetic">Synthetic history entry</a></nav></section></aside>
+        """)
+        .replacingOccurrences(of: "<main><button aria-label=\"Toggle sidebar\" aria-controls=\"app-shell-sidebar\" aria-expanded=\"true\">Sidebar</button>", with: "<main>")
+        .replacingOccurrences(of: "</main><script>", with: "</main></div><script>")
+        .replacingOccurrences(of: """
+        const toggle=document.querySelector('[aria-controls="app-shell-sidebar"]');
+        toggle.onclick=()=>{const open=toggle.getAttribute('aria-expanded')==='true';toggle.setAttribute('aria-expanded',String(!open));document.body.classList.toggle('folded',open);};
+        """, with: """
+        const home=document.querySelector('#fixture-home'), pin=document.querySelector('#fixture-pin'), history=document.querySelector('#fixture-history');
+        let historyOpen=true,pinned=true;
+        const historyState=()=>{history.hidden=!historyOpen;document.body.dataset.pinned=String(pinned);home.setAttribute('aria-expanded',String(historyOpen&&!pinned))};
+        home.onclick=()=>{historyOpen=!historyOpen;pinned=false;historyState()};
+        pin.onclick=()=>{if(historyOpen&&!pinned){pinned=true}else{historyOpen=false;pinned=false}historyState()};
+        historyState();
+        """)
+    }
     static let html = #"""
     <!doctype html><html data-theme="light" lang="en"><head><meta charset="utf-8">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src blob: data:; form-action 'none'">

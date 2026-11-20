@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "application_version": "0.6.7",
+  "application_build": "16",
+  "deployment_minimum": "15.6",
+  "validation_date": "2026-11-19",
+  "baseline_commit": "d2fc5c6d64a6550192e7286476ce584558f950cf",
+  "first_failures": [
+    {
+      "stage": "decorative-web-background",
+      "classification": "application",
+      "status": "fail",
+      "detail": "Synthetic blank pixel alpha was 1.0 with the observed full-canvas pseudo-background."
+    },
+    {
+      "stage": "navigation-rail-history",
+      "classification": "application",
+      "status": "fail",
+      "detail": "The old hidden control could not reopen history through the scoped Home rail action."
+    },
+    {
+      "stage": "initial-collapse-versus-explicit-toggle",
+      "classification": "application",
+      "status": "fail",
+      "detail": "An explicit request joined a nearly finished automatic collapse. Explicit input now waits for automatic work before starting its own observed action."
+    }
+  ],
+  "local": {
+    "system": "26.6.2",
+    "system_build": "25G83",
+    "architecture": "arm64",
+    "swift": "6.2.4",
+    "sdk": "26.2",
+    "native": {
+      "status": "pass",
+      "reported_tests": 136,
+      "optional_skipped": 2,
+      "process_counts": [
+        126,
+        9,
+        1
+      ]
+    },
+    "scripts": {
+      "status": "pass",
+      "tests": 20
+    },
+    "build_sign_register": {
+      "status": "pass",
+      "source_state": "development build before commit"
+    },
+    "packaged_ui": {
+      "status": "not-tested",
+      "reason": "CLT only; pre-existing QA042 preserved."
+    },
+    "clean_clone": {
+      "status": "not-tested"
+    }
+  },
+  "ci": {
+    "status": "not-tested"
+  },
+  "real_logged_in_wkwebview": "not-tested",
+  "physical_transparency": "not-tested",
+  "receiver": "not-tested",
+  "cleanup": {
+    "status": "pending",
+    "run_id": "ui067-dev"
+  }
+}

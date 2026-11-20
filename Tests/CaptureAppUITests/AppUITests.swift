@@ -23,7 +23,8 @@ import XCTest
         app.launchEnvironment["CAPTURESHIELD_UI_METADATA"] = metadataURL.path
         testToken = UUID().uuidString
         let seed: [String: Any] = ["token": testToken, "compact": name.contains("Compact"),
-                                  "speechFailure": name.contains("RetainedError")]
+                                  "speechFailure": name.contains("RetainedError"),
+                                  "presentationLayout": name.contains("Presentation")]
         app.launchArguments = ["--chat-preview", "--ui-test-setup", try JSONSerialization.data(withJSONObject: seed).base64EncodedString()]
         app.launch()
         XCTAssertTrue(mainUI.waitForExistence(timeout: 20))
@@ -50,6 +51,35 @@ import XCTest
             XCTAssertTrue(app.buttons["Deliberately absent UI marker"].exists, "Negative control must fail")
         }
         relaunch()
+    }
+    func testPresentationHistoryAndReadOnlyPageCheck() throws {
+        editor.click(); editor.typeText("Preserve presentation draft 8642")
+        let history = app.webViews.links["Synthetic history entry"].firstMatch
+        wait("Initial history is collapsed") { !history.isHittable }
+        for _ in 0..<2 {
+            click("toolbar-sidebar")
+            wait("History is genuinely visible") { history.isHittable }
+            editor.click(); editor.typeText(" kept")
+            XCTAssertTrue(history.isHittable, "Typing must not auto-collapse the user's history")
+            click("toolbar-sidebar")
+            wait("History is hidden") { !history.isHittable }
+        }
+        mainUI.radioButtons["Legacy"].click()
+        wait("Legacy retains background-only alpha") { self.mainWindow()["sharing"] as? Int == 0 }
+        XCTAssertEqual(mainWindow()["alpha"] as? Double, 1)
+        XCTAssertEqual(mainWindow()["backgroundAlpha"] as? Double ?? 0, 0.8, accuracy: 0.01)
+        let compatibility = mainUI.buttons["Compatibility"].firstMatch
+        XCTAssertTrue(compatibility.isHittable); compatibility.click()
+        let check = app.buttons["check-page-compatibility"].firstMatch
+        XCTAssertTrue(check.waitForExistence(timeout: 10)); check.click()
+        let summary = app.textViews["compatibility-summary"].firstMatch
+        let checked = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value CONTAINS %@", "Page check: ready"), object: summary)
+        XCTAssertEqual(XCTWaiter.wait(for: [checked], timeout: 10), .completed)
+        XCTAssertTrue((summary.value as? String ?? "").contains("navigation-rail"))
+        XCTAssertFalse((summary.value as? String ?? "").contains("8642"))
+        app.sheets.firstMatch.buttons["Done"].click()
+        draftContains("8642 kept kept")
+        click("toolbar-sidebar"); wait("History reopens after mode and sheet changes") { history.isHittable }
     }
 
     private var metadataURL: URL {

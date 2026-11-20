@@ -145,7 +145,7 @@ def result_counts(result):
         raise ValueError("Unrecognized xcresult counts.")
     return {"passed": passed, "failed": failed, "skipped": skipped}
 
-def result_passed(code, counts, expected=11):
+def result_passed(code, counts, expected=12):
     return code == 0 and counts == {"passed": expected, "failed": 0, "skipped": 0}
 
 def validate_application(app, prefix):

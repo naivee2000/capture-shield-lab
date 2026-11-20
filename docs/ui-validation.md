@@ -27,7 +27,7 @@ On APFS, generated apps, Swift build files and DerivedData go under the run's ig
 
 ## Checks and verdicts
 
-The default run performs **three sequential rounds**, each bounded to twenty minutes, without parallel UI execution or failure retries. Eleven test cases cover:
+The default run performs **three sequential rounds**, each bounded to twenty minutes, without parallel UI execution or failure retries. Twelve test cases cover:
 
 - Packaged process launch, editable WebKit input, quit and restart.
 - Normal/Legacy sharing attributes, whole-window/content alpha, background alpha, Dock activation policy, 70/90/140% zoom, popup inheritance, dialogs and draft preservation.
@@ -40,6 +40,7 @@ The default run performs **three sequential rounds**, each bounded to twenty min
 - A retained/edited error result, cancellation of a new segment, another recording and manual merged append.
 - Normal/Legacy keyboard focus without changing the independently running background application’s foreground identity, plus focus return after hide.
 - Persisted pin controls and native full-screen background behavior, using a separate synthetic FocusHost application.
+- Navigation-rail history opened/closed through the actual toolbar, preserved typing, Legacy switching and the read-only page compatibility sheet. Background pixels and changed structural fixtures are additionally checked by the native WebKit suite.
 
 Focus-specific keys are sent by XCTest through the already-foreground background test application, avoiding activation of the panel's application. Actual keyboard input destinations, panel key state and the background foreground PID remain asserted; targeting an element alone is never proof of delivery. No separate event-posting permission is requested or assumed.
 

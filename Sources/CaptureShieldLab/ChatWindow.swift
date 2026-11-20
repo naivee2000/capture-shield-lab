@@ -92,6 +92,10 @@ import CaptureCore
     private let statusBar = NSView()
     private var statusHeight: NSLayoutConstraint!
     private var appearanceBridge: WebAppearanceBridge?
+    private var pageCompatibility = PageCompatibility()
+    private var sidebarTask: Task<Void, Never>?
+    private let sidebarButton = NSButton(image: NSImage(systemSymbolName: "sidebar.left", accessibilityDescription: "Toggle sidebar")!, target: nil, action: nil)
+    private var recognizedPage = false
 
 
     init(configuration: WKWebViewConfiguration, isMain: Bool, preferences: ChatPreferences = ChatPreferences(),
@@ -123,6 +127,14 @@ import CaptureCore
         appearanceBridge?.unavailable = { [weak self] in
             guard let self, self.preferences.mode == .legacy else { return }
             self.setStatus("Background transparency is unavailable in this WebKit version. Text remains fully opaque; Legacy sharing is unchanged.")
+        }
+        appearanceBridge?.changed = { [weak self] report in
+            guard let self else { return }
+            self.pageCompatibility = report
+            if self.recognizedPage && report.reason == .unrecognizedLayout && !self.webView.isLoading {
+                self.setStatus("Page layout changed. Check page compatibility; your draft and Legacy setting are preserved.")
+            }
+            if report.eligible { self.recognizedPage = true }
         }
         window.delegate = self
         buildContent(window)
@@ -229,7 +241,10 @@ import CaptureCore
             item.view = group([back, forward, home, reload])
         case "sidebar":
             item.label = "Sidebar"
-            item.view = NSButton(image: NSImage(systemSymbolName: "sidebar.left", accessibilityDescription: "Toggle sidebar")!, target: self, action: #selector(toggleSidebar))
+            sidebarButton.target = self; sidebarButton.action = #selector(toggleSidebar)
+            sidebarButton.setAccessibilityIdentifier("toolbar-sidebar")
+            sidebarButton.toolTip = "Show or hide chat history"
+            item.view = sidebarButton
         case "screenshot":
             item.label = "Screenshot"; item.toolTip = "Screenshot (\(ChatKeyboard.screenshotLabel))"
             item.view = NSButton(image: NSImage(systemSymbolName: "camera", accessibilityDescription: "Screenshot")!, target: self, action: #selector(takeScreenshot))
@@ -372,11 +387,17 @@ import CaptureCore
     @objc private func zoomIn() { var next = preferences; next.changeZoom(by: 1); request(next) }
     @objc private func resetZoom() { var next = preferences; next.resetZoom(); request(next) }
     @objc private func toggleSidebar() {
-        Task { [weak self] in
+        guard sidebarTask == nil else { return }
+        sidebarButton.isEnabled = false
+        sidebarTask = Task { [weak self] in
             guard let self else { return }
-            if !(await ChatPageAdapter.toggleSidebar(in: self.webView)) {
-                self.setStatus("Sidebar control unavailable on this page. Use the website's sidebar button.")
+            defer { self.sidebarTask = nil; self.sidebarButton.isEnabled = true }
+            let result = await ChatPageAdapter.toggleSidebar(in: self.webView)
+            guard !Task.isCancelled else { return }
+            if !result.succeeded {
+                self.setStatus("History sidebar: \(result.rawValue). Check page compatibility or use the website's navigation. Nothing was reloaded.")
             }
+            self.pageCompatibility = await ChatPageAdapter.check(in: self.webView)
         }
     }
     func present() {
@@ -416,7 +437,7 @@ import CaptureCore
     func windowDidResignKey(_ notification: Notification) { cancelPendingFocus() }
     func setStatus(_ text: String) {
         lastStatus = text
-        status.stringValue = shortcutWarning + (osUpgradeNotice ? "macOS changed: retest sharing. " : "") + text
+        status.stringValue = shortcutWarning + (osUpgradeNotice ? "macOS/WebKit changed: retest appearance and sharing. " : "") + text
         status.toolTip = status.stringValue
         let routine = (text == "Loading…" || text == ChatKeyboard.summary) && shortcutWarning.isEmpty && !osUpgradeNotice
         statusBar.isHidden = routine; statusHeight.constant = routine ? 0 : 28
@@ -441,7 +462,7 @@ import CaptureCore
         CompatibilitySummary(os: ProcessInfo.processInfo.operatingSystemVersion, build: SystemCompatibility.osBuild,
                              mode: preferences.screenshotMode, permissionGranted: screenshots.permissionGranted,
                              failure: screenshots.lastFailure, speechDiagnostic: (isMain ? speech.diagnostic + "\n" : "") +
-                             "Web background: \(webView.responds(to: NSSelectorFromString("_setDrawsBackground:")) ? "appearance compatibility hook available (non-public WebKit)" : "unsupported; web backdrop remains opaque")")
+                             "WebKit: \(WebBackgroundCompatibility.runtimeVersion)\nPresentation adapter: \(PageLayoutRules.version)\nWeb background: \(WebBackgroundCompatibility.state(in: webView).rawValue) · non-public appearance hook\n\(pageCompatibility.text)")
     }
     func selectScreenshotMode(_ mode: ScreenshotMode) {
         cancelScreenshot()
@@ -453,7 +474,10 @@ import CaptureCore
         let panel = CompatibilityPanel(snapshot: { [weak self] in
             self?.compatibilitySummary() ?? CompatibilitySummary(os: ProcessInfo.processInfo.operatingSystemVersion,
                 build: SystemCompatibility.osBuild, mode: .auto, permissionGranted: false)
-        }, selectMode: { [weak self] mode in self?.selectScreenshotMode(mode) }, didClose: { [weak self] in
+        }, selectMode: { [weak self] mode in self?.selectScreenshotMode(mode) }, checkPage: { [weak self] in
+            guard let self else { return }
+            self.pageCompatibility = await ChatPageAdapter.check(in: self.webView)
+        }, didClose: { [weak self] in
             self?.compatibilityPanel = nil; self?.osUpgradeNotice = false
             if let self { self.setStatus(self.lastStatus) }
         })
@@ -502,7 +526,7 @@ import CaptureCore
     }
     func cancelScreenshot() { screenshotGeneration += 1; screenshotTask?.cancel(); screenshotTask = nil }
     @objc func goHome() {
-        if preview { webView.loadHTMLString(ChatPreview.html, baseURL: nil) }
+        if preview { webView.loadHTMLString(defaults.bool(forKey: "PreviewPresentationRail") ? ChatPreview.railHTML : ChatPreview.html, baseURL: nil) }
         else { webView.load(URLRequest(url: URL(string: "https://chatgpt.com/")!)) }
     }
     @objc func reloadPage() { webView.reload() }
@@ -542,6 +566,7 @@ import CaptureCore
         else { setStatus("Downloads are not supported."); decisionHandler(.cancel) }
     }
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        sidebarTask?.cancel(); recognizedPage = false; pageCompatibility = PageCompatibility()
         _ = WebBackgroundCompatibility.setTransparent(false, in: webView)
         composition.reset(); cancelScreenshot(); images.invalidate(); setStatus("Loading…")
     }

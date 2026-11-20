@@ -8,6 +8,7 @@ Audio compatibility lives in `AudioCaptureService`, `SpeechTranscriptionBackend`
 
 | Symptom | Start here | Focused verification |
 | --- | --- | --- |
+| Legacy web area becomes opaque, or native history button stops working | Compatibility → Check page compatibility; `PageLayoutRules`, `ChatPageAdapter`, `WebBackgroundCompatibility` | PageAdapterTests / CompactUITests / PageCompatibilityTests; real logged-in page and receiver checks remain separate |
 | Record unavailable after a segment or stop never settles | `SpeechCoordinator`, `AudioCaptureLifecycle`, `SpeechTranscriptionBackend` | SpeechRecoveryTests / AudioLifecycleTests; real repeated capture on sender |
 | OS update breaks Screenshot | `ScreenshotService` backends and `SystemCompatibility` policy | ScreenshotCompatibilityTests; actual Auto and Compatible captures |
 | Wrong window/popup/candidate sharing setting | `WindowProtection` and `PanelSharingProtection` | WindowTests / PanelSharingTests; independent receiver video |
@@ -22,6 +23,8 @@ A failed screenshot never retries or changes engine automatically. Open **Compat
 All AppKit `sharingType` writes belong to `WindowProtection`. The candidate-panel interposition only controls this process's NSPanel instances and preserves their original settings when leaving Legacy. Do not treat an unavailable/unknown OS or a diagnostic result as permission to switch to Normal or claim invisibility.
 
 ## Safe diagnostics
+
+For webpage changes, follow [the 0.6.7 procedure](presentation-067.md). Save only the bounded page check, app/OS/WebKit versions and failure stage. Reproduce the observed control/background relationship with synthetic content before adjusting the local rules. Do not copy an account page, export history titles, weaken upload guards or substitute a browser-only result for WKWebView rendering. Readback of a background property is not a pixel result.
 
 **Compatibility…** is an owned native sheet, follows Normal/Legacy appearance, and performs only a permission preflight. It contains OS version/build, app version/build/commit, selected and effective screenshot engine, and last screenshot error stage/numeric code. Copying is explicit. It excludes error descriptions/userInfo, webpage contents, URLs, account data, cookies, raw captures and machine identifiers.
 

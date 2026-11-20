@@ -28,15 +28,30 @@ import CaptureCore
 }
 
 @MainActor struct PageAdapterTests {
+    @Test func navigationRailReopensHistoryAfterOldToggleBecomesHidden() async throws {
+        let page = PageFixture(); defer { page.close() }
+        page.load("""
+        <html><body><aside id="app-shell-sidebar"><nav aria-label="Application navigation">
+        <button id="home" aria-expanded="false">Home</button></nav>
+        <section id="history" hidden><button id="pin" aria-controls="app-shell-sidebar" aria-expanded="true" aria-label="Toggle sidebar">Pin</button><a href="#synthetic">Synthetic history</a></section></aside>
+        <main><textarea id="prompt-textarea">Keep this draft</textarea></main>
+        <script>document.querySelector('#home').onclick=()=>{document.querySelector('#history').hidden=false;document.querySelector('#home').setAttribute('aria-expanded','true')};
+        document.querySelector('#pin').onclick=()=>{document.body.dataset.pinned='true';document.querySelector('#home').setAttribute('aria-expanded','false')};</script></body></html>
+        """)
+        try await page.wait("!!document.querySelector('[data-cs-editor]')")
+        #expect(await ChatPageAdapter.toggleSidebar(in: page.controller.webView) == .expanded)
+        #expect(try await page.controller.webView.evaluateJavaScript("!document.querySelector('#history').hidden") as? Bool == true)
+        #expect(try await page.controller.webView.evaluateJavaScript("document.querySelector('textarea').value === 'Keep this draft'") as? Bool == true)
+    }
     @Test func toolbarCanUseTheKnownCollapsedSidebarOpenerBeforeHover() async throws {
         let page = PageFixture(); defer { page.close() }
         page.load("""
         <html><body><button style="opacity:0" aria-label="打开边栏" aria-controls="ds-sidebar" aria-expanded="false">Open</button>
-        <textarea id="mobile-composer-prompt"></textarea><script>window.openCalls=0;document.querySelector('button').onclick=()=>window.openCalls++;</script>
+        <nav id="ds-sidebar" hidden>Synthetic history</nav><textarea id="mobile-composer-prompt"></textarea><script>window.openCalls=0;document.querySelector('button').onclick=()=>{window.openCalls++;document.querySelector('nav').hidden=false;document.querySelector('button').setAttribute('aria-expanded','true')};</script>
         </body></html>
         """)
         try await page.wait("document.querySelector('textarea')?.getAttribute('spellcheck') === 'false'")
-        #expect(await ChatPageAdapter.toggleSidebar(in: page.controller.webView))
+        #expect(await ChatPageAdapter.toggleSidebar(in: page.controller.webView) == .expanded)
         let calls = try await page.controller.webView.evaluateJavaScript("window.openCalls") as? Int
         #expect(calls == 1)
     }
@@ -45,12 +60,12 @@ import CaptureCore
         page.load("""
         <html><body><button id="open" aria-label="打开边栏" aria-controls="ds-sidebar" aria-expanded="false">Open</button>
         <button id="close" style="position:absolute;left:-400px;top:0;width:40px" aria-label="关闭边栏" aria-controls="ds-sidebar">Close</button>
-        <textarea id="mobile-composer-prompt"></textarea>
-        <script>window.openCalls=0;window.closeCalls=0;document.querySelector('#open').onclick=()=>window.openCalls++;document.querySelector('#close').onclick=()=>window.closeCalls++;</script>
+        <nav id="ds-sidebar" hidden>Synthetic history</nav><textarea id="mobile-composer-prompt"></textarea>
+        <script>window.openCalls=0;window.closeCalls=0;document.querySelector('#open').onclick=()=>{window.openCalls++;document.querySelector('nav').hidden=false;document.querySelector('#open').setAttribute('aria-expanded','true')};document.querySelector('#close').onclick=()=>window.closeCalls++;</script>
         </body></html>
         """)
         try await page.wait("document.querySelector('textarea')?.getAttribute('spellcheck') === 'false'")
-        #expect(await ChatPageAdapter.toggleSidebar(in: page.controller.webView))
+        #expect(await ChatPageAdapter.toggleSidebar(in: page.controller.webView) == .expanded)
         let calls = try await page.controller.webView.evaluateJavaScript("[window.openCalls,window.closeCalls]") as? [Int]
         #expect(calls == [1, 0])
     }
@@ -73,8 +88,8 @@ import CaptureCore
             let page = PageFixture(); defer { page.close() }
             let html = """
             <html><body><button aria-controls="app-shell-sidebar" aria-expanded="\(initial)">Sidebar</button>
-            <div data-composer-markdown contenteditable="true">Synthetic editor</div>
-            <script>setTimeout(()=>{const b=document.querySelector('button');b.onclick=()=>b.setAttribute('aria-expanded',String(b.getAttribute('aria-expanded')!=='true'));b.setAttribute('aria-expanded','true');document.body.dataset.hydrated='true';},150)</script>
+            <nav id="app-shell-sidebar">Synthetic history</nav><div data-composer-markdown contenteditable="true">Synthetic editor</div>
+            <script>setTimeout(()=>{const b=document.querySelector('button');b.onclick=()=>{b.setAttribute('aria-expanded',String(b.getAttribute('aria-expanded')!=='true'));document.querySelector('nav').hidden=b.getAttribute('aria-expanded')==='false'};b.setAttribute('aria-expanded','true');document.body.dataset.hydrated='true';},150)</script>
             </body></html>
             """
             page.load(html)
@@ -84,10 +99,10 @@ import CaptureCore
     @Test func compactPageDisablesSuggestionsAndDoesNotFightUserSidebarChoice() async throws {
         let page = PageFixture(); defer { page.close() }
         page.load(ChatPreview.html)
-        try await page.wait("document.querySelector('[data-cs-editor]')?.getAttribute('writingsuggestions') === 'false'")
+        try await page.wait("document.querySelector('[data-cs-editor]')?.getAttribute('writingsuggestions') === 'false' && document.querySelector('[aria-controls=\"app-shell-sidebar\"]').getAttribute('aria-expanded') === 'false'")
         let initial = try await page.controller.webView.evaluateJavaScript("document.querySelector('[aria-controls=\"app-shell-sidebar\"]').getAttribute('aria-expanded')") as? String
         #expect(initial == "false")
-        #expect(await ChatPageAdapter.toggleSidebar(in: page.controller.webView))
+        #expect(await ChatPageAdapter.toggleSidebar(in: page.controller.webView) == .expanded)
         _ = try await page.controller.webView.evaluateJavaScript("document.querySelector('[data-composer-markdown]').textContent = 'Synthetic typing 中文';")
         try await Task.sleep(for: .milliseconds(200))
         let expanded = try await page.controller.webView.evaluateJavaScript("document.querySelector('[aria-controls=\"app-shell-sidebar\"]').getAttribute('aria-expanded')") as? String
@@ -114,5 +129,95 @@ import CaptureCore
         try await page.wait("document.readyState === 'complete' && !!document.querySelector('[data-composer-markdown]')")
         let untouched = try await page.controller.webView.evaluateJavaScript("document.querySelector('[data-composer-markdown]').getAttribute('spellcheck') === 'true' && !document.getElementById('capture-shield-compact')") as? Bool
         #expect(untouched == true)
+    }
+    @Test func navigationRailPinsReopensAndSupportsNarrowDrawerWithoutLosingDraft() async throws {
+        for width: CGFloat in [980, 640] {
+            let page = PageFixture(); defer { page.close() }
+            page.controller.window?.setFrame(NSRect(x: 100, y: 100, width: width, height: 700), display: true)
+            page.load(ChatPreview.railHTML)
+            try await page.wait("document.querySelector('#fixture-history')?.hidden === true")
+            #expect(await ChatPageAdapter.toggleSidebar(in: page.controller.webView) == .expanded)
+            let expectedPinned = width == 980
+            #expect(try await page.controller.webView.evaluateJavaScript("document.body.dataset.pinned === '\(expectedPinned)' && !document.querySelector('#fixture-history').hidden") as? Bool == true)
+            _ = try await page.controller.webView.evaluateJavaScript("document.querySelector('[contenteditable]').textContent='Keep draft 中文';document.querySelector('[contenteditable]').dispatchEvent(new Event('input',{bubbles:true}))")
+            page.controller.applyPreferences(.init(mode: .legacy))
+            try await page.wait("document.documentElement.dataset.csMode === 'legacy'")
+            #expect(await ChatPageAdapter.toggleSidebar(in: page.controller.webView) == .collapsed)
+            #expect(await ChatPageAdapter.toggleSidebar(in: page.controller.webView) == .expanded)
+            #expect(try await page.controller.webView.evaluateJavaScript("document.querySelector('[contenteditable]').textContent==='Keep draft 中文' && document.querySelector('#image-status').textContent.includes('Sends: 0')") as? Bool == true)
+        }
+    }
+    @Test func clickWithoutVisibleHistoryTimesOutOnceAndConcurrentCallsJoin() async throws {
+        let page = PageFixture(); defer { page.close() }
+        page.load("""
+        <html><body><button aria-controls="ds-sidebar" aria-expanded="false">Open</button><nav id="ds-sidebar" hidden>Synthetic history</nav>
+        <textarea id="prompt-textarea">Keep draft</textarea><script>window.calls=0;document.querySelector('button').onclick=()=>window.calls++;</script></body></html>
+        """)
+        try await page.wait("!!document.querySelector('[data-cs-editor]')")
+        let first = Task { @MainActor in await ChatPageAdapter.toggleSidebar(in: page.controller.webView) }
+        let second = Task { @MainActor in await ChatPageAdapter.toggleSidebar(in: page.controller.webView) }
+        #expect(await first.value == .timeout)
+        #expect(await second.value == .timeout)
+        #expect(try await page.controller.webView.evaluateJavaScript("window.calls===1 && document.querySelector('textarea').value==='Keep draft' && document.querySelector('nav').hidden") as? Bool == true)
+    }
+    @Test func duplicateOrUnrelatedHomeControlsAreNeverClicked() async throws {
+        let page = PageFixture(); defer { page.close() }
+        page.load("""
+        <html><body><button aria-expanded="false">Home</button><aside id="app-shell-sidebar"><nav>
+        <button aria-expanded="false">Home</button><button aria-expanded="false">Home</button></nav></aside>
+        <main><textarea id="prompt-textarea"></textarea></main><script>window.calls=0;document.querySelectorAll('button').forEach(b=>b.onclick=()=>window.calls++);</script></body></html>
+        """)
+        try await page.wait("!!document.querySelector('[data-cs-editor]')")
+        #expect(await ChatPageAdapter.toggleSidebar(in: page.controller.webView) == .unavailable)
+        #expect(try await page.controller.webView.evaluateJavaScript("window.calls") as? Int == 0)
+    }
+    @Test func checkIsReadOnlyAndRecognizedShellSurvivesHiddenEditor() async throws {
+        let page = PageFixture(); defer { page.close() }
+        page.load(ChatPreview.railHTML)
+        try await page.wait("document.querySelector('#fixture-history')?.hidden === true")
+        _ = try await page.controller.webView.evaluateJavaScript("document.querySelector('[contenteditable]').hidden=true")
+        try await page.wait("document.querySelector('[contenteditable]').hidden && document.documentElement.hasAttribute('data-cs-chat-page')")
+        for _ in 0..<3 {
+            let report = await ChatPageAdapter.check(in: page.controller.webView)
+            #expect(report.layout == .navigationRail && report.eligible && report.sidebar == .collapsed && report.reason == .ready)
+        }
+        #expect(try await page.controller.webView.evaluateJavaScript("document.querySelector('#fixture-history').hidden") as? Bool == true)
+        _ = try await page.controller.webView.evaluateJavaScript("document.body.innerHTML='<div contenteditable=true>Unknown synthetic page</div>'")
+        try await page.wait("!document.documentElement.hasAttribute('data-cs-chat-page')")
+        #expect(await ChatPageAdapter.check(in: page.controller.webView).reason == .unrecognizedLayout)
+    }
+    @Test func structuralClassChangesAndWrappersDoNotBreakTheAdapter() async throws {
+        let page = PageFixture(); defer { page.close() }
+        page.load(ChatPreview.railHTML.replacingOccurrences(of: ">Home</button>", with: ">首页</button>"))
+        try await page.wait("document.querySelector('#fixture-history')?.hidden === true")
+        _ = try await page.controller.webView.evaluateJavaScript("""
+        document.querySelectorAll('main,aside,nav,button').forEach((e,i)=>e.className='changed-hash-'+i);
+        const editor=document.querySelector('[contenteditable]'), wrapper=document.createElement('div');
+        editor.before(wrapper);wrapper.append(editor);editor.outerHTML=editor.outerHTML;
+        """)
+        #expect(await ChatPageAdapter.toggleSidebar(in: page.controller.webView) == .expanded)
+        #expect(await ChatPageAdapter.check(in: page.controller.webView).layout == .navigationRail)
+    }
+    @Test func navigatingDuringAnOperationRejectsTheOldResult() async throws {
+        let page = PageFixture(); defer { page.close() }
+        page.load("""
+        <html><body><button aria-controls="ds-sidebar" aria-expanded="false">Open</button><nav id="ds-sidebar" hidden>History</nav><textarea id="prompt-textarea"></textarea>
+        <script>window.calls=0;document.querySelector('button').onclick=()=>window.calls++;</script></body></html>
+        """)
+        try await page.wait("!!document.querySelector('[data-cs-editor]')")
+        let result = Task { @MainActor in await ChatPageAdapter.toggleSidebar(in: page.controller.webView) }
+        try await page.wait("window.calls===1")
+        page.load(ChatPreview.html)
+        #expect(await result.value == .stale)
+    }
+    @Test func settledPresentationDoesNotKeepMutatingTheDOM() async throws {
+        let page = PageFixture(); defer { page.close() }
+        page.load(ChatPreview.railHTML)
+        try await page.wait("document.querySelector('#fixture-history')?.hidden === true")
+        try await Task.sleep(for: .milliseconds(200))
+        _ = try await page.controller.webView.evaluateJavaScript("window.mutations=0;new MutationObserver(m=>window.mutations+=m.length).observe(document.documentElement,{attributes:true,attributeFilter:['class','data-theme']})")
+        for _ in 0..<3 { _ = await ChatPageAdapter.check(in: page.controller.webView) }
+        try await Task.sleep(for: .milliseconds(300))
+        #expect(try await page.controller.webView.evaluateJavaScript("window.mutations") as? Int == 0)
     }
 }

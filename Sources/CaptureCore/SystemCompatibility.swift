@@ -36,6 +36,12 @@ public enum SystemCompatibility {
         defaults.set(build, forKey: "LastSeenOSBuild")
         return previous != nil && previous != build
     }
+    public static func recordWebKitBuild(_ build: String, in defaults: UserDefaults) -> Bool {
+        guard build != "unknown", !build.isEmpty else { return false }
+        let previous = defaults.string(forKey: "LastSeenWebKitBuild")
+        defaults.set(build, forKey: "LastSeenWebKitBuild")
+        return previous != nil && previous != build
+    }
 }
 
 public struct BuildIdentity: Sendable {

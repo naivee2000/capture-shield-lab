@@ -29,8 +29,8 @@ for NAME in CaptureShieldLab CaptureProbe; do
 <key>CFBundleIdentifier</key><string>$BUNDLE_PREFIX.$SUFFIX</string>
 <key>CFBundleName</key><string>$NAME</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.6.6</string>
-<key>CFBundleVersion</key><string>15</string>
+<key>CFBundleShortVersionString</key><string>0.6.7</string>
+<key>CFBundleVersion</key><string>16</string>
 <key>CaptureShieldBuildCommit</key><string>$BUILD_COMMIT</string>
 <key>CFBundleIconFile</key><string>CaptureShield</string>
 <key>LSMinimumSystemVersion</key><string>$MINIMUM_MACOS</string>

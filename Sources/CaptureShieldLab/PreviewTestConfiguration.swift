@@ -7,6 +7,7 @@ enum PreviewTestConfiguration {
         let token: UUID
         let compact: Bool
         let speechFailure: Bool
+        let presentationLayout: Bool?
     }
     static func normalizedArguments(_ arguments: [String], bundleID: String? = Bundle.main.bundleIdentifier) -> [String] {
         guard arguments.count == 3, arguments[0] == "--chat-preview", arguments[1] == "--ui-test-setup",
@@ -26,6 +27,7 @@ enum PreviewTestConfiguration {
         defaults.set(seed.compact ? "{{100, 100}, {640, 480}}" : "{{100, 100}, {980, 700}}", forKey: "ChatWindowFrame")
         defaults.set("synthetic.offline.audio", forKey: "SpeechSourceBundleID")
         defaults.set(seed.speechFailure, forKey: "PreviewSpeechFailure")
+        defaults.set(seed.presentationLayout ?? false, forKey: "PreviewPresentationRail")
         defaults.set(seed.token.uuidString, forKey: "UITestSeedToken")
         return true
     }

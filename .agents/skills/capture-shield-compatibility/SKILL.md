@@ -17,6 +17,13 @@ Read the repository's `AGENTS.md`, `docs/ui-validation.md`, and `docs/os-validat
 - Keep the first failure. Classify it as application, harness or environment failure before changing anything. Reproduce an application bug with a meaningful failing assertion, make the smallest repair, then rerun affected and complete suites. Do not relax assertions or relabel environment failures as application passes.
 - An unavailable target OS or UI authorization is `not-tested`. Runner labels are not exact versions. Record the host's actual patch/build; never reuse an older commit's report as a new result. A hosted 27.x test cannot certify all future versions.
 
+## Website presentation updates
+
+- For an opaque Legacy web area or an unresponsive history button, start with **Compatibility → Check page compatibility** and [the presentation procedure](../../../docs/presentation-067.md). Record the local adapter, actual OS/WebKit build, layout/state/counts and failure stage; never export chat text, history titles, account data or a real page snapshot into Git.
+- Check the current control relationship and painted layers before adding selectors. Keep classic and navigation-rail rules scoped; a generic Home label is not sufficient. Only an actually visible/hidden target proves a sidebar action. A background-property readback is not proof of transparent pixels.
+- Add the observed structure with synthetic content, run PageAdapterTests / CompactUITests / PageCompatibilityTests, then the full native and packaged suites. Preserve authentication/unknown-page isolation, document identity, explicit user sidebar choices and the non-public hook's readable fallback. Read-only diagnostics must not reload, click, upload or modify a draft.
+- Keep real logged-in WKWebView and independent receiver checks separate from synthetic CI. Update the local rule module and its bounded diagnostics rather than adding remote executable patches or weakening unrelated attachment/recording safeguards.
+
 ## Evidence boundaries
 
 Report four independent layers: build/sign/register; actual packaged-app UI; real ChatGPT/capture/speech/IME functionality; independent meeting receiver. Use `pass`, `fail`, or `not-tested` with counts and failure stage. Preserve the source commit, app version/build and executable hash, actual system/build, architecture and toolchain.
