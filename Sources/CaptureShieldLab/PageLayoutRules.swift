@@ -56,7 +56,9 @@ enum PageLayoutRules {
       // Already collapsed is a completed initial layout too. Never wait for a
       // later user hover/focus to open history and then collapse it underneath them.
       initialSidebarAttempted=true;
-      if(s.state==='expanded') (s.floating?s.home:s.close)?.click();
+      // Home may navigate to a different chat. Never synthesize that action
+      // to dismiss a flyout; leave website hover/focus behavior to the website.
+      if(s.state==='expanded' && !s.floating) s.close?.click();
     };
     const ownedMarkers = new Map();
     const markSurface = (node, attribute, next) => {

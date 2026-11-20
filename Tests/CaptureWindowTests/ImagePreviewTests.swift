@@ -74,7 +74,7 @@ import CaptureCore
         let maximum = WindowPlacement.resizedFromTopLeft(start, delta: CGSize(width: 9000, height: 9000), visibleFrame: screen)
         #expect(screen.contains(maximum) && maximum.minX == start.minX && maximum.maxY == start.maxY)
     }
-    @Test func resizingPreviewPreservesTheSelectedImagePixels() throws {
+    @Test func resizingAndFocusingPreviewPreservesTheSelectedImagePixels() throws {
         let canvas = CropCanvas(image: ChatPreview.sampleImage())
         canvas.frame = NSRect(x: 0, y: 0, width: 600, height: 400)
         let rect = canvas.imageRect
@@ -87,6 +87,10 @@ import CaptureCore
         canvas.mouseUp(with: event(.leftMouseUp, CGPoint(x: rect.minX + rect.width * 0.6, y: rect.minY + rect.height * 0.6)))
         let before = canvas.croppedImage
         #expect(before.width < canvas.image.width)
+        let focus = CGPoint(x: rect.midX, y: rect.midY)
+        canvas.mouseDown(with: event(.leftMouseDown, focus))
+        canvas.mouseUp(with: event(.leftMouseUp, focus))
+        #expect(canvas.croppedImage.width == before.width)
         canvas.setFrameSize(NSSize(width: 400, height: 280))
         #expect(canvas.croppedImage.width == before.width)
         #expect(canvas.croppedImage.height == before.height)

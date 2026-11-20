@@ -8,11 +8,13 @@ Audio compatibility lives in `AudioCaptureService`, `SpeechTranscriptionBackend`
 
 | Symptom | Start here | Focused verification |
 | --- | --- | --- |
-| Legacy web area becomes opaque, or native history button stops working | Compatibility → Check page compatibility; `PageLayoutRules`, `ChatPageAdapter`, `WebBackgroundCompatibility` | PageAdapterTests / CompactUITests / PageCompatibilityTests; real logged-in page and receiver checks remain separate |
+| Legacy web area becomes opaque, or website history is unexpectedly collapsed | Compatibility → Check page compatibility; `PageLayoutRules`, `ChatPageAdapter`, `WebBackgroundCompatibility` | PageAdapterTests / CompactUITests / PageCompatibilityTests; real logged-in page and receiver checks remain separate |
 | Record unavailable after a segment or stop never settles | `SpeechCoordinator`, `AudioCaptureLifecycle`, `SpeechTranscriptionBackend` | SpeechRecoveryTests / AudioLifecycleTests; real repeated capture on sender |
 | OS update breaks Screenshot | `ScreenshotService` backends and `SystemCompatibility` policy | ScreenshotCompatibilityTests; actual Auto and Compatible captures |
 | Wrong window/popup/candidate sharing setting | `WindowProtection` and `PanelSharingProtection` | WindowTests / PanelSharingTests; independent receiver video |
 | Image chooser/thumbnail stops working after website change | `AttachmentPageBridge` / `ImageAttachmentCoordinator` | AttachmentBridgeTests, including repeated additions and delete/re-add on one document |
+| Preview Return/Enter or crop changes after resizing | `ImageReturnGate`, `ImagePreview`, `ImageAttachmentCoordinator` | ImagePreviewTests; actual packaged key/attachment case and a real composer |
+| Legacy resize or zoom/restore regression | `ChatPanel`, `LegacyResizeGrip`, `WindowPlacement` | WindowTests / ImagePreviewTests; packaged grip case and cursor-included independent receiver capture |
 | Chinese input or movement regression | `CompositionTracker` / `ChatKeyboard` | Real Pinyin composition plus receiver candidate test |
 | App or tools not found, old signature/permission | `bash scripts/doctor.sh` | Correct app path, version, commit, signature and lookup; app Compatibility panel for permission |
 
@@ -24,7 +26,7 @@ All AppKit `sharingType` writes belong to `WindowProtection`. The candidate-pane
 
 ## Safe diagnostics
 
-For webpage changes, follow [the 0.6.7 procedure](presentation-067.md). Save only the bounded page check, app/OS/WebKit versions and failure stage. Reproduce the observed control/background relationship with synthetic content before adjusting the local rules. Do not copy an account page, export history titles, weaken upload guards or substitute a browser-only result for WKWebView rendering. Readback of a background property is not a pixel result.
+For webpage changes, use the current [0.6.8 interaction rules](interaction-068.md) and [background/diagnostic procedure](presentation-067.md). The latter is a historical record; the native Sidebar action was removed in 0.6.8. Save only the bounded page check, app/OS/WebKit versions and failure stage. Reproduce the observed control/background relationship with synthetic content before adjusting the local rules. Do not copy an account page, export history titles, weaken upload guards or substitute a browser-only result for WKWebView rendering. Readback of a background property is not a pixel result.
 
 **Compatibility…** is an owned native sheet, follows Normal/Legacy appearance, and checks permissions without requesting them. It contains OS version/build, app version/build/commit, selected and effective screenshot engine, sanitized capture/speech error stages and capability, plus the bounded page/WebKit presentation report. Check page compatibility refreshes that report without clicking page controls or changing a draft. Copying is explicit. It excludes error descriptions/userInfo, webpage contents, URLs, account data, cookies, raw captures and machine identifiers.
 

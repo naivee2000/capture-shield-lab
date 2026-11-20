@@ -79,7 +79,7 @@ Use `bash scripts/dev.sh --chat-preview` for a disposable offline page in the re
 - Recheck sharing after changing window type, titlebar and opacity. Existing 0.2 observations are not a 0.3 certification. Record three independent receiving-side trials on the user's working laptop setup.
 - Inspect the icon in the generated app bundle and Dock/Finder. Build from a clean clone with no graphics tools installed beyond Apple developer tools.
 
-The synthetic integration tests never load account pages. The live page adapter targets only recognized ChatGPT composer controls and reads no message/input values. If controls change, its safe behavior is to leave the page unchanged; the toolbar reports when the sidebar control is unavailable.
+The synthetic integration tests never load account pages. The live page adapter targets only recognized ChatGPT composer controls and reads no message/input values. If controls change, its safe behavior is to leave the page unchanged; the read-only page compatibility check reports structural availability. Use the website Home/history entry; the duplicate native Sidebar action was removed in 0.6.8.
 # Version 0.4 laptop questionnaire
 
 Use synthetic content, never real conversations for capture evidence. Record macOS version, app commit, Teams desktop/web version, entire-screen sharing, and which independent device received it. Repeat the receiver observations three times.

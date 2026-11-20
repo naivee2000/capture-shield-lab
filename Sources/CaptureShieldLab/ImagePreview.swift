@@ -51,7 +51,7 @@ import CaptureCore
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         guard imageRect.contains(point) else { return }
-        start = pixels(point); selectedPixels = nil; needsDisplay = true
+        start = pixels(point); needsDisplay = true
     }
     override func mouseDragged(with event: NSEvent) {
         guard let start else { return }
@@ -59,7 +59,9 @@ import CaptureCore
         let rect = CGRect(x: min(start.x, point.x), y: min(start.y, point.y),
                           width: abs(point.x - start.x), height: abs(point.y - start.y))
             .intersection(CGRect(x: 0, y: 0, width: image.width, height: image.height))
-        selectedPixels = rect.isEmpty || rect.isNull ? nil : rect
+        // A focus click or zero-area drag must not discard the existing crop.
+        // Only Reset crop clears it; a valid drag replaces it.
+        if !rect.isEmpty, !rect.isNull { selectedPixels = rect }
         needsDisplay = true
     }
     override func mouseUp(with event: NSEvent) { mouseDragged(with: event); start = nil }

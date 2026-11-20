@@ -349,6 +349,7 @@ import XCTest
             thenDragTo: canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.7)))
         let right = mainUI.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5)).withOffset(CGVector(dx: -1, dy: 0))
         drag(right, dx: -120, dy: 0)
+        canvas.click() // Taking focus must not reset the already chosen crop.
         mainUI.typeKey(XCUIKeyboardKey.return, modifierFlags: [])
         waitText("Images: 1 · Sends: 0")
         wait("First Return attachment is confirmed") { self.mainWindow()["attachmentPhase"] as? String == "visible" }
@@ -372,6 +373,11 @@ import XCTest
         }
         mainUI.radioButtons["Legacy"].click()
         wait("Legacy disables native resizing") { self.mainWindow()["nativeResizable"] as? Bool == false }
+        let legacyEdge = mainUI.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5)).withOffset(CGVector(dx: -1, dy: 0))
+        drag(legacyEdge, dx: 60, dy: 0)
+        let edgeCompleted = ProcessInfo.processInfo.systemUptime
+        wait("Fresh metadata after a Legacy edge drag") { (self.record()["sampleUptime"] as? Double ?? 0) > edgeCompleted }
+        XCTAssertEqual(mainWindow()["width"] as? Double ?? 0, 640, accuracy: 2, "Legacy edges must not resize the shell")
         let grip = mainUI.descendants(matching: .any).matching(identifier: "window-resize-grip").firstMatch
         XCTAssertTrue(grip.waitForExistence(timeout: 10)); XCTAssertTrue(grip.isHittable)
         let host = try backgroundHost()

@@ -4,9 +4,9 @@ Version **0.6.8 / build 17**, Apple Silicon, macOS 15.6+ runtime, Swift 6.2+/SDK
 
 ## Image confirmation
 
-In the image preview, **Return or keypad Enter** performs the same confirmation as **Add to Chat ↵**. Only unmodified keys in that owned window qualify. Composition and modal input take precedence; crop dragging and disabled/busy confirmation do not add an image. The key is consumed during handoff, and a held key stays consumed until release even if the attachment finishes first. The coordinator still requires a visible completed webpage attachment; file-chooser success alone is insufficient. After confirmation, normal chat Return behavior resumes. Adding may upload the image, but CaptureShield does not send the message.
+In the image preview, **Return or keypad Enter** performs the same confirmation as **Add to Chat ↵**. Only unmodified keys in that owned window qualify. Composition and modal input take precedence; crop dragging and disabled/busy confirmation do not add an image. The key is consumed during handoff, and a held key stays consumed until release even if the attachment finishes first. The coordinator still requires a visible completed webpage attachment; file-chooser success alone is insufficient. A fresh nonrepeat key-down also clears a stale held-key state if focus changes prevented delivery of key-up; [AppKit distinguishes held-key repeats from new presses](https://developer.apple.com/documentation/appkit/nsevent/isarepeat). After confirmation, normal chat Return behavior resumes. Adding may upload the image, but CaptureShield does not send the message.
 
-Crops are stored in source image coordinates. Changing window size only changes the drawing transform; **Reset crop** clears the selection. Failures retain the crop and require explicit recovery. No page reload, draft replacement, clipboard operation or automatic retry is introduced.
+Crops are stored in source image coordinates. Changing window size only changes the drawing transform. A focus click preserves the selection; a valid drag replaces it and **Reset crop** clears it. Failures retain the crop and require explicit recovery. No page reload, draft replacement, clipboard operation or automatic retry is introduced.
 
 ## Legacy resize grip
 
@@ -14,13 +14,13 @@ Legacy disables native edge resizing and places a small diagonal grip in the bot
 
 Because AppKit disables its green zoom widget on a nonresizable shell, Legacy supplies a zoom/restore button at the same traffic-light location. Normal retains the system widget. Title dragging, minimize, Always on Top and keyboard movement are unchanged. No global cursor mutation, hidden cursor lease, private resize API or timer-based arrow override is used. Private Cursor remains offline-only.
 
-A preliminary isolated AppKit experiment requested `disableCursorRects()` plus `NSCursor.arrow.set()`. The remote development interaction did not supply continuous live-resize/system-cursor samples, so it is **not evidence that native edges reliably keep an arrow**. The approved in-window fallback is used uniformly. Capture applications can sample the system cursor independently; a window flag, synthetic grip test or drawn arrow is not a receiver verdict. Independent capture must include the system cursor (`showsCursor = true`).
+A preliminary isolated AppKit experiment requested `disableCursorRects()` plus `NSCursor.arrow.set()`. The remote development interaction did not supply continuous live-resize/system-cursor samples, so it is **not evidence that native edges reliably keep an arrow**. The approved in-window fallback is used uniformly. [Capture applications can sample the system cursor independently](https://webrtc.googlesource.com/src/+/refs/heads/main/modules/desktop_capture/mouse_cursor_monitor_mac.mm); a window flag, synthetic grip test or drawn arrow is not a receiver verdict. Independent capture must include the system cursor (`showsCursor = true`).
 
 ## Website history
 
 The native Sidebar toolbar button, its overflow action and simulated open/pin operations are removed. Use the **website's Home / 首页 hover entry** and normal website navigation. The user reported that this real entry works while the native wrapper remained unreliable; the older synthetic tests did not establish live reliability.
 
-Automatic collapse is attempted at most once after initial ready layout, including when the sidebar is already collapsed. Trusted hover, focus or click on the known history region cancels automatic collapse. Failed initial collapse is not retried on every DOM mutation. Structural layout/background recognition and the read-only Compatibility check remain, without reading history titles or modifying a draft.
+Automatic collapse is attempted at most once after initial ready layout, including when the sidebar is already collapsed. Trusted hover, focus or click on the known history region cancels automatic collapse. Failed initial collapse is not retried on every DOM mutation. The app never clicks website Home automatically to close a floating drawer, because Home may navigate to another chat; such flyouts are left to the website. Structural layout/background recognition and the read-only Compatibility check remain, without reading history titles or modifying a draft.
 
 ## Repeatable verification
 

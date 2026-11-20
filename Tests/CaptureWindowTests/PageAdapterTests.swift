@@ -28,6 +28,18 @@ import CaptureCore
 }
 
 @MainActor struct PageAdapterTests {
+    @Test func initialLayoutNeverClicksWebsiteHomeToCloseAFlyout() async throws {
+        let page = PageFixture(); defer { page.close() }
+        let html = ChatPreview.railHTML
+            .replacingOccurrences(of: "let historyOpen=true,pinned=true", with: "let historyOpen=true,pinned=false")
+            .replacingOccurrences(of: "home.onclick=()=>{historyOpen", with: "window.homeClicks=0;home.onclick=()=>{window.homeClicks++;historyOpen")
+        page.load(html)
+        try await page.wait("!!document.querySelector('[data-cs-editor]')")
+        try await Task.sleep(for: .milliseconds(350))
+        await ChatPageAdapter.applyMode(.normal, in: page.controller.webView)
+        #expect(try await page.controller.webView.evaluateJavaScript("window.homeClicks") as? Int == 0)
+        #expect(try await page.controller.webView.evaluateJavaScript("!document.querySelector('#fixture-history').hidden") as? Bool == true)
+    }
     @Test func alreadyCollapsedHistoryIsNotClosedAfterWebsiteOpensIt() async throws {
         let page = PageFixture(); defer { page.close() }
         page.load(ChatPreview.railHTML.replacingOccurrences(of: "let historyOpen=true,pinned=true", with: "let historyOpen=false,pinned=false"))
