@@ -46,9 +46,13 @@ enum PageLayoutRules {
     let disposed = false, initialSidebarAttempted = false;
     const createdAt = performance.now();
     const initialCollapse = () => {
-      if(userChoseSidebar || initialSidebarAttempted || performance.now()-createdAt<250) return;
+      if(userChoseSidebar || initialSidebarAttempted) return;
       const s=sidebar();
       if(s.state==='unavailable') return;
+      // Record an already-closed layout immediately. A background WebView may
+      // throttle the hydration timer until after the website opens its drawer.
+      if(s.state==='collapsed') { initialSidebarAttempted=true; return; }
+      if(performance.now()-createdAt<250) return;
       // Already collapsed is a completed initial layout too. Never wait for a
       // later user hover/focus to open history and then collapse it underneath them.
       initialSidebarAttempted=true;

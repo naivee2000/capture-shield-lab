@@ -32,7 +32,6 @@ import CaptureCore
         let page = PageFixture(); defer { page.close() }
         page.load(ChatPreview.railHTML.replacingOccurrences(of: "let historyOpen=true,pinned=true", with: "let historyOpen=false,pinned=false"))
         try await page.wait("!!document.querySelector('[data-cs-editor]')")
-        try await Task.sleep(for: .milliseconds(400))
         _ = try await page.controller.webView.evaluateJavaScript("document.querySelector('#fixture-home').click()")
         try await page.wait("!document.querySelector('#fixture-history').hidden")
         try await Task.sleep(for: .milliseconds(300))

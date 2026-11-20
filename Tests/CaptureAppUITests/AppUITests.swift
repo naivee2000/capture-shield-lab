@@ -157,7 +157,9 @@ import XCTest
         control.click()
     }
     private func waitText(_ text: String) {
-        XCTAssertTrue(app.staticTexts[text].firstMatch.waitForExistence(timeout: 10), "Missing visible text: " + text)
+        let visible = app.staticTexts[text].firstMatch.waitForExistence(timeout: 10)
+        let detail = visible ? "" : " · metadata: \(record())"
+        XCTAssertTrue(visible, "Missing visible text: " + text + detail)
     }
     private func draftContains(_ text: String) {
         let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value CONTAINS %@", text), object: editor)

@@ -17,6 +17,18 @@
       "classification": "application",
       "status": "fail",
       "detail": "AppKit disables its native zoom widget when native resizing is removed. A same-location Legacy zoom/restore control now preserves the action."
+    },
+    {
+      "stage": "initial-collapsed-history-background-timer",
+      "classification": "application",
+      "status": "fail",
+      "detail": "On CI macOS 15 and 26, a throttled initial timer could run after the website opened history. Already-collapsed state is now recorded in the first recognized layout."
+    },
+    {
+      "stage": "keypad-enter-second-image",
+      "classification": "under-investigation",
+      "status": "fail",
+      "detail": "All three CI hosts passed 13/14 UI scenarios, but keypad Enter did not produce the second image. AppKit character normalization and bounded offline key/phase diagnostics added; fresh CI required."
     }
   ],
   "local": {
@@ -42,11 +54,25 @@
     "scripts": {
       "status": "pass",
       "tests": 20
+    },
+    "focused_after_ci_correction": {
+      "status": "pass",
+      "tests": 16
     }
   },
   "ci": {
-    "status": "not-tested",
-    "reason": "Pending this release branch run."
+    "status": "fail",
+    "first_run": 44801291528,
+    "commit": "2a6525b7e364c5085c87d441143c75ed58d7403f",
+    "rounds_per_host": [
+      {
+        "round": 1,
+        "passed": 13,
+        "failed": 1,
+        "skipped": 0
+      }
+    ],
+    "reason": "Keypad Enter case failed on all three hosts; native initial-collapse race also failed on 15 and 26. No retries of unchanged code."
   },
   "real_chatgpt": {
     "status": "not-tested"

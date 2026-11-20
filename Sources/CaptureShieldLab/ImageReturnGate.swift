@@ -5,6 +5,15 @@ import AppKit
 struct ImageReturnGate {
     enum Action { case pass, consume, confirm }
     private var held: Set<UInt16> = []
+    static func key(for event: NSEvent) -> UInt16? {
+        // Fn-Return and text-service/automation events may represent Enter with
+        // NSCarriageReturnCharacter/NSEnterCharacter and no hardware key code.
+        switch event.charactersIgnoringModifiers {
+        case "\u{3}": return 76
+        case "\r": return 36
+        default: return event.keyCode == 36 || event.keyCode == 76 ? event.keyCode : nil
+        }
+    }
     mutating func action(type: NSEvent.EventType, key: UInt16, modifiers: NSEvent.ModifierFlags,
                          repeatKey: Bool, preview: Bool, pending: Bool,
                          canConfirm: Bool, marked: Bool, modal: Bool) -> Action {

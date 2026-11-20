@@ -4,6 +4,12 @@ import CaptureCore
 @testable import CaptureShieldLab
 
 @MainActor struct ImagePreviewTests {
+    @Test func keypadEnterCanBeRepresentedByItsAppKitCharacter() {
+        let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .numericPad,
+            timestamp: 0, windowNumber: 0, context: nil, characters: "\u{3}",
+            charactersIgnoringModifiers: "\u{3}", isARepeat: false, keyCode: 0)!
+        #expect(ImageReturnGate.key(for: event) == 76)
+    }
     @Test(arguments: [UInt16(36), UInt16(76)]) func enterIsOneShotUntilReleaseAndCannotSendDuringHandoff(key: UInt16) {
         var gate = ImageReturnGate()
         func down(_ preview: Bool, _ pending: Bool, _ repeatKey: Bool = false) -> ImageReturnGate.Action {

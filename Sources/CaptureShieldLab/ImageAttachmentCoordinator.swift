@@ -17,10 +17,19 @@ import CaptureCore
     private var returnGate = ImageReturnGate()
     init(owner: ChatWindow) { self.owner = owner }
     func handleReturn(_ event: NSEvent, marked: Bool, modal: Bool) -> Bool {
-        let action = returnGate.action(type: event.type, key: event.keyCode, modifiers: event.modifierFlags,
+        guard let key = ImageReturnGate.key(for: event) else {
+            if isPreviewPresented, event.type == .keyDown {
+                WindowDiagnostics.activeTest?.noteImageKey(event, phase: String(describing: phase),
+                    action: "not-return", marked: marked, modal: modal, preview: true)
+            }
+            return false
+        }
+        let action = returnGate.action(type: event.type, key: key, modifiers: event.modifierFlags,
             repeatKey: event.isARepeat, preview: isPreviewPresented,
             pending: phase == .preparing || phase == .ready || phase == .handedToPage,
             canConfirm: view?.canConfirm == true, marked: marked, modal: modal)
+        WindowDiagnostics.activeTest?.noteImageKey(event, phase: String(describing: phase),
+            action: String(describing: action), marked: marked, modal: modal, preview: isPreviewPresented)
         if action == .confirm { view?.addImage() }
         return action != .pass
     }

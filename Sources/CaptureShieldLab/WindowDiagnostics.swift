@@ -8,6 +8,13 @@ import AppKit
     private var metadataURL: URL?
     private var ownedWindows: () -> [NSWindow] = { [] }
     private var transitions: [[String: Any]] = []
+    private var imageKeys: [[String: Any]] = []
+    func noteImageKey(_ event: NSEvent, phase: String, action: String, marked: Bool, modal: Bool, preview: Bool) {
+        guard metadataURL != nil else { return }
+        imageKeys.append(["type":event.type.rawValue,"hardwareKey":event.keyCode,"flags":event.modifierFlags.rawValue,
+            "phase":phase,"action":action,"marked":marked,"modal":modal,"preview":preview])
+        if imageKeys.count > 12 { imageKeys.removeFirst(imageKeys.count - 12) }
+    }
     func noteTransition(_ stage: String, mode: String, windows: [NSWindow]) {
         guard metadataURL != nil else { return }
         transitions.append(["stage": stage, "mode": mode, "policy": NSApp.activationPolicy().rawValue,
@@ -75,6 +82,7 @@ import AppKit
             testRecord["frontmostPID"] = NSWorkspace.shared.frontmostApplication?.processIdentifier ?? -1
             testRecord["sampleUptime"] = ProcessInfo.processInfo.systemUptime
             testRecord["transitions"] = transitions
+            testRecord["imageKeys"] = imageKeys
             let defaults = UserDefaults(suiteName: Bundle.main.bundleIdentifier! + ".preview")!
             testRecord["previewFrame"] = defaults.string(forKey: "ChatWindowFrame") ?? "missing"
             testRecord["previewSourceSet"] = defaults.string(forKey: "SpeechSourceBundleID") == "synthetic.offline.audio"
