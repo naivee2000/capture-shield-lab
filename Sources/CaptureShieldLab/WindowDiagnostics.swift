@@ -45,6 +45,8 @@ import AppKit
              "width": window.frame.width, "height": window.frame.height,
              "minimumWidth": window.minSize.width, "minimumHeight": window.minSize.height,
              "miniaturized": window.isMiniaturized]
+            row["nativeResizable"] = window.styleMask.contains(.resizable)
+            row["legacyGrip"] = (window as? ChatPanel)?.legacyResize ?? false
             if let view = window.contentView.flatMap(Self.webView) {
                 row["webZoom"] = view.pageZoom
                 row["webAlpha"] = view.alphaValue

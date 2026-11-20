@@ -4,7 +4,17 @@ import CaptureCore
 @MainActor final class CropCanvas: NSView {
     let image: CGImage
     private var start: CGPoint?
-    private var selection: CGRect?
+    // Image pixels, independent of the preview's current layout/Retina scale.
+    private var selectedPixels: CGRect?
+    var isDragging: Bool { start != nil }
+    private var selection: CGRect? {
+        selectedPixels.map { rect in
+            CGRect(x: imageRect.minX + rect.minX / CGFloat(image.width) * imageRect.width,
+                   y: imageRect.minY + rect.minY / CGFloat(image.height) * imageRect.height,
+                   width: rect.width / CGFloat(image.width) * imageRect.width,
+                   height: rect.height / CGFloat(image.height) * imageRect.height)
+        }
+    }
     override var isFlipped: Bool { true }
     init(image: CGImage) {
         self.image = image; super.init(frame: .zero)
@@ -19,13 +29,16 @@ import CaptureCore
                       width: size.width * scale, height: size.height * scale)
     }
     var croppedImage: CGImage {
-        guard let selection, let rect = ImageGeometry.pixelCrop(selection: selection, imageRect: imageRect,
-                pixels: CGSize(width: image.width, height: image.height)),
+        guard let rect = selectedPixels?.integral,
               let cropped = image.cropping(to: rect) else { return image }
         return cropped
     }
-    func reset() { selection = nil; start = nil; needsDisplay = true }
-    override func setFrameSize(_ newSize: NSSize) { reset(); super.setFrameSize(newSize) }
+    func reset() { selectedPixels = nil; start = nil; needsDisplay = true }
+    override func setFrameSize(_ newSize: NSSize) { super.setFrameSize(newSize); needsDisplay = true }
+    private func pixels(_ point: CGPoint) -> CGPoint {
+        CGPoint(x: (point.x - imageRect.minX) / imageRect.width * CGFloat(image.width),
+                y: (point.y - imageRect.minY) / imageRect.height * CGFloat(image.height))
+    }
     override func draw(_ dirtyRect: NSRect) {
         NSColor(white: 0.08, alpha: 1).setFill(); bounds.fill()
         NSImage(cgImage: image, size: .zero).draw(in: imageRect, from: .zero, operation: .sourceOver,
@@ -38,13 +51,15 @@ import CaptureCore
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         guard imageRect.contains(point) else { return }
-        start = point; selection = nil; needsDisplay = true
+        start = pixels(point); selectedPixels = nil; needsDisplay = true
     }
     override func mouseDragged(with event: NSEvent) {
         guard let start else { return }
-        let point = convert(event.locationInWindow, from: nil)
-        selection = CGRect(x: min(start.x, point.x), y: min(start.y, point.y),
-                           width: abs(point.x - start.x), height: abs(point.y - start.y)).intersection(imageRect)
+        let point = pixels(convert(event.locationInWindow, from: nil))
+        let rect = CGRect(x: min(start.x, point.x), y: min(start.y, point.y),
+                          width: abs(point.x - start.x), height: abs(point.y - start.y))
+            .intersection(CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        selectedPixels = rect.isEmpty || rect.isNull ? nil : rect
         needsDisplay = true
     }
     override func mouseUp(with event: NSEvent) { mouseDragged(with: event); start = nil }
@@ -57,7 +72,8 @@ import CaptureCore
     var add: ((CGImage) -> Void)?
     var cancel: (() -> Void)?
     var retake: (() -> Void)?
-    private let addButton = NSButton(title: "Add to Chat", target: nil, action: nil)
+    private let addButton = NSButton(title: "Add to Chat ↵", target: nil, action: nil)
+    var canConfirm: Bool { addButton.isEnabled && !canvas.isDragging }
     private let notice = NSTextField(wrappingLabelWithString: "Drag to crop, or keep the full image. Adding may upload it to ChatGPT; send your message yourself.")
     init(image: CGImage) {
         canvas = CropCanvas(image: image)
@@ -70,6 +86,8 @@ import CaptureCore
         let discard = NSButton(title: "Cancel", target: self, action: #selector(discardImage))
         addButton.target = self; addButton.action = #selector(addImage); addButton.bezelStyle = .rounded
         addButton.setAccessibilityIdentifier("image-add")
+        addButton.setAccessibilityLabel("Add to Chat")
+        addButton.toolTip = "Return or keypad Enter adds this image. It never sends the message."
         reset.setAccessibilityIdentifier("crop-reset"); discard.setAccessibilityIdentifier("image-cancel")
         notice.setAccessibilityIdentifier("image-notice")
         let controls = NSStackView(views: [reset, again, discard, addButton]); controls.spacing = 8
@@ -90,5 +108,9 @@ import CaptureCore
     @objc private func resetCrop() { canvas.reset() }
     @objc private func captureAgain() { retake?() }
     @objc private func discardImage() { cancel?() }
-    @objc private func addImage() { add?(canvas.croppedImage) }
+    @objc func addImage() {
+        guard canConfirm else { return }
+        busy(true) // Close the click/key race before starting asynchronous encoding.
+        add?(canvas.croppedImage)
+    }
 }

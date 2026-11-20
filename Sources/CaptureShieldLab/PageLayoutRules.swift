@@ -3,9 +3,9 @@ import Foundation
 /// Versioned, local rules for presentation only. No account data or network calls.
 /// Keep layout matching here so a site change does not alter uploads or dictation.
 enum PageLayoutRules {
-    static let version = "0.6.7.1"
+    static let version = "0.6.8.1"
     static let script = #"""
-    const adapterVersion = '0.6.7.1';
+    const adapterVersion = '0.6.8.1';
     const documentID = crypto.randomUUID ? crypto.randomUUID() : String(Math.random()) + String(Date.now());
     const sidebarSelector = 'button[aria-controls="app-shell-sidebar"],button[aria-controls="ds-sidebar"],button[aria-label="Close sidebar"],button[aria-label="Hide sidebar"],button[aria-label="Open sidebar"],button[aria-label="Toggle sidebar"],button[aria-label="关闭边栏"],button[aria-label="隐藏边栏"],button[aria-label="打开边栏"],button[aria-label="关闭侧边栏"],button[aria-label="打开侧边栏"],button[aria-label="显示/隐藏侧边栏"]';
     const nameOfControl = e => {
@@ -43,40 +43,16 @@ enum PageLayoutRules {
       const s = sidebar();
       return s.profile !== 'unknown' && !!document.querySelector('main,[role="main"],#thread');
     };
-    let sidebarOperation = null, disposed = false, initialSidebarAttempted = false;
+    let disposed = false, initialSidebarAttempted = false;
     const createdAt = performance.now();
-    const pause = () => new Promise(resolve => setTimeout(resolve,40));
-    const operateSidebar = async desired => {
-      const href = location.href, deadline = performance.now()+3000;
-      let acted=false, pinned=false;
-      while(performance.now()<deadline) {
-        if(disposed || location.href!==href) return 'stale';
-        if(!allowed() || isAuthentication()) return 'unavailable';
-        const s=sidebar();
-        if(desired==='expanded' && s.state==='expanded') {
-          if(s.profile==='navigation-rail' && innerWidth>=768 && s.floating) {
-            if(!pinned && s.close) { pinned=true; s.close.click(); }
-          } else return 'expanded';
-        } else if(desired==='collapsed' && s.state==='collapsed') return 'collapsed';
-        else if(!acted) {
-          const button=desired==='expanded'?(s.home||s.open):(s.floating?s.home:s.close);
-          if(button) { acted=true; button.click(); }
-          else if(document.readyState==='complete') return 'unavailable';
-        }
-        await pause();
-      }
-      return 'timeout';
-    };
-    const startSidebar = (desired,automatic=false) => {
-      if(sidebarOperation) return sidebarOperation.promise;
-      const operation={automatic,promise:null};
-      operation.promise=operateSidebar(desired).finally(()=>{if(sidebarOperation===operation) sidebarOperation=null;});
-      sidebarOperation=operation;
-      return operation.promise;
-    };
     const initialCollapse = () => {
-      if(userChoseSidebar || initialSidebarAttempted || sidebarOperation || performance.now()-createdAt<250) return;
-      if(sidebar().state==='expanded') { initialSidebarAttempted=true; void startSidebar('collapsed',true); }
+      if(userChoseSidebar || initialSidebarAttempted || performance.now()-createdAt<250) return;
+      const s=sidebar();
+      if(s.state==='unavailable') return;
+      // Already collapsed is a completed initial layout too. Never wait for a
+      // later user hover/focus to open history and then collapse it underneath them.
+      initialSidebarAttempted=true;
+      if(s.state==='expanded') (s.floating?s.home:s.close)?.click();
     };
     const ownedMarkers = new Map();
     const markSurface = (node, attribute, next) => {

@@ -3,9 +3,10 @@
 A native ChatGPT web window and a separate macOS capture-protection lab. Can the window remain visible locally while disappearing from a full-display capture?
 
 **Experimental. No universal invisibility claim.**
-Version **0.6.7** repairs decorative webpage backgrounds and the history toolbar button, and adds a read-only page compatibility check for future website/WebKit changes. See [presentation behavior and verification](docs/presentation-067.md). Continuous recording, Always on Top, compact transcription and screenshot/image attachment behavior remain available. Automated previews do not establish real ChatGPT or meeting-receiver results.
+Version **0.6.8 / build 17** adds Return/keypad Enter in image previews, keeps crops intact when resizing, and uses an ordinary-arrow in-window resize grip in Legacy. Normal keeps native edge resizing. The duplicate native Sidebar control is removed; use the website's Home hover/history entry. See [behavior and verification](docs/interaction-068.md). No message is sent by image confirmation.
 
-For **0.6.7**, the actual packaged-app UI suite passed **12 scenarios × 3 rounds** on each of **macOS 15.8.2, 26.7.2 and 27.0.1**, alongside native/script tests and negative controls. See [the exact release evidence](docs/validation-presentation-067.json). Logged-in history, physical desktop transparency and meeting-receiver behavior still need device verification.
+The packaged suite now covers **14 scenarios**, including the new image keys and Legacy grip. Exact native, packaged-app and receiver results for this release are recorded separately in [the release ledger](docs/validation-interaction-068.json). Earlier releases' CI results do not certify this release or the real website.
+
 
 **Operator feedback:** Teams desktop entire-screen sharing from macOS 26.6.2 (25G83), viewed in Chrome: Normal visible, Legacy hidden, but Pinyin candidates visible. Receiver retesting of the candidate-panel repair is pending; this is not a blanket privacy guarantee.
 

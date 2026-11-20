@@ -3,7 +3,7 @@ name: macOS compatibility
 on:
   workflow_dispatch:
   push:
-    branches: [main, codex/app-ui-compatibility, codex/floating-focus-065, codex/floating-focus-065-final, codex/continuous-recording-066, codex/web-presentation-067]
+    branches: [main, codex/app-ui-compatibility, codex/floating-focus-065, codex/floating-focus-065-final, codex/continuous-recording-066, codex/web-presentation-067, codex/enter-resize-068]
     paths:
       - '.github/workflows/macos-compatibility.yml'
       - 'Package.swift'
@@ -139,7 +139,7 @@ jobs:
       - name: Test the packaged application through XCTest UI automation
         id: app_ui
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        # Three bounded twenty-minute rounds (twelve UI scenarios) plus packaging/runner compilation.
+        # Three bounded twenty-minute rounds (fourteen UI scenarios) plus packaging/runner compilation.
         timeout-minutes: 65
         run: |
           set +e

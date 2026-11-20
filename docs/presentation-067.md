@@ -1,5 +1,7 @@
 # 0.6.7 webpage presentation and update resilience
 
+Historical release record. **0.6.8 removes the native Sidebar control** after subsequent real-site feedback. Use [the current interaction guide](interaction-068.md); older synthetic history results do not establish reliability on a changed live website.
+
 Version **0.6.7/build 16** repairs the Legacy webpage backdrop and the native history button. Runtime remains Apple Silicon macOS 15.6+; build requirements remain Swift 6.2+/SDK 26+.
 
 ## Observed faults and repair

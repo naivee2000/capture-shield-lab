@@ -110,7 +110,7 @@ import CaptureCore
         let window = controller.window!
         defer { controller.closeTestFixture() }
         #expect(window is ChatPanel)
-        controller.applyPreferences(ChatPreferences(alwaysOnTop: false))
+        controller.applyPreferences(ChatPreferences(mode: .normal, alwaysOnTop: false))
         #expect(window.level == .normal)
         #expect(window.styleMask.contains([.titled, .closable, .miniaturizable, .resizable]))
         #expect(window.alphaValue == 1)
@@ -126,6 +126,24 @@ import CaptureCore
             #expect(!panel.hidesOnDeactivate && panel.canBecomeKey && !panel.canBecomeMain)
             #expect(panel.collectionBehavior.contains(.canJoinAllSpaces) == pin)
         }
+    }
+    @Test func legacyResizeKeepsIdentityFrameAndZoomRestoration() {
+        _ = NSApplication.shared
+        let panel = ChatPanel.make(frame: NSRect(x: 100, y: 100, width: 800, height: 600))
+        defer { panel.close() }
+        panel.orderFrontRegardless()
+        let frame = panel.frame
+        for legacy in [true, false, true] {
+            panel.applyResizePolicy(legacy: legacy)
+            #expect(panel.styleMask.contains(.nonactivatingPanel))
+            #expect(panel.styleMask.contains(.resizable) == !legacy)
+            #expect(panel.frame == frame)
+            #expect(panel.zoomControl?.isEnabled == true)
+        }
+        panel.zoom(nil)
+        #expect(panel.frame != frame)
+        panel.zoom(nil)
+        #expect(panel.frame == frame)
     }
     @Test func unhandledEscapeDoesNotCloseTheChatPanel() {
         _ = NSApplication.shared

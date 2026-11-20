@@ -28,11 +28,11 @@ class VerdictTests(unittest.TestCase):
         self.assertTrue(completion.completed(good + good))
         self.assertFalse(completion.completed(good + "◇ Test run started.\n"))
     def test_zero_skipped_partial_and_failed_are_not_success(self):
-        for code, counts in [(0, {}), (0, {"passedTests": 0}), (0, {"passedTests": 5}), (0, {"passedTests": 9}), (0, {"passedTests": 11}),
-                             (0, {"passedTests": 12, "skippedTests": 1}),
-                             (0, {"passedTests": 12, "failedTests": 1}), (65, {"passedTests": 12})]:
+        for code, counts in [(0, {}), (0, {"passedTests": 0}), (0, {"passedTests": 5}), (0, {"passedTests": 9}), (0, {"passedTests": 11}), (0, {"passedTests": 12}), (0, {"passedTests": 13}),
+                             (0, {"passedTests": 14, "skippedTests": 1}),
+                             (0, {"passedTests": 14, "failedTests": 1}), (65, {"passedTests": 14})]:
             self.assertFalse(runner.result_passed(code, runner.result_counts(counts)))
-        self.assertTrue(runner.result_passed(0, runner.result_counts({"passedTests": 12})))
+        self.assertTrue(runner.result_passed(0, runner.result_counts({"passedTests": 14})))
         for bad in (-1, True, "6"):
             with self.assertRaises(ValueError): runner.result_counts({"passedTests": bad})
 

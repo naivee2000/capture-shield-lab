@@ -37,19 +37,6 @@ import CaptureCore
     }
     static func isCurrent(_ token: String, in webView: WKWebView) async -> Bool { await identity(in: webView) == token }
 
-    enum SidebarResult: String {
-        case expanded, collapsed, unavailable, timeout, stale
-        case notReady = "not-ready"
-        var succeeded: Bool { self == .expanded || self == .collapsed }
-    }
-    static func toggleSidebar(in webView: WKWebView) async -> SidebarResult {
-        let url = webView.url
-        guard let token = await identity(in: webView) else { return .notReady }
-        let result = try? await webView.callAsyncJavaScript("return await (window.captureShieldPresentation?.toggleSidebar() ?? 'not-ready');",
-            arguments: [:], in: nil, contentWorld: world)
-        guard webView.url == url, await isCurrent(token, in: webView) else { return .stale }
-        return SidebarResult(rawValue: result as? String ?? "") ?? .unavailable
-    }
     static func check(in webView: WKWebView) async -> PageCompatibility {
         let url = webView.url
         let result = try? await webView.evaluateJavaScript("window.captureShieldPresentation?.check() ?? null", in: nil, contentWorld: world)
@@ -65,7 +52,7 @@ import CaptureCore
     static func script(preview: Bool = false, mode: ChatSharingMode = .normal) -> String {
         "const captureShieldPreview = \(preview ? "true" : "false"); const captureShieldInitialMode = '\(mode.rawValue)';\n" + #"""
         (() => {
-          if (window.captureShieldPresentation?.version === '0.6.7.1') return;
+          if (window.captureShieldPresentation?.version === '0.6.8.1') return;
           window.captureShieldPresentation?.dispose?.();
           const allowed = () => captureShieldPreview
             ? location.href === 'about:blank'
@@ -180,23 +167,19 @@ import CaptureCore
           // messages and textarea sizing do not create a self-sustaining loop.
           const schedule = () => { if (!disposed && !scheduled) { scheduled = true; setTimeout(update, 50); } };
           const events = new AbortController();
-          document.addEventListener('click', event => {
+          const preserveHistoryChoice = event => {
             if (!event.isTrusted || !(event.target instanceof Element)) return;
-            const button=event.target.closest('button');
-            if(button && (button.matches(sidebarSelector) || button===railHome())) userChoseSidebar=true;
-          }, {capture:true,signal:events.signal});
+            const control=event.target.closest('button');
+            if((control && (control.matches(sidebarSelector) || control===railHome()))
+              || event.target.closest('#app-shell-sidebar,#ds-sidebar')) userChoseSidebar=true;
+          };
+          for(const event of ['pointerover','focusin','click'])
+            document.addEventListener(event,preserveHistoryChoice,{capture:true,signal:events.signal});
           window.captureShieldPresentation = {
             version:adapterVersion,
             identity:documentID,
             setMode(value) { mode = value === 'legacy' ? 'legacy' : 'normal'; update(); return themed; },
             check() { return report(); },
-            async toggleSidebar() {
-              if (!allowed() || isAuthentication()) return 'unavailable';
-              userChoseSidebar=true;
-              if(sidebarOperation?.automatic) await sidebarOperation.promise;
-              if(disposed) return 'stale';
-              return startSidebar(sidebar().state==='expanded'?'collapsed':'expanded');
-            },
             dispose() {
               disposed=true; events.abort(); observer.disconnect(); resizeObserver.disconnect();
               theme(false); syncMarkers(new Map()); document.getElementById('capture-shield-compact')?.remove();

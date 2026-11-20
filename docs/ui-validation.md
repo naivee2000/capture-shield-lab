@@ -27,7 +27,7 @@ On APFS, generated apps, Swift build files and DerivedData go under the run's ig
 
 ## Checks and verdicts
 
-The default run performs **three sequential rounds**, each bounded to twenty minutes, without parallel UI execution or failure retries. Twelve test cases cover:
+The default run performs **three sequential rounds**, each bounded to twenty minutes, without parallel UI execution or failure retries. Fourteen test cases cover:
 
 - Packaged process launch, editable WebKit input, quit and restart.
 - Normal/Legacy sharing attributes, whole-window/content alpha, background alpha, Dock activation policy, 70/90/140% zoom, popup inheritance, dialogs and draft preservation.
@@ -40,7 +40,11 @@ The default run performs **three sequential rounds**, each bounded to twenty min
 - A retained/edited error result, cancellation of a new segment, another recording and manual merged append.
 - Normal/Legacy keyboard focus without changing the independently running background application’s foreground identity, plus focus return after hide.
 - Persisted pin controls and native full-screen background behavior, using a separate synthetic FocusHost application.
-- Navigation-rail history opened/closed through the actual toolbar, preserved typing, Legacy switching and the read-only page compatibility sheet. Background pixels and changed structural fixtures are additionally checked by the native WebKit suite.
+- Website Home hover opens the synthetic history rail, retained through typing/mode changes; no duplicate native Sidebar control. Read-only page compatibility still reports structural status.
+- Return and keypad Enter through the actual preview/file delegate; a crop survives window resizing, two images remain, draft is preserved, and normal chat Return resumes only after confirmation.
+- Legacy's in-window grip, fixed top-left/minimum size, zoom/restore, Normal native edge resizing and absence of Sidebar in a compact toolbar/overflow.
+
+Native tests additionally cover held/repeated Enter, pending handoff, busy/crop drag, composition/modals, exact crop pixels and screen bounds. These state-level checks are not a physical keyboard or meeting-cursor result.
 
 Focus-specific keys are sent by XCTest through the already-foreground background test application, avoiding activation of the panel's application. Actual keyboard input destinations, panel key state and the background foreground PID remain asserted; targeting an element alone is never proof of delivery. No separate event-posting permission is requested or assumed.
 

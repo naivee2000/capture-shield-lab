@@ -14,7 +14,16 @@ import CaptureCore
     private var epoch = UUID()
     private var monitor: Task<Void, Never>?
     private var store: AttachmentTemporaryStore?
+    private var returnGate = ImageReturnGate()
     init(owner: ChatWindow) { self.owner = owner }
+    func handleReturn(_ event: NSEvent, marked: Bool, modal: Bool) -> Bool {
+        let action = returnGate.action(type: event.type, key: event.keyCode, modifiers: event.modifierFlags,
+            repeatKey: event.isARepeat, preview: isPreviewPresented,
+            pending: phase == .preparing || phase == .ready || phase == .handedToPage,
+            canConfirm: view?.canConfirm == true, marked: marked, modal: modal)
+        if action == .confirm { view?.addImage() }
+        return action != .pass
+    }
     func prepare(_ image: CGImage) {
         invalidate(); self.image = image
         let view = ImagePreview(image: image); self.view = view
@@ -34,8 +43,14 @@ import CaptureCore
         view.showMessage(mayHaveUploaded
             ? "Check the chat for an existing attachment before adding again. Reviewing cancels the previous confirmation; it cannot undo a website upload."
             : "Drag to crop, or keep the full image. Adding may upload it to ChatGPT; send your message yourself.")
-        if view.superview == nil { view.frame = root.bounds; view.autoresizingMask = [.width, .height]; root.addSubview(view) }
+        if view.superview == nil { view.autoresizingMask = [.width, .height]; root.addSubview(view) }
+        updateLayout()
         view.isHidden = false; owner?.window?.makeFirstResponder(view)
+    }
+    func updateLayout() {
+        guard let root = owner?.window?.contentView, let view else { return }
+        var rect = root.bounds; rect.size.width = max(0, rect.width - (owner?.contentTrailingInset ?? 0))
+        view.frame = rect
     }
     private func resetRequest() {
         epoch = UUID(); consent.cancel(); prepared = nil; monitor?.cancel(); monitor = nil
@@ -102,6 +117,7 @@ import CaptureCore
     private func fail(_ message: String) {
         consent.cancel(); prepared = nil; phase = .failed
         view?.busy(false); view?.isHidden = false; view?.showMessage(message); owner?.setStatus(message)
+        if let view, owner?.window?.attachedSheet == nil { owner?.window?.makeFirstResponder(view) }
     }
     func supply(to frame: WKFrameInfo) async -> [URL]? {
         guard phase == .ready, let owner, owner.window?.isVisible == true, frame.isMainFrame,

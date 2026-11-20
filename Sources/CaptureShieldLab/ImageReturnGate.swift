@@ -1,0 +1,20 @@
+import AppKit
+
+/// Window-local: retain consumed key presses until key-up, even if the preview
+/// disappears before autorepeat ends. No default button on the chat window.
+struct ImageReturnGate {
+    enum Action { case pass, consume, confirm }
+    private var held: Set<UInt16> = []
+    mutating func action(type: NSEvent.EventType, key: UInt16, modifiers: NSEvent.ModifierFlags,
+                         repeatKey: Bool, preview: Bool, pending: Bool,
+                         canConfirm: Bool, marked: Bool, modal: Bool) -> Action {
+        guard key == 36 || key == 76 else { return .pass }
+        if type == .keyUp { return held.remove(key) != nil ? .consume : .pass }
+        guard type == .keyDown else { return .pass }
+        if held.contains(key) { return .consume }
+        let flags = modifiers.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
+        guard flags.isEmpty, !marked, !modal, preview || pending else { return .pass }
+        held.insert(key)
+        return preview && canConfirm && !pending && !repeatKey ? .confirm : .consume
+    }
+}

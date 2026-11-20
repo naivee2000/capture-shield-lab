@@ -3,6 +3,14 @@ import CoreGraphics
 
 public enum WindowDirection: Sendable { case up, down, left, right }
 extension WindowPlacement {
+    public static func resizedFromTopLeft(_ frame: CGRect, delta: CGSize, visibleFrame: CGRect) -> CGRect {
+        let minimum = CGSize(width: min(640, visibleFrame.width), height: min(480, visibleFrame.height))
+        let x = min(max(frame.minX, visibleFrame.minX), visibleFrame.maxX - minimum.width)
+        let top = max(min(frame.maxY, visibleFrame.maxY), visibleFrame.minY + minimum.height)
+        let width = min(max(minimum.width, frame.width + delta.width), visibleFrame.maxX - x)
+        let height = min(max(minimum.height, frame.height + delta.height), top - visibleFrame.minY)
+        return CGRect(x: x, y: top - height, width: width, height: height)
+    }
     public static func moved(_ frame: CGRect, direction: WindowDirection, visibleFrame: CGRect) -> CGRect {
         var next = frame
         switch direction {

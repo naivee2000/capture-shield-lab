@@ -31,6 +31,7 @@ enum ChatPreview {
         let historyOpen=true,pinned=true;
         const historyState=()=>{history.hidden=!historyOpen;document.body.dataset.pinned=String(pinned);home.setAttribute('aria-expanded',String(historyOpen&&!pinned))};
         home.onclick=()=>{historyOpen=!historyOpen;pinned=false;historyState()};
+        home.onpointerenter=home.onfocus=()=>{historyOpen=true;pinned=false;historyState()};
         pin.onclick=()=>{if(historyOpen&&!pinned){pinned=true}else{historyOpen=false;pinned=false}historyState()};
         historyState();
         """)
@@ -68,6 +69,9 @@ enum ChatPreview {
     let sends=0; let imageSequence=0;
     const status=()=>document.querySelector('#image-status').textContent='Images: '+document.querySelector('#attachments').children.length+' · Sends: '+sends;
     document.querySelector('#send').onclick=()=>{sends++;status();const target=document.querySelector('#reply');target.textContent='';let i=0;const text='Synthetic reply complete. 中文输入保持正常。';const id=setInterval(()=>{target.textContent+=text[i++];if(i===text.length)clearInterval(id)},60);};
+    document.querySelector('[contenteditable]').addEventListener('keydown',e=>{
+      if(e.key==='Enter' && !e.shiftKey && !e.isComposing){e.preventDefault();document.querySelector('#send').click()}
+    });
     document.querySelector('#image-file').onchange=async e=>{
       const file=e.target.files[0];if(!file)return;
       const bytes=(await file.arrayBuffer()).byteLength;

@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "application_version": "0.6.8",
+  "application_build": "17",
+  "deployment_minimum": "15.6",
+  "validation_date": "2026-11-20",
+  "baseline_commit": "d8ba3ce51b9481cf824732e1eaa48e355e620d62",
+  "first_failures": [
+    {
+      "stage": "crop-resize",
+      "classification": "application",
+      "status": "fail",
+      "detail": "Resizing replaced the selected 400x241 crop with the original 1000x600 image."
+    },
+    {
+      "stage": "legacy-zoom-widget",
+      "classification": "application",
+      "status": "fail",
+      "detail": "AppKit disables its native zoom widget when native resizing is removed. A same-location Legacy zoom/restore control now preserves the action."
+    }
+  ],
+  "local": {
+    "system": "26.6.2",
+    "system_build": "25G83",
+    "architecture": "arm64",
+    "swift": "6.2.4",
+    "sdk": "26.2",
+    "packaged_xctest": {
+      "status": "not-tested",
+      "reason": "CLT only; preserved the user QA042 instance and global shortcuts."
+    },
+    "native": {
+      "status": "pass",
+      "reported_tests": 137,
+      "optional_skipped": 2,
+      "process_counts": [
+        126,
+        10,
+        1
+      ]
+    },
+    "scripts": {
+      "status": "pass",
+      "tests": 20
+    }
+  },
+  "ci": {
+    "status": "not-tested",
+    "reason": "Pending this release branch run."
+  },
+  "real_chatgpt": {
+    "status": "not-tested"
+  },
+  "receiver": {
+    "status": "not-tested",
+    "requires": "Three independent Teams desktop whole-display / Chrome receiver trials including system cursor."
+  },
+  "native_cursor_experiment": {
+    "status": "not-tested",
+    "reason": "Isolated public API probe lacked continuous live-resize/system-cursor samples in the remote development interaction. Uniform protected in-window grip selected."
+  }
+}

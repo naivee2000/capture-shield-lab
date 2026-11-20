@@ -93,10 +93,10 @@ import CaptureCore
     private var statusHeight: NSLayoutConstraint!
     private var appearanceBridge: WebAppearanceBridge?
     private var pageCompatibility = PageCompatibility()
-    private var sidebarTask: Task<Void, Never>?
-    private let sidebarButton = NSButton(image: NSImage(systemSymbolName: "sidebar.left", accessibilityDescription: "Toggle sidebar")!, target: nil, action: nil)
     private var recognizedPage = false
-
+    private let resizeGrip = LegacyResizeGrip(frame: .zero)
+    private var trailingContent: [NSLayoutConstraint] = []
+    var contentTrailingInset: CGFloat { preferences.mode == .legacy ? 22 : 0 }
 
     init(configuration: WKWebViewConfiguration, isMain: Bool, preferences: ChatPreferences = ChatPreferences(),
          defaults: UserDefaults = .standard, preview: Bool = false) {
@@ -178,12 +178,17 @@ import CaptureCore
         for view in [webView, speechPane, statusBar] { view.translatesAutoresizingMaskIntoConstraints = false; root.addSubview(view) }
         for view in [status, details, dismiss] { view.translatesAutoresizingMaskIntoConstraints = false; statusBar.addSubview(view) }
         statusHeight = statusBar.heightAnchor.constraint(equalToConstant: 0); statusHeight.isActive = true; statusBar.isHidden = true
+        trailingContent = [webView, speechPane, statusBar].map { $0.trailingAnchor.constraint(equalTo: root.trailingAnchor) }
+        NSLayoutConstraint.activate(trailingContent)
+        resizeGrip.translatesAutoresizingMaskIntoConstraints = false; root.addSubview(resizeGrip)
         NSLayoutConstraint.activate([
+            resizeGrip.trailingAnchor.constraint(equalTo: root.trailingAnchor), resizeGrip.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+            resizeGrip.widthAnchor.constraint(equalToConstant: 22), resizeGrip.heightAnchor.constraint(equalToConstant: 22),
             webView.topAnchor.constraint(equalTo: root.topAnchor), webView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-            webView.trailingAnchor.constraint(equalTo: root.trailingAnchor), webView.bottomAnchor.constraint(equalTo: speechPane.topAnchor),
-            speechPane.leadingAnchor.constraint(equalTo: root.leadingAnchor), speechPane.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            webView.bottomAnchor.constraint(equalTo: speechPane.topAnchor),
+            speechPane.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             speechPane.bottomAnchor.constraint(equalTo: statusBar.topAnchor),
-            statusBar.leadingAnchor.constraint(equalTo: root.leadingAnchor), statusBar.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            statusBar.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             statusBar.bottomAnchor.constraint(equalTo: root.bottomAnchor),
             status.leadingAnchor.constraint(equalTo: statusBar.leadingAnchor, constant: 8), status.trailingAnchor.constraint(equalTo: details.leadingAnchor, constant: -6),
             details.trailingAnchor.constraint(equalTo: dismiss.leadingAnchor, constant: -4), dismiss.trailingAnchor.constraint(equalTo: statusBar.trailingAnchor, constant: -8),
@@ -206,7 +211,7 @@ import CaptureCore
     }
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] { toolbarDefaultItemIdentifiers(toolbar) }
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.init("navigation"), .init("sidebar"), .init("screenshot"), .init("imagePreview"), .init("record"), .init("transcript"), .flexibleSpace, .init("sharingMode"), .init("pin"), .init("compatibility"), .init("cursor"), .init("zoom"), .init("hide")]
+        [.init("navigation"), .init("screenshot"), .init("imagePreview"), .init("record"), .init("transcript"), .flexibleSpace, .init("sharingMode"), .init("pin"), .init("compatibility"), .init("cursor"), .init("zoom"), .init("hide")]
     }
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier,
                  willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
@@ -239,12 +244,6 @@ import CaptureCore
             let home = NSButton(image: NSImage(systemSymbolName: "house", accessibilityDescription: "ChatGPT home")!, target: self, action: #selector(goHome))
             let reload = NSButton(image: NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "Reload page")!, target: self, action: #selector(reloadPage))
             item.view = group([back, forward, home, reload])
-        case "sidebar":
-            item.label = "Sidebar"
-            sidebarButton.target = self; sidebarButton.action = #selector(toggleSidebar)
-            sidebarButton.setAccessibilityIdentifier("toolbar-sidebar")
-            sidebarButton.toolTip = "Show or hide chat history"
-            item.view = sidebarButton
         case "screenshot":
             item.label = "Screenshot"; item.toolTip = "Screenshot (\(ChatKeyboard.screenshotLabel))"
             item.view = NSButton(image: NSImage(systemSymbolName: "camera", accessibilityDescription: "Screenshot")!, target: self, action: #selector(takeScreenshot))
@@ -326,6 +325,12 @@ import CaptureCore
     func configureAppearance(of window: NSWindow) {
         ChatAppearance.apply(to: window, mode: preferences.mode)
         (window as? ChatPanel)?.applyPin(preferences.alwaysOnTop)
+        if window === self.window || window.delegate === self {
+            (window as? ChatPanel)?.applyResizePolicy(legacy: preferences.mode == .legacy)
+            trailingContent.forEach { $0.constant = -contentTrailingInset }
+            resizeGrip.isHidden = preferences.mode != .legacy
+            images.updateLayout()
+        }
         WindowProtection.apply(to: window, mode: preferences.mode)
     }
     /// Recover a native window whose sharing setting no longer accepts readOnly.
@@ -386,20 +391,7 @@ import CaptureCore
     @objc private func zoomOut() { var next = preferences; next.changeZoom(by: -1); request(next) }
     @objc private func zoomIn() { var next = preferences; next.changeZoom(by: 1); request(next) }
     @objc private func resetZoom() { var next = preferences; next.resetZoom(); request(next) }
-    @objc private func toggleSidebar() {
-        guard sidebarTask == nil else { return }
-        sidebarButton.isEnabled = false
-        sidebarTask = Task { [weak self] in
-            guard let self else { return }
-            defer { self.sidebarTask = nil; self.sidebarButton.isEnabled = true }
-            let result = await ChatPageAdapter.toggleSidebar(in: self.webView)
-            guard !Task.isCancelled else { return }
-            if !result.succeeded {
-                self.setStatus("History sidebar: \(result.rawValue). Check page compatibility or use the website's navigation. Nothing was reloaded.")
-            }
-            self.pageCompatibility = await ChatPageAdapter.check(in: self.webView)
-        }
-    }
+
     func present() {
         guard let window else { return }
         configureAppearance(of: window)
@@ -566,7 +558,7 @@ import CaptureCore
         else { setStatus("Downloads are not supported."); decisionHandler(.cancel) }
     }
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
-        sidebarTask?.cancel(); recognizedPage = false; pageCompatibility = PageCompatibility()
+        recognizedPage = false; pageCompatibility = PageCompatibility()
         _ = WebBackgroundCompatibility.setTransparent(false, in: webView)
         composition.reset(); cancelScreenshot(); images.invalidate(); setStatus("Loading…")
     }

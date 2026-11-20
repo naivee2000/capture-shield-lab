@@ -50,7 +50,7 @@ import CaptureCore
         main.present(); main.goHome()
         pasteMonitor = PlainTextPaste.installMonitor()
         cursor.changed = { [weak self] in self?.refreshCursorButtons() }
-        keyboardMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+        keyboardMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { [weak self] event in
             let handled = MainActor.assumeIsolated { self?.handleKey(event) == nil }
             return handled ? nil : event
         }
@@ -252,7 +252,7 @@ import CaptureCore
         }
         guard main != nil, !clearing, event.window?.isKeyWindow == true,
               let controller = ([main!] + popups).first(where: { $0.window === event.window }) else { return event }
-        if event.keyCode == 53 { cursor.disable(); return event }
+        if event.type == .keyDown, event.keyCode == 53 { cursor.disable(); return event }
         let responder = event.window?.firstResponder
         var ancestor = responder as? NSView
         var webFocused = false
@@ -265,6 +265,9 @@ import CaptureCore
         let nativeMarked: Bool? = direct == true || contextual == true ? true : direct ?? contextual
         let marked = ChatKeyboard.blocksMovement(nativeMarked: nativeMarked, webFocused: webFocused, webComposing: controller.composition.composing)
         let modal = NSApp.modalWindow != nil || event.window?.attachedSheet != nil || event.window?.sheetParent != nil
+        let returnComposing = nativeMarked == true || (webFocused && controller.composition.composing == true)
+        if controller.images.handleReturn(event, marked: returnComposing, modal: modal) { return nil }
+        guard event.type == .keyDown else { return event }
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
         if flags == .command, event.charactersIgnoringModifiers?.lowercased() == "q" { quit(); return nil }
         if !marked, !modal, flags == ChatKeyboard.modifiers, event.keyCode == ChatKeyboard.cursorKey {

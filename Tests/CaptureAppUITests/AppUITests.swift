@@ -58,14 +58,12 @@ import XCTest
         editor.click(); editor.typeText("Preserve presentation draft 8642")
         let history = app.webViews.links["Synthetic history entry"].firstMatch
         wait("Initial history is collapsed") { !history.isHittable }
-        for _ in 0..<2 {
-            click("toolbar-sidebar")
-            wait("History is genuinely visible") { history.isHittable }
-            editor.click(); editor.typeText(" kept")
-            XCTAssertTrue(history.isHittable, "Typing must not auto-collapse the user's history")
-            click("toolbar-sidebar")
-            wait("History is hidden") { !history.isHittable }
-        }
+        XCTAssertFalse(mainUI.buttons["toolbar-sidebar"].exists)
+        let home = app.webViews.buttons["Home"].firstMatch
+        home.hover()
+        wait("Website Home hover reveals history") { history.isHittable }
+        editor.click(); editor.typeText(" kept")
+        XCTAssertTrue(history.isHittable, "Typing must not auto-collapse history")
         mainUI.radioButtons["Legacy"].click()
         wait("Legacy retains background-only alpha") { self.mainWindow()["sharing"] as? Int == 0 }
         XCTAssertEqual(mainWindow()["alpha"] as? Double, 1)
@@ -80,8 +78,8 @@ import XCTest
         XCTAssertTrue((summary.value as? String ?? "").contains("navigation-rail"))
         XCTAssertFalse((summary.value as? String ?? "").contains("8642"))
         app.sheets.firstMatch.buttons["Done"].click()
-        draftContains("8642 kept kept")
-        click("toolbar-sidebar"); wait("History reopens after mode and sheet changes") { history.isHittable }
+        draftContains("8642 kept")
+        home.hover(); wait("History remains open after mode and sheet changes") { history.isHittable }
     }
 
     private var metadataURL: URL {
@@ -280,7 +278,10 @@ import XCTest
             abs((self.mainWindow()["height"] as? Double ?? 0) - 480) < 3
         }
         editor.click()
-        editor.typeText("Line one\nLine two\nLine three\nLine four\nLine five\nLine six\nLine seven\nLine eight")
+        for (index, line) in ["Line one", "Line two", "Line three", "Line four", "Line five", "Line six", "Line seven", "Line eight"].enumerated() {
+            if index > 0 { editor.typeKey(XCUIKeyboardKey.return, modifierFlags: .shift) }
+            editor.typeText(line)
+        }
         draftContains("Line eight")
         editor.typeKey("a", modifierFlags: .command)
         editor.typeText("Replacement draft")
@@ -337,6 +338,59 @@ import XCTest
         app.webViews.buttons["Stream reply"].click()
         waitText("Synthetic reply complete. 中文输入保持正常。")
         waitText("Images: 3 · Sends: 1")
+    }
+    func testEnterAddsCropAfterWindowResizeAndKeypadAddsSecondImage() throws {
+        editor.click(); editor.typeText("Keep Enter draft 1357")
+        loadImage()
+        let canvas = app.descendants(matching: .any).matching(identifier: "crop-canvas").firstMatch
+        canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.3)).click(forDuration: 0.2,
+            thenDragTo: canvas.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.7)))
+        let right = mainUI.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5)).withOffset(CGVector(dx: -1, dy: 0))
+        drag(right, dx: -120, dy: 0)
+        mainUI.typeKey(XCUIKeyboardKey.return, modifierFlags: [])
+        waitText("Images: 1 · Sends: 0")
+        wait("First Return attachment is confirmed") { self.mainWindow()["attachmentPhase"] as? String == "visible" }
+        let dimensions = app.webViews.textFields["Decoded image dimensions"].firstMatch
+        let text = try XCTUnwrap(dimensions.value as? String)
+        let size = text.replacingOccurrences(of: "Last image: ", with: "").components(separatedBy: " x ").compactMap(Int.init)
+        XCTAssertEqual(size.count, 2); XCTAssertLessThan(size[0], 1000); XCTAssertLessThan(size[1], 600)
+        loadImage(); mainUI.typeKey(XCUIKeyboardKey.enter, modifierFlags: [])
+        waitText("Images: 2 · Sends: 0")
+        wait("Keypad attachment is confirmed") { self.mainWindow()["attachmentPhase"] as? String == "visible" }
+        draftContains("1357")
+        editor.click(); mainUI.typeKey(XCUIKeyboardKey.return, modifierFlags: [])
+        waitText("Images: 2 · Sends: 1") // Offline fixture proves normal Return resumes.
+    }
+    func testCompactLegacyGripAndNativeNormalResize() throws {
+        XCTAssertFalse(mainUI.buttons["toolbar-sidebar"].exists)
+        let overflow = mainUI.toolbars.popUpButtons.firstMatch
+        if overflow.exists {
+            overflow.click(); XCTAssertFalse(app.menuItems["Sidebar"].exists)
+            mainUI.typeKey(XCUIKeyboardKey.escape, modifierFlags: [])
+        }
+        mainUI.radioButtons["Legacy"].click()
+        wait("Legacy disables native resizing") { self.mainWindow()["nativeResizable"] as? Bool == false }
+        let grip = mainUI.descendants(matching: .any).matching(identifier: "window-resize-grip").firstMatch
+        XCTAssertTrue(grip.waitForExistence(timeout: 10)); XCTAssertTrue(grip.isHittable)
+        let before = mainWindow()
+        let top = try XCTUnwrap(before["y"] as? Double) + XCTUnwrap(before["height"] as? Double)
+        let x = try XCTUnwrap(before["x"] as? Double)
+        drag(grip.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)), dx: 80, dy: 60)
+        wait("Grip grows width with a fixed top-left") { abs((self.mainWindow()["width"] as? Double ?? 0) - 720) < 3 }
+        XCTAssertEqual(mainWindow()["x"] as? Double ?? 0, x, accuracy: 2)
+        XCTAssertEqual((mainWindow()["y"] as? Double ?? 0) + (mainWindow()["height"] as? Double ?? 0), top, accuracy: 2)
+        drag(grip.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)), dx: -300, dy: -300)
+        wait("Grip respects minimum size") { abs((self.mainWindow()["width"] as? Double ?? 0) - 640) < 3 && abs((self.mainWindow()["height"] as? Double ?? 0) - 480) < 3 }
+        mainUI.buttons.matching(identifier: "window-zoom").allElementsBoundByIndex.first { $0.isHittable }!.click()
+        wait("Legacy zoom remains available") { (self.mainWindow()["width"] as? Double ?? 0) > 640 }
+        mainUI.buttons.matching(identifier: "window-zoom").allElementsBoundByIndex.first { $0.isHittable }!.click()
+        wait("Legacy zoom restores size") { abs((self.mainWindow()["width"] as? Double ?? 0) - 640) < 3 }
+        mainUI.radioButtons["Normal"].click()
+        wait("Normal restores native resizing") { self.mainWindow()["nativeResizable"] as? Bool == true }
+        XCTAssertFalse(grip.isHittable)
+        let right = mainUI.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5)).withOffset(CGVector(dx: -1, dy: 0))
+        drag(right, dx: 80, dy: 0)
+        wait("Normal edge resizing works") { (self.mainWindow()["width"] as? Double ?? 0) > 700 }
     }
     private func drag(_ start: XCUICoordinate, dx: CGFloat, dy: CGFloat) {
         // A destination anchored to the moving window changes during the drag.
