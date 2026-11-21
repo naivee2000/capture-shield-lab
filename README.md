@@ -5,7 +5,7 @@ A native ChatGPT web window and a separate macOS capture-protection lab. Can the
 **Experimental. No universal invisibility claim.**
 Version **0.6.8 / build 17** adds Return/keypad Enter in image previews, keeps crops intact when resizing, and uses an ordinary-arrow in-window resize grip in Legacy. Normal keeps native edge resizing. The duplicate native Sidebar control is removed; use the website's Home hover/history entry. See [behavior and verification](docs/interaction-068.md). No message is sent by image confirmation.
 
-The packaged suite now covers **14 scenarios**, including the new image keys and Legacy grip. Exact native, packaged-app and receiver results for this release are recorded separately in [the release ledger](docs/validation-interaction-068.json). Earlier releases' CI results do not certify this release or the real website.
+The packaged suite passed **14 scenarios in three sequential rounds** on actual **macOS 15.8.2, 26.7.2 and 27.0.1**, including the new image keys and Legacy grip. Exact native, packaged-app and receiver results for this release are recorded separately in [the release ledger](docs/validation-interaction-068.json). Real ChatGPT and independent receiver checks remain separate; these results do not certify every OS update.
 
 
 **Operator feedback:** Teams desktop entire-screen sharing from macOS 26.6.2 (25G83), viewed in Chrome: Normal visible, Legacy hidden, but Pinyin candidates visible. Receiver retesting of the candidate-panel repair is pending; this is not a blanket privacy guarantee.

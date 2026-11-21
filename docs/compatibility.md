@@ -1,5 +1,13 @@
 # Observed compatibility
 
+## Version 0.6.8 image keys, resizing and history
+
+The [0.6.8 interaction update](interaction-068.md) passed **14 actual packaged-app UI scenarios in three sequential rounds** on **15.8.2 (24H232), 26.7.2 (25G332) and 27.0.1 (26A434)** at source commit `03c7d7a9975957faea1d9cd36330abe7e88465ce`. All hosts passed native regression (142 reported tests, two optional skips), 20 script tests, build/sign/register checks and deliberate native/UI failure controls. The local 26.6.2 clean clone also passed build/sign/register, native and script checks with source/build paths containing spaces. See [exact evidence and preserved first failures](validation-interaction-068.json) and [the complete CI run](https://github.com/naivee2000/capture-shield-lab/actions/runs/44825835486).
+
+Return/keypad Enter confirms preview images without sending, crops survive resizing/focus clicks, Legacy uses an in-window ordinary-arrow grip, and the duplicate native Sidebar control is removed. The macOS 27 first-drag test exposed background window movement; interactive crop/grip views now own their gestures without moving the shell. A macOS 15 DOM-only hydration test timed out once; physical pointer isolation was added without weakening its assertion, and final runs passed. The original timeout lacked sufficient state to prove its precise trigger.
+
+Local computer-use inspection was unavailable due to a tool failure; the isolated preview was closed normally. Real ChatGPT uploads/history, physical IME interaction and three independent Teams/Chrome receiver trials remain **not-tested for this release**. Native arrow/window metadata and offline UI success do not establish receiver privacy. Runtime minimum remains 15.6; only the recorded versions were tested, not all future updates. CI cleaned all main test runs; macOS 27 conservatively retained a busy negative-control workspace on its ephemeral runner instead of interrupting a process.
+
 ## Version 0.6.7 webpage presentation
 
 The [0.6.7 repair](presentation-067.md) passed **12 packaged-app UI scenarios in three sequential rounds** on actual **15.8.2 (24H232), 26.7.2 (25G332) and 27.0.1 (26A434)** hosts. Each also passed the native suite (136 reported tests, two optional skips), 20 script tests, package checks and deliberate negative controls. See [exact commits, hashes, first failures and cleanup evidence](validation-presentation-067.json).

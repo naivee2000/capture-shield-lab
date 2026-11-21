@@ -26,9 +26,10 @@
     },
     {
       "stage": "keypad-enter-second-image",
-      "classification": "under-investigation",
+      "classification": "application",
       "status": "fail",
-      "detail": "All three CI hosts passed 13/14 UI scenarios, but keypad Enter did not produce the second image. AppKit character normalization and bounded offline key/phase diagnostics added; fresh CI required."
+      "detail": "All three CI hosts passed 13/14 UI scenarios, but keypad Enter did not produce the second image. AppKit character normalization and bounded offline key/phase diagnostics added; fresh CI required.",
+      "resolution": "AppKit Return/Enter normalization and held-key recovery verified in all three final UI rounds on each of the three hosts."
     },
     {
       "stage": "missing-key-up",
@@ -71,7 +72,8 @@
       "classification": "fixture-under-investigation",
       "status": "fail",
       "run": 44820895960,
-      "detail": "Native hydration/restored-open test timed out on macOS 15; packaged UI round 1 passed 14/14. DOM-only fixtures now ignore unrelated physical mouse events and report ready/hydration/expanded state on failure; the original collapse assertion and timing limits remain."
+      "detail": "Native hydration/restored-open test timed out on macOS 15; packaged UI round 1 passed 14/14. DOM-only fixtures now ignore unrelated physical mouse events and report ready/hydration/expanded state on failure; the original collapse assertion and timing limits remain.",
+      "final_verification": "Unchanged behavioral expectations passed after DOM-only input isolation on all final hosts; the original timeout did not include enough state to establish its precise trigger."
     }
   ],
   "local": {
@@ -86,14 +88,14 @@
     },
     "native": {
       "status": "pass",
-      "reported_tests": 139,
+      "reported_tests": 142,
       "optional_skipped": 2,
       "process_counts": [
-        128,
+        131,
         10,
         1
       ],
-      "source_commit": "f31af163bfdd93d3eacac7116022fee4388c536e"
+      "source_commit": "03c7d7a9975957faea1d9cd36330abe7e88465ce"
     },
     "scripts": {
       "status": "pass",
@@ -110,48 +112,50 @@
     },
     "clean_clone": {
       "status": "pass",
-      "source_commit": "f31af163bfdd93d3eacac7116022fee4388c536e",
+      "source_commit": "03c7d7a9975957faea1d9cd36330abe7e88465ce",
       "space_containing_paths": true,
       "source_clean": true,
-      "native_reported_tests": 139,
+      "native_reported_tests": 142,
       "optional_skipped": 2,
       "native_process_counts": [
-        128,
+        131,
         10,
         1
       ],
       "script_tests": 20,
+      "doctor": "pass",
       "applications": [
         {
           "name": "CaptureShieldLab",
           "version": "0.6.8",
           "build": "17",
-          "commit": "f31af163bfdd",
+          "commit": "03c7d7a99759",
           "minimum": "15.6",
           "mach_o_minimum": "15.6",
-          "sha256": "53989c4e7ad9151a42e92c46271935e964992e840665001789fa1b23210d7c95",
+          "sha256": "b8e9e58b451f7517272cd4eef98f87942a2d1b140042a70862ebb0aff9b51d38",
           "signature": "pass"
         },
         {
           "name": "CaptureProbe",
           "version": "0.6.8",
           "build": "17",
-          "commit": "f31af163bfdd",
+          "commit": "03c7d7a99759",
           "minimum": "15.6",
           "mach_o_minimum": "15.6",
-          "sha256": "ce04fde6a997e4870541140d20e72bbe2e76efe5738267a05a14ef3894d3a42e",
+          "sha256": "8db389d00fca4428a5b745c8188c0027526539587feadb45adf6ec36679bef1c",
           "signature": "pass"
         }
       ]
     },
     "manual_packaged_ui": {
       "status": "not-tested",
-      "reason": "Computer-use session was interrupted before app inspection; isolated preview was closed normally. User QA042 and login data were preserved."
+      "reason": "The computer-use tool failed with an expired continuation before inspection. The isolated preview was closed normally and absence verified; existing QA042 and login data were preserved."
     },
     "git_integrity": {
       "status": "pass",
-      "appledouble_sidecars_moved": 17,
-      "actual_git_objects_modified": false
+      "appledouble_sidecars_isolated": 33,
+      "actual_git_objects_modified": false,
+      "note": "exFAT metadata may recur; only matching AppleDouble files were isolated. Dangling real Git objects were retained."
     },
     "first_mouse_regression": {
       "status": "pass",
@@ -159,7 +163,7 @@
     },
     "doctor": {
       "status": "pass",
-      "source_commit": "f31af163bfdd93d3eacac7116022fee4388c536e"
+      "source_commit": "03c7d7a9975957faea1d9cd36330abe7e88465ce"
     },
     "return_identity_regression": {
       "status": "pass",
@@ -174,20 +178,6 @@
       "initial_assertion_failures": 2,
       "assertions": "Grip and crop canvas opt out of AppKit window dragging; first mouse is accepted."
     }
-  },
-  "ci": {
-    "status": "fail",
-    "first_run": 44801291528,
-    "commit": "2a6525b7e364c5085c87d441143c75ed58d7403f",
-    "rounds_per_host": [
-      {
-        "round": 1,
-        "passed": 13,
-        "failed": 1,
-        "skipped": 0
-      }
-    ],
-    "reason": "Keypad Enter case failed on all three hosts; native initial-collapse race also failed on 15 and 26. No retries of unchanged code."
   },
   "real_chatgpt": {
     "status": "not-tested"
@@ -321,5 +311,296 @@
         "detail": "Initial-collapse timeout; input isolation and failure diagnostics added without reducing assertions."
       }
     }
-  ]
+  ],
+  "source_commit": "03c7d7a9975957faea1d9cd36330abe7e88465ce",
+  "first_ci": {
+    "status": "fail",
+    "first_run": 44801291528,
+    "commit": "2a6525b7e364c5085c87d441143c75ed58d7403f",
+    "rounds_per_host": [
+      {
+        "round": 1,
+        "passed": 13,
+        "failed": 1,
+        "skipped": 0
+      }
+    ],
+    "reason": "Keypad Enter case failed on all three hosts; native initial-collapse race also failed on 15 and 26. No retries of unchanged code."
+  },
+  "ci": {
+    "status": "pass",
+    "run": 44825835486,
+    "url": "https://github.com/naivee2000/capture-shield-lab/actions/runs/44825835486",
+    "source_commit": "03c7d7a9975957faea1d9cd36330abe7e88465ce",
+    "hosts": [
+      {
+        "schema": 1,
+        "run_id": "ui-ci-44825835486-15",
+        "environment": {
+          "architecture": "arm64",
+          "system": "15.8.2",
+          "source_commit": "03c7d7a9975957faea1d9cd36330abe7e88465ce",
+          "source_dirty": false,
+          "system_build": "24H232",
+          "swift": "swift-driver version: 1.127.15 Apple Swift version 6.2.4 (swiftlang-6.2.4.1.4 clang-1700.6.4.2)",
+          "sdk": "26.2",
+          "xcode": "Xcode 26.3",
+          "display": {
+            "ready": true,
+            "scale": 1,
+            "visible_height": 910,
+            "visible_width": 1344
+          }
+        },
+        "status": "pass",
+        "stage": "complete",
+        "rounds": [
+          {
+            "round": 1,
+            "exit_code": 0,
+            "passed": 14,
+            "failed": 0,
+            "skipped": 0,
+            "failures": []
+          },
+          {
+            "round": 2,
+            "exit_code": 0,
+            "passed": 14,
+            "failed": 0,
+            "skipped": 0,
+            "failures": []
+          },
+          {
+            "round": 3,
+            "exit_code": 0,
+            "passed": 14,
+            "failed": 0,
+            "skipped": 0,
+            "failures": []
+          }
+        ],
+        "real_capture": "not-tested",
+        "real_speech": "not-tested",
+        "real_chatgpt": "not-tested",
+        "receiver": "not-tested",
+        "application": {
+          "version": "0.6.8",
+          "build": "17",
+          "build_commit": "03c7d7a99759",
+          "minimum_system": "15.6"
+        },
+        "application_sha256": "0bf113e5f253aabfe538c02d96f7497ac3add20e34ae37f92d209fa131ccd19b",
+        "job_id": 136598075292,
+        "native": {
+          "status": "pass",
+          "reported_tests": 142,
+          "optional_skipped": 2,
+          "process_counts": [
+            131,
+            10,
+            1
+          ]
+        },
+        "script_tests": 20,
+        "build_sign_register": "pass",
+        "deployment_minimum": "15.6",
+        "native_negative_control": "pass",
+        "ui_negative_control": "pass",
+        "cleanup": {
+          "main": "cleaned",
+          "negative": "cleaned"
+        }
+      },
+      {
+        "schema": 1,
+        "run_id": "ui-ci-44825835486-26",
+        "environment": {
+          "architecture": "arm64",
+          "system": "26.7.2",
+          "source_commit": "03c7d7a9975957faea1d9cd36330abe7e88465ce",
+          "source_dirty": false,
+          "system_build": "25G332",
+          "swift": "swift-driver version: 1.148.6 Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)",
+          "sdk": "26.5",
+          "xcode": "Xcode 26.6",
+          "display": {
+            "ready": true,
+            "scale": 1,
+            "visible_height": 899,
+            "visible_width": 1344
+          }
+        },
+        "status": "pass",
+        "stage": "complete",
+        "rounds": [
+          {
+            "round": 1,
+            "exit_code": 0,
+            "passed": 14,
+            "failed": 0,
+            "skipped": 0,
+            "failures": []
+          },
+          {
+            "round": 2,
+            "exit_code": 0,
+            "passed": 14,
+            "failed": 0,
+            "skipped": 0,
+            "failures": []
+          },
+          {
+            "round": 3,
+            "exit_code": 0,
+            "passed": 14,
+            "failed": 0,
+            "skipped": 0,
+            "failures": []
+          }
+        ],
+        "real_capture": "not-tested",
+        "real_speech": "not-tested",
+        "real_chatgpt": "not-tested",
+        "receiver": "not-tested",
+        "application": {
+          "version": "0.6.8",
+          "build": "17",
+          "build_commit": "03c7d7a99759",
+          "minimum_system": "15.6"
+        },
+        "application_sha256": "ad9b9bfe1c0b395495aa874813fe1b40485ce69801ad51dc7b442be5b091c0b0",
+        "job_id": 136598075213,
+        "native": {
+          "status": "pass",
+          "reported_tests": 142,
+          "optional_skipped": 2,
+          "process_counts": [
+            131,
+            10,
+            1
+          ]
+        },
+        "script_tests": 20,
+        "build_sign_register": "pass",
+        "deployment_minimum": "15.6",
+        "native_negative_control": "pass",
+        "ui_negative_control": "pass",
+        "cleanup": {
+          "main": "cleaned",
+          "negative": "cleaned"
+        }
+      },
+      {
+        "schema": 1,
+        "run_id": "ui-ci-44825835486-27",
+        "environment": {
+          "architecture": "arm64",
+          "system": "27.0.1",
+          "source_commit": "03c7d7a9975957faea1d9cd36330abe7e88465ce",
+          "source_dirty": false,
+          "system_build": "26A434",
+          "swift": "swift-driver version: 1.168.6 Apple Swift version 6.4.2 (swiftlang-6.4.2.1.9 clang-2100.4.1.1)",
+          "sdk": "27.2",
+          "xcode": "Xcode 27.2",
+          "display": {
+            "ready": true,
+            "scale": 1,
+            "visible_height": 899,
+            "visible_width": 1344
+          }
+        },
+        "status": "pass",
+        "stage": "complete",
+        "rounds": [
+          {
+            "round": 1,
+            "exit_code": 0,
+            "passed": 14,
+            "failed": 0,
+            "skipped": 0,
+            "failures": []
+          },
+          {
+            "round": 2,
+            "exit_code": 0,
+            "passed": 14,
+            "failed": 0,
+            "skipped": 0,
+            "failures": []
+          },
+          {
+            "round": 3,
+            "exit_code": 0,
+            "passed": 14,
+            "failed": 0,
+            "skipped": 0,
+            "failures": []
+          }
+        ],
+        "real_capture": "not-tested",
+        "real_speech": "not-tested",
+        "real_chatgpt": "not-tested",
+        "receiver": "not-tested",
+        "application": {
+          "version": "0.6.8",
+          "build": "17",
+          "build_commit": "03c7d7a99759",
+          "minimum_system": "15.6"
+        },
+        "application_sha256": "81eaae352d0ed06d6e04ae359d7164aee3f5041ae78cd734b9ae874d328601cc",
+        "job_id": 136598074783,
+        "native": {
+          "status": "pass",
+          "reported_tests": 142,
+          "optional_skipped": 2,
+          "process_counts": [
+            131,
+            10,
+            1
+          ]
+        },
+        "script_tests": 20,
+        "build_sign_register": "pass",
+        "deployment_minimum": "15.6",
+        "native_negative_control": "pass",
+        "ui_negative_control": "pass",
+        "cleanup": {
+          "main": "cleaned",
+          "negative": "retained-open-files-on-ephemeral-runner"
+        }
+      }
+    ]
+  },
+  "tested_source_objects": {
+    "Sources": "0bf5e6fea12177fec9e452ad38ee2d35e525534c",
+    "Tests": "2f25a930c755848000ba4c1b4b21eecd2cf4dc4b",
+    "scripts": "00acd5a25c9b025f5f089e2cb6c1753b358945d2",
+    ".github": "94ba0a5c0eb77d8c13911cbdb86d9d47ed642b1e",
+    ".agents": "a4743a296aa632cc3da4aa7cbec52e6386db3fb1",
+    "Assets": "0f7dc5417b5c45f1201bbb9010b7ac15e734bff8",
+    "Package.swift": "47c4b15ca9807fd55ea47074e859a38845718cc4"
+  },
+  "cleanup": {
+    "status": "pass",
+    "run_id": "ui068-dev",
+    "reclaimed_allocated_bytes": 1884291072,
+    "image_removed": true,
+    "mount_absent": true,
+    "test_processes_absent": true,
+    "test_registrations_absent": true,
+    "temporary_attachments_absent": true,
+    "qa042_preserved": true,
+    "retained": [
+      "technical summary",
+      "ownership manifest",
+      "source tests and documentation",
+      "existing QA042 app and login session"
+    ]
+  },
+  "delivery": {
+    "tested_source_commit": "03c7d7a9975957faea1d9cd36330abe7e88465ce",
+    "final_delta": "Documentation and sanitized validation evidence only; application, test, script, asset and workflow objects unchanged.",
+    "repository_visibility": "public"
+  }
 }

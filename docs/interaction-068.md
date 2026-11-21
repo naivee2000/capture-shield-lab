@@ -35,6 +35,8 @@ bash scripts/test-ui.sh
 
 The packaged suite runs 14 scenarios three sequential rounds per available actual OS, without failure retries. [UI prerequisites and cleanup](ui-validation.md) apply. The review targets are actual macOS 15.8.2, 26 and 27 hosts; exact patch/build, commit and counts go in [the release ledger](validation-interaction-068.json). Missing environments remain `not-tested`.
 
+Final source `03c7d7a9975957faea1d9cd36330abe7e88465ce` passed all three rounds on **15.8.2 (24H232), 26.7.2 (25G332) and 27.0.1 (26A434)**: 126 successful UI scenario executions, no skipped UI cases or failure retries. Native, script, signed-package and deliberate-negative checks also passed. The local clean clone on 26.6.2 passed build/sign/register and regression; local manual computer-use inspection could not finish because its tool failed. This is independent of the completed hosted packaged UI checks.
+
 ## Sender and receiver acceptance
 
 On the updated sender, preserve a harmless existing draft and image. Add a full screenshot with Return, a crop with keypad Enter, resize after selecting a crop, add several images, delete/re-add, cancel and recover from a failed upload. Check crop pixels, counts, unchanged draft and no automatic sends. Test held Return while the preview/handoff is active; release before using normal chat Return. Physical Pinyin composition must retain normal candidate selection.
